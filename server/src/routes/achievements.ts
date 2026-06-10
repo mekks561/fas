@@ -1,40 +1,125 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { authenticate, AuthRequest } from '../middleware/auth';
+import { validate, unlockAchievementSchema } from '../middleware/validation';
+import { logger } from '../middleware/logger';
+import { achievementService } from '../services/achievement';
 
 const router = Router();
 
-// 成就列表
-const ACHIEVEMENTS = [
-  { id: 'first_kill', name: '首杀', description: '击杀一个敌人' },
-  { id: 'kill_100', name: '百人斩', description: '累计击杀100个敌人' },
-  { id: 'wave_10', name: '波次达人', description: '到达第10波' },
-  { id: 'score_10000', name: '万分大师', description: '单局得分超过10000' },
-  { id: 'level_5', name: '升级专家', description: '角色等级达到5级' }
-];
+/**
+ * @route GET /api/achievements
+ * @desc 获取用户成就列表
+ * @access Private
+ */
+router.get(
+  '/',
+  authenticate,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.userId;
 
-// 获取成就列表
-router.get('/', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    data: {
-      achievements: ACHIEVEMENTS.map(a => ({
-        ...a,
-        unlocked: false,
-        unlockedAt: null
-      }))
-    }
-  });
-});
+      logger.info('获取用户成就', { userId });
 
-// 解锁成就
-router.post('/unlock', (req: Request, res: Response) => {
-  const { achievementId } = req.body;
-  
-  res.json({
-    success: true,
-    data: {
-      achievement: ACHIEVEMENTS.find(a => a.id === achievementId)
+      const achievements = await achievementService.getUserAchievements(userId);
+
+      logger.info('成就获取成功', { userId, count: achievements.length });
+
+      res.json({
+        success: true,
+        data: {
+          achievements
+        }
+      });
+    } catch (error) {
+      logger.error('获取成就错误', { error });
+      next(error);
     }
-  });
-});
+  }
+);
+
+/**
+ * @route POST /api/achievements/unlock
+ * @desc 解锁成就
+ * @access Private
+ */
+router.post(
+  '/unlock',
+  authenticate,
+  validate(unlockAchievementSchema),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.userId;
+      const { achievementId } = req.body;
+
+      logger.info('解锁成就', { userId, achievementId });
+
+      const result = await achievementService.unlockAchievement(
+        userId,
+        achievementId
+      );
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_ACHIEVEMENT',
+            message: '无效的成就ID'
+          }
+        });
+      }
+
+      if (result.alreadyUnlocked) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'ALREADY_UNLOCKED',
+            message: '该成就已经解锁'
+          }
+        });
+      }
+
+      logger.info('成就解锁成功', { userId, achievementId });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          achievement: result.achievement
+        }
+      });
+    } catch (error) {
+      logger.error('解锁成就错误', { error });
+      next(error);
+    }
+  }
+);
+
+/**
+ * @route GET /api/achievements/stats
+ * @desc 获取用户成就统计
+ * @access Private
+ */
+router.get(
+  '/stats',
+  authenticate,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.userId;
+
+      logger.info('获取成就统计', { userId });
+
+      const stats = await achievementService.getAchievementStats(userId);
+
+      logger.info('成就统计获取成功', { userId, stats });
+
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      logger.error('获取成就统计错误', { error });
+      next(error);
+    }
+  }
+);
 
 export default router;
