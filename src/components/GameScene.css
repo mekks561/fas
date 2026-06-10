@@ -1,0 +1,364 @@
+.scene-container {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background-color: #000;
+}
+
+.babylon-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* HUD 样式 */
+.hud-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: white;
+  font-family: Arial, sans-serif;
+  z-index: 10;
+}
+
+/* 速度显示 */
+.speed-panel {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 20, 40, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 2px solid rgba(0, 212, 255, 0.5);
+  pointer-events: auto;
+}
+
+/* 加速显示 */
+.boost-panel {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  background: rgba(0, 20, 40, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 150, 0, 0.5);
+  pointer-events: auto;
+}
+
+/* 得分显示 */
+.score-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 20, 40, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 2px solid rgba(0, 212, 255, 0.5);
+  pointer-events: auto;
+}
+
+/* HUD 通用样式 */
+.hud-label {
+  font-size: 14px;
+  color: #00d4ff;
+  margin-bottom: 5px;
+}
+
+.hud-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: white;
+}
+
+/* 加速指示器 */
+.boost-indicator {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ff9600;
+  text-align: center;
+}
+
+.boost-indicator.active {
+  color: #ff3300;
+  animation: pulse 0.5s infinite;
+}
+
+/* 准星 */
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background-color: lime;
+  pointer-events: auto;
+}
+
+.crosshair::before {
+  width: 2px;
+  height: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.crosshair::after {
+  width: 20px;
+  height: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 加载界面样式 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 10, 20, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.loading-container {
+  text-align: center;
+  background: rgba(0, 30, 60, 0.8);
+  padding: 40px;
+  border-radius: 15px;
+  border: 2px solid rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+  max-width: 400px;
+  width: 90%;
+}
+
+.loading-text {
+  color: #00d4ff;
+  font-size: 24px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  background: rgba(0, 20, 40, 0.7);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid rgba(0, 212, 255, 0.5);
+  margin-bottom: 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00d4ff, #0080ff);
+  transition: width 0.3s ease;
+  border-radius: 8px;
+}
+
+.loading-percentage {
+  color: #fff;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* 错误界面样式 */
+.error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(30, 0, 10, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.error-container {
+  text-align: center;
+  background: rgba(60, 0, 20, 0.8);
+  padding: 40px;
+  border-radius: 15px;
+  border: 2px solid rgba(255, 0, 0, 0.6);
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+}
+
+.error-title {
+  color: #ff3300;
+  font-size: 28px;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.error-message {
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 30px;
+  line-height: 1.5;
+}
+
+/* 暂停界面样式 */
+.pause-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 10, 20, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.pause-container {
+  text-align: center;
+  background: rgba(0, 30, 60, 0.8);
+  padding: 40px;
+  border-radius: 15px;
+  border: 2px solid rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+  max-width: 400px;
+  width: 90%;
+}
+
+.pause-title {
+  color: #00d4ff;
+  font-size: 28px;
+  margin-bottom: 30px;
+  font-weight: bold;
+}
+
+/* 按钮样式 */
+.restart-button, .resume-button, .stats-toggle-button {
+  background: linear-gradient(135deg, #00d4ff, #0080ff);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+  pointer-events: auto;
+  margin: 0 10px;
+}
+
+.restart-button:hover, .resume-button:hover, .stats-toggle-button:hover {
+  background: linear-gradient(135deg, #0080ff, #00d4ff);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.restart-button:active, .resume-button:active, .stats-toggle-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
+}
+
+.restart-button:focus, .resume-button:focus, .stats-toggle-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.4);
+}
+
+/* 统计切换按钮特殊样式 */
+.stats-toggle-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 20px;
+  z-index: 1000;
+}
+
+/* 性能统计面板样式 */
+.performance-stats {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 20, 40, 0.9);
+  padding: 15px;
+  border-radius: 10px;
+  border: 2px solid rgba(0, 212, 255, 0.5);
+  color: white;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  z-index: 1000;
+  min-width: 200px;
+  backdrop-filter: blur(5px);
+}
+
+.stats-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #00d4ff;
+  margin-bottom: 10px;
+  text-align: center;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+  padding-bottom: 5px;
+}
+
+.stats-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.stats-label {
+  color: #00d4ff;
+  font-weight: bold;
+}
+
+.stats-value {
+  color: white;
+  font-weight: bold;
+  text-align: right;
+}
+
+/* FPS颜色状态 */
+.stats-value.low {
+  color: #ff3300;
+}
+
+.stats-value.medium {
+  color: #ff9600;
+}
+
+.stats-value.high {
+  color: #00ff00;
+}
