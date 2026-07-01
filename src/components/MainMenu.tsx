@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter } from './ui/shadcn';
 import { Badge } from './ui/shadcn';
 import { Play, ArrowRight, Settings, Star, Trophy, Medal } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
+import { useTranslation } from 'react-i18next';
 
 interface MainMenuProps {
   onStartGame: () => void;
@@ -25,13 +26,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   
   const playerScore = useGameStore((state) => state.player.score);
   const playerLevel = useGameStore((state) => state.player.level);
-  
+  const { t } = useTranslation();
+
   const menuOptions = useMemo(() => [
-    { id: 'start', label: '开始游戏', icon: Play, action: onStartGame, primary: true },
-    ...(hasSavedGame ? [{ id: 'continue', label: '继续游戏', icon: ArrowRight, action: onContinueGame }] : []),
-    { id: 'settings', label: '设置', icon: Settings, action: onSettings },
-    ...(onCredits ? [{ id: 'credits', label: '制作团队', icon: Star, action: onCredits }] : []),
-  ], [hasSavedGame, onStartGame, onContinueGame, onSettings, onCredits]);
+    { id: 'start', label: t('menu.startGame'), icon: Play, action: onStartGame, primary: true },
+    ...(hasSavedGame ? [{ id: 'continue', label: t('menu.continueGame'), icon: ArrowRight, action: onContinueGame }] : []),
+    { id: 'settings', label: t('menu.settings'), icon: Settings, action: onSettings },
+    ...(onCredits ? [{ id: 'credits', label: t('menu.credits'), icon: Star, action: onCredits }] : []),
+  ], [hasSavedGame, onStartGame, onContinueGame, onSettings, onCredits, t]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -102,10 +104,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             {hasSavedGame && (
               <div className="mt-4 flex items-center justify-center gap-2">
                 <Badge variant="outline" className="border-purple-500 text-purple-300">
-                  当前进度: Level {playerLevel}
+                  {t('menu.currentProgress')}: Level {playerLevel}
                 </Badge>
                 <Badge variant="outline" className="border-yellow-500 text-yellow-300">
-                  Score: {playerScore.toLocaleString()}
+                  {t('menu.score')}: {playerScore.toLocaleString()}
                 </Badge>
               </div>
             )}
@@ -148,12 +150,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
         <CardFooter className="flex flex-col items-center gap-4 pt-0">
           <p className="text-slate-500 text-xs">
-            Press W/S or Arrow Keys to navigate, Enter to select
+            {t('menu.navigateHint')}
           </p>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 text-yellow-400">
               <Trophy className="w-4 h-4" />
-              <span className="text-xs font-medium">Best: {playerScore.toLocaleString()}</span>
+              <span className="text-xs font-medium">{t('menu.best')}: {playerScore.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-2 text-purple-400">
               <Medal className="w-4 h-4" />
@@ -161,7 +163,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
           </div>
           <p className="text-slate-600 text-xs mt-2">
-            Version 1.0.0 | PlayCanvas Engine
+            {t('common.version')} | PlayCanvas Engine
           </p>
         </CardFooter>
       </Card>

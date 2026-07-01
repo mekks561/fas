@@ -184,8 +184,9 @@ describe('TouchControlOverlay', () => {
         />
       );
 
-      const container = screen.getByRole('button', { name: /fire/i }).closest('.touch-controls');
-      expect(container).toHaveClass('touch-controls');
+      const fireButton = screen.getByRole('button', { name: /fire/i });
+      const container = fireButton.closest('.pointer-events-none');
+      expect(container).toHaveClass('pointer-events-none');
     });
   });
 });

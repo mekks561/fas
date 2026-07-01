@@ -1,0 +1,16 @@
+{
+  "id": "shop-item-12",
+  "name": "无敌护盾（1个）",
+  "description": "5秒内无敌的稀有消耗品。",
+  "type": "consumable",
+  "subtype": "invincible",
+  "price": 5000,
+  "currency": "credits",
+  "attributes": {
+    "duration": 5,
+    "count": 1
+  },
+  "icon": "icon-shield",
+  "rarity": "epic",
+  "level": 10
+}

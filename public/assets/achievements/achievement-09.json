@@ -1,0 +1,17 @@
+{
+  "id": "achievement-09",
+  "name": "歼灭者",
+  "description": "累计摧毁1000个敌方单位。",
+  "category": "combat",
+  "condition": {
+    "type": "kill_count",
+    "count": 1000
+  },
+  "rewards": {
+    "experience": 2000,
+    "credits": 10000,
+    "icon": "icon-crosshair"
+  },
+  "icon": "icon-crosshair",
+  "rarity": "epic"
+}

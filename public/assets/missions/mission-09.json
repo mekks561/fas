@@ -1,0 +1,31 @@
+{
+  "id": "mission-09",
+  "name": "潜入行动",
+  "description": "驾驶隐形飞船潜入敌方区域，不被发现地抵达目标点。",
+  "type": "main",
+  "category": "stealth",
+  "objectives": [
+    {
+      "type": "reach",
+      "target": "enemy-zone",
+      "undetected": true
+    },
+    {
+      "type": "collect",
+      "target": "intel",
+      "count": 3,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 1000,
+    "credits": 4000,
+    "items": [
+      "ship-stealth"
+    ]
+  },
+  "prerequisites": [
+    "mission-07"
+  ],
+  "chapter": "story-chapter-03"
+}

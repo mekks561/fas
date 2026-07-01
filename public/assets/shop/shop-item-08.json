@@ -1,0 +1,18 @@
+{
+  "id": "shop-item-08",
+  "name": "导弹发射器",
+  "description": "追踪导弹武器，自动锁定目标。",
+  "type": "weapon",
+  "subtype": "missile",
+  "price": 4000,
+  "currency": "credits",
+  "attributes": {
+    "damage": 50,
+    "fireRate": 1,
+    "homing": true,
+    "ammo": 20
+  },
+  "icon": "icon-missile",
+  "rarity": "common",
+  "level": 3
+}

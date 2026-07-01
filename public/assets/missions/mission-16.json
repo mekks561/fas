@@ -1,0 +1,32 @@
+{
+  "id": "mission-16",
+  "name": "稀有材料",
+  "description": "收集稀有的合金材料，用于研发新型武器。",
+  "type": "side",
+  "category": "collect",
+  "objectives": [
+    {
+      "type": "collect",
+      "target": "rare-alloy",
+      "count": 8,
+      "current": 0
+    },
+    {
+      "type": "destroy",
+      "target": "enemy-tank",
+      "count": 4,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 1000,
+    "credits": 5000,
+    "items": [
+      "weapon-plasma"
+    ]
+  },
+  "prerequisites": [
+    "mission-08"
+  ],
+  "chapter": null
+}

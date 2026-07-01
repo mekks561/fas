@@ -1,0 +1,30 @@
+{
+  "id": "mission-19",
+  "name": "极限生存",
+  "description": "在 Boss 级敌人的攻击下存活10分钟。",
+  "type": "side",
+  "category": "survival",
+  "objectives": [
+    {
+      "type": "survive",
+      "duration": 600,
+      "current": 0
+    },
+    {
+      "type": "boss",
+      "target": "boss-overlord",
+      "survive": true
+    }
+  ],
+  "rewards": {
+    "experience": 3000,
+    "credits": 15000,
+    "items": [
+      "skill-rebirth"
+    ]
+  },
+  "prerequisites": [
+    "mission-17"
+  ],
+  "chapter": null
+}

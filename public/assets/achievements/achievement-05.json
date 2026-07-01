@@ -1,0 +1,17 @@
+{
+  "id": "achievement-05",
+  "name": "银河救世主",
+  "description": "完成第五章剧情\"最终决战\"，击败 Overlord。",
+  "category": "story",
+  "condition": {
+    "type": "story_complete",
+    "target": "story-chapter-05"
+  },
+  "rewards": {
+    "experience": 5000,
+    "credits": 20000,
+    "icon": "icon-star"
+  },
+  "icon": "icon-star",
+  "rarity": "legendary"
+}

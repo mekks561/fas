@@ -1,0 +1,27 @@
+{
+  "id": "mission-01",
+  "name": "边境侦察",
+  "description": "摧毁出现在边境的敌方侦察机部队，保护联邦哨站。",
+  "type": "main",
+  "category": "destroy",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "enemy-scout",
+      "count": 4,
+      "current": 0
+    },
+    {
+      "type": "survive",
+      "duration": 60,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 200,
+    "credits": 800,
+    "items": []
+  },
+  "prerequisites": [],
+  "chapter": "story-chapter-01"
+}

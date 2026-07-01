@@ -1,0 +1,17 @@
+{
+  "id": "achievement-03",
+  "name": "幽灵特工",
+  "description": "完成第三章剧情\"深入敌后\"。",
+  "category": "story",
+  "condition": {
+    "type": "story_complete",
+    "target": "story-chapter-03"
+  },
+  "rewards": {
+    "experience": 500,
+    "credits": 2000,
+    "icon": "icon-achieve"
+  },
+  "icon": "icon-achieve",
+  "rarity": "rare"
+}

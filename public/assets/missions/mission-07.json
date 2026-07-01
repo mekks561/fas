@@ -1,0 +1,25 @@
+{
+  "id": "mission-07",
+  "name": "Boss战：哨兵",
+  "description": "击败敌方护卫舰队的指挥官——Sentinel。",
+  "type": "main",
+  "category": "boss",
+  "objectives": [
+    {
+      "type": "boss",
+      "target": "boss-sentinel",
+      "defeat": false
+    }
+  ],
+  "rewards": {
+    "experience": 1500,
+    "credits": 6000,
+    "items": [
+      "ship-cruiser"
+    ]
+  },
+  "prerequisites": [
+    "mission-06"
+  ],
+  "chapter": "story-chapter-02"
+}

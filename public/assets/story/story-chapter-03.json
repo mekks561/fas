@@ -1,0 +1,51 @@
+{
+  "id": "story-chapter-03",
+  "number": 3,
+  "title": "深入敌后",
+  "titleEn": "Behind Enemy Lines",
+  "description": "联邦情报部门发现敌方指挥系统位于敌方腹地。你必须驾驶隐形飞船潜入敌方区域，收集情报并破坏敌方指挥系统。",
+  "background": "通过破解的敌方通讯，情报部门定位了敌方指挥舰的位置。一次高风险的潜行任务即将开始，成功与否将决定整个战争的走向。",
+  "dialogueSequence": [
+    {
+      "speaker": "intelligence_officer",
+      "text": "我们锁定了敌方指挥舰的位置，但它在敌方腹地。",
+      "emotion": "serious"
+    },
+    {
+      "speaker": "commander",
+      "text": "这次任务需要潜行，不能被发现的。",
+      "emotion": "serious"
+    },
+    {
+      "speaker": "pilot",
+      "text": "隐形飞船已经准备好，我可以做到。",
+      "emotion": "confident"
+    },
+    {
+      "speaker": "intelligence_officer",
+      "text": "收集指挥系统的数据后立即撤离，不要恋战。",
+      "emotion": "cautious"
+    },
+    {
+      "speaker": "pilot",
+      "text": "收到，我会像幽灵一样来去无踪。",
+      "emotion": "determined"
+    }
+  ],
+  "objectives": [
+    "潜入敌方区域不被发现",
+    "收集敌方指挥系统情报",
+    "摧毁敌方指挥舰",
+    "安全撤离"
+  ],
+  "rewards": {
+    "experience": 2500,
+    "credits": 10000,
+    "unlocks": [
+      "ship-stealth",
+      "weapon-sniper",
+      "mission-10"
+    ],
+    "achievement": "achievement-03"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "mission-02",
+  "name": "护航行动",
+  "description": "护送联邦运输船安全抵达目的地，途中将遭遇敌方拦截。",
+  "type": "main",
+  "category": "escort",
+  "objectives": [
+    {
+      "type": "escort",
+      "target": "transport-ship",
+      "healthThreshold": 50
+    },
+    {
+      "type": "destroy",
+      "target": "enemy-fighter",
+      "count": 6,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 350,
+    "credits": 1500,
+    "items": [
+      "powerup-shield"
+    ]
+  },
+  "prerequisites": [
+    "mission-01"
+  ],
+  "chapter": "story-chapter-01"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "achievement-14",
+  "name": "生存专家",
+  "description": "在生存模式中存活10分钟。",
+  "category": "skill",
+  "condition": {
+    "type": "survival_time",
+    "duration": 600
+  },
+  "rewards": {
+    "experience": 1000,
+    "credits": 5000,
+    "icon": "icon-clock"
+  },
+  "icon": "icon-clock",
+  "rarity": "epic"
+}

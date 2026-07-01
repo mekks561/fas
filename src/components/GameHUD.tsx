@@ -1,11 +1,6 @@
-/**
- * GameHUD 组件
- * 游戏界面HUD显示
- */
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { HealthBar, ProgressBar, Text, Icon } from './ui';
-import './GameHUD.css';
+import { Progress } from './ui/shadcn';
+import { Heart, Shield, Trophy, Users, Skull, Zap, Sword, Target, Star, Gem, Flame, ShieldCheck } from 'lucide-react';
 
 interface HUDProps {
     health: number;
@@ -52,36 +47,27 @@ interface SkillInfo {
     isActive: boolean;
 }
 
-interface StatusBarProps {
+const StatusBar: React.FC<{
     value: number;
     maxValue: number;
     label: string;
-    color: 'red' | 'blue' | 'green' | 'yellow' | 'purple';
+    color: string;
     flash?: boolean;
-}
-
-const StatusBar: React.FC<StatusBarProps> = ({
-    value,
-    maxValue,
-    label,
-    color,
-    flash
-}) => {
+}> = ({ value, maxValue, label, color, flash }) => {
+    const percentage = Math.max(0, (value / maxValue) * 100);
+    
     return (
-        <div className="hud-status-bar">
-            <div className="hud-status-bar-label">{label}</div>
-            <div className="hud-status-bar-bar">
-                <ProgressBar
-                    value={value}
-                    maxValue={maxValue}
-                    color={color}
-                    size="small"
-                    animation={flash ? 'pulse' : 'none'}
+        <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">{label}</span>
+            <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden">
+                <div
+                    className={`h-full transition-all duration-300 ${flash ? 'animate-pulse' : ''}`}
+                    style={{ width: `${percentage}%`, backgroundColor: color }}
                 />
             </div>
-            <div className="hud-status-bar-value">
+            <span className="text-xs font-bold text-slate-300 w-16 text-right">
                 {Math.floor(value)}/{maxValue}
-            </div>
+            </span>
         </div>
     );
 };
@@ -96,20 +82,19 @@ const BossHealthBar: React.FC<{
     }, [health, maxHealth]);
 
     return (
-        <div className="hud-boss-bar">
-            <div className="hud-boss-bar-header">
-                <Icon name="skull" size={20} color="#ef4444" />
-                <Text variant="h6" color="white" bold>
-                    {name}
-                </Text>
+        <div className="bg-slate-900/80 backdrop-blur-sm border border-red-500/30 rounded-xl p-3">
+            <div className="flex items-center gap-2 mb-2">
+                <Skull className="w-5 h-5 text-red-500" />
+                <span className="text-sm font-bold text-white">{name}</span>
             </div>
-            <div className="hud-boss-bar-track">
+            <div className="h-6 bg-slate-800 rounded-full overflow-hidden relative">
                 <div
-                    className="hud-boss-bar-fill"
+                    className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
                     style={{ width: `${percentage}%` }}
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
             </div>
-            <div className="hud-boss-bar-text">
+            <div className="text-center text-xs text-red-400 mt-1 font-bold">
                 {Math.floor(health)} / {maxHealth}
             </div>
         </div>
@@ -119,11 +104,11 @@ const BossHealthBar: React.FC<{
 const EffectIndicator: React.FC<{ effect: ActiveEffect }> = ({ effect }) => {
     const iconName = useMemo(() => {
         switch (effect.type.toLowerCase()) {
-            case 'shield': return 'shield';
-            case 'speed': return 'bolt';
-            case 'fire': return 'fire';
-            case 'invincible': return 'star';
-            default: return 'gem';
+            case 'shield': return ShieldCheck;
+            case 'speed': return Zap;
+            case 'fire': return Flame;
+            case 'invincible': return Star;
+            default: return Gem;
         }
     }, [effect.type]);
 
@@ -131,13 +116,18 @@ const EffectIndicator: React.FC<{ effect: ActiveEffect }> = ({ effect }) => {
         return (effect.remainingTime / effect.duration) * 100;
     }, [effect.remainingTime, effect.duration]);
 
+    const IconComponent = iconName;
+
     return (
-        <div className="hud-effect-item">
-            <Icon name={iconName as any} size={16} color="#a855f7" />
-            <span className="hud-effect-name">{effect.type}</span>
-            <div className="hud-effect-bar">
+        <div className="flex flex-col items-center gap-1 bg-slate-800/80 rounded-lg p-2">
+            <div className="relative">
+                <IconComponent className="w-5 h-5 text-purple-400" />
+                <div className="absolute inset-0 bg-purple-400/30 rounded-full blur-sm" />
+            </div>
+            <span className="text-xs text-slate-300">{effect.type}</span>
+            <div className="w-full h-1 bg-slate-700 rounded-full overflow-hidden">
                 <div
-                    className="hud-effect-bar-fill"
+                    className="h-full bg-purple-400 transition-all duration-300"
                     style={{ width: `${progress}%` }}
                 />
             </div>
@@ -147,25 +137,23 @@ const EffectIndicator: React.FC<{ effect: ActiveEffect }> = ({ effect }) => {
 
 const WeaponDisplay: React.FC<{ weapon: WeaponInfo }> = ({ weapon }) => {
     return (
-        <div className="hud-weapon-display">
-            <Icon name="sword" size={18} color="#fbbf24" />
-            <div className="hud-weapon-info">
-                <Text variant="caption" bold color="white">
-                    {weapon.name}
-                </Text>
-                <div className="hud-weapon-stats">
-                    <span className="hud-weapon-stat">
-                        <Icon name="target" size={12} color="#ef4444" />
+        <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-3 flex items-center gap-3">
+            <Sword className="w-5 h-5 text-yellow-400" />
+            <div className="flex-1">
+                <div className="text-sm font-bold text-white">{weapon.name}</div>
+                <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1 text-red-400">
+                        <Target className="w-3 h-3" />
                         {weapon.damage}
                     </span>
-                    <span className="hud-weapon-stat">
-                        <Icon name="bolt" size={12} color="#fbbf24" />
+                    <span className="flex items-center gap-1 text-yellow-400">
+                        <Zap className="w-3 h-3" />
                         {(60000 / weapon.fireRate).toFixed(1)}/s
                     </span>
                 </div>
             </div>
             {weapon.ammo !== undefined && (
-                <div className="hud-weapon-ammo">
+                <div className="text-sm font-bold text-blue-400 bg-blue-400/20 rounded-lg px-2 py-1">
                     {weapon.ammo}/{weapon.maxAmmo}
                 </div>
             )}
@@ -175,11 +163,9 @@ const WeaponDisplay: React.FC<{ weapon: WeaponInfo }> = ({ weapon }) => {
 
 const SkillBar: React.FC<{ skills: SkillInfo[]; onActivate?: (index: number) => void }> = ({ skills, onActivate }) => {
     return (
-        <div className="hud-skill-bar">
-            <Text variant="caption" color="cyan" bold>
-                SKILLS
-            </Text>
-            <div className="hud-skill-items">
+        <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-3">
+            <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Skills</div>
+            <div className="flex items-center gap-2">
                 {skills.map((skill, index) => {
                     const cooldownPercent = skill.cooldown > 0 ? (skill.cooldown / skill.maxCooldown) * 100 : 0;
                     const isReady = skill.cooldown <= 0 && !skill.isActive;
@@ -187,17 +173,29 @@ const SkillBar: React.FC<{ skills: SkillInfo[]; onActivate?: (index: number) => 
                     return (
                         <button
                             key={index}
-                            className={`hud-skill-item ${skill.isActive ? 'active' : ''} ${!isReady ? 'cooldown' : ''}`}
+                            className={`relative w-14 h-14 rounded-xl font-bold text-sm transition-all ${
+                                skill.isActive
+                                    ? 'bg-yellow-500/30 border-2 border-yellow-400'
+                                    : isReady
+                                        ? 'bg-purple-500/30 border-2 border-purple-400 hover:bg-purple-500/50'
+                                        : 'bg-slate-700/50 border-2 border-slate-600 opacity-60'
+                            }`}
                             onClick={() => onActivate?.(index)}
                             disabled={!isReady}
                         >
-                            <Icon name={skill.icon as any} size={20} color={skill.isActive ? '#fbbf24' : isReady ? '#a855f7' : '#6b7280'} />
-                            <span className="hud-skill-key">{skill.keyBinding}</span>
+                            <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 text-xs ${
+                                isReady ? 'text-white' : 'text-slate-500'
+                            }`}>
+                                {skill.keyBinding}
+                            </span>
                             {skill.cooldown > 0 && (
-                                <div className="hud-skill-cooldown-overlay" style={{ height: `${cooldownPercent}%` }} />
+                                <div
+                                    className="absolute bottom-0 left-0 right-0 bg-slate-900/80 rounded-b-xl transition-all duration-100"
+                                    style={{ height: `${cooldownPercent}%` }}
+                                />
                             )}
                             {skill.isActive && (
-                                <div className="hud-skill-active-glow" />
+                                <div className="absolute inset-0 bg-yellow-400/20 rounded-xl animate-pulse" />
                             )}
                         </button>
                     );
@@ -215,9 +213,9 @@ const FPSDisplay: React.FC<{ fps: number }> = ({ fps }) => {
     }, [fps]);
 
     return (
-        <div className="hud-fps">
-            <Icon name="bolt" size={14} color={color} />
-            <span style={{ color }}>{Math.round(fps)} FPS</span>
+        <div className="flex items-center gap-1 text-xs font-bold" style={{ color }}>
+            <Zap className="w-3 h-3" />
+            {Math.round(fps)} FPS
         </div>
     );
 };
@@ -257,92 +255,90 @@ export const GameHUD: React.FC<HUDProps> = ({
     }, [health, maxHealth]);
 
     return (
-        <div className="hud-container">
-            {/* Top Left - Health & Shield */}
-            <div className="hud-section hud-section--top-left">
-                <HealthBar
-                    value={health}
-                    maxValue={maxHealth}
-                    label="HP"
-                    color="red"
-                    size="small"
-                    animation={isLowHealth ? 'pulse' : 'none'}
-                    showExactValue
-                />
-                <HealthBar
-                    value={shield}
-                    maxValue={maxShield}
-                    label="Shield"
-                    color="blue"
-                    size="small"
-                    showExactValue
-                />
-            </div>
+        <div className="absolute inset-0 pointer-events-none p-4 md:p-6">
+            <div className="flex flex-col justify-between h-full">
+                <div className="flex justify-between items-start">
+                    <div className="pointer-events-auto">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Heart className="w-5 h-5 text-red-500" />
+                            <span className="text-sm font-bold text-slate-300">HP</span>
+                        </div>
+                        <div className="w-48 md:w-64 h-6 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300 ${isLowHealth ? 'animate-pulse' : ''}`}
+                                style={{ width: `${(health / maxHealth) * 100}%` }}
+                            />
+                        </div>
+                        <div className="text-right text-xs font-bold text-red-400 mt-1">
+                            {Math.floor(health)}/{maxHealth}
+                        </div>
 
-            {/* Top Center - Level & Wave Info */}
-            <div className="hud-section hud-section--top-center">
-                <div className="hud-level-info">
-                    <Text variant="h5" color="white" bold align="center">
-                        Level {level}
-                    </Text>
-                    <Text variant="caption" color="secondary" align="center">
-                        Wave {wave} / {totalWaves}
-                    </Text>
-                </div>
-            </div>
-
-            {/* Top Right - Score & Enemies */}
-            <div className="hud-section hud-section--top-right">
-                <div className={`hud-score ${scoreAnimation ? 'hud-score--animated' : ''}`}>
-                    <Text variant="caption" color="yellow" bold>
-                        SCORE
-                    </Text>
-                    <Text variant="h4" color="white" bold>
-                        {score.toLocaleString()}
-                    </Text>
-                </div>
-                <div className="hud-enemies">
-                    <Text variant="caption" color="danger" bold>
-                        ENEMIES
-                    </Text>
-                    <Text variant="h5" color="white" bold>
-                        {enemiesRemaining}
-                    </Text>
-                </div>
-                {fps !== undefined && <FPSDisplay fps={fps} />}
-            </div>
-
-            {/* Boss Health Bar */}
-            {bossHealth !== undefined && bossMaxHealth !== undefined && bossHealth > 0 && (
-                <div className="hud-section hud-section--boss">
-                    <BossHealthBar
-                        health={bossHealth}
-                        maxHealth={bossMaxHealth}
-                        name={bossName || 'Boss'}
-                    />
-                </div>
-            )}
-
-            {/* Bottom Left - Active Effects */}
-            {activeEffects.length > 0 && (
-                <div className="hud-section hud-section--bottom-left">
-                    <div className="hud-effects">
-                        <Text variant="caption" color="purple" bold>
-                            ACTIVE EFFECTS
-                        </Text>
-                        <div className="hud-effects-list">
-                            {activeEffects.map((effect, index) => (
-                                <EffectIndicator key={index} effect={effect} />
-                            ))}
+                        <div className="flex items-center gap-2 mb-2 mt-3">
+                            <Shield className="w-5 h-5 text-blue-500" />
+                            <span className="text-sm font-bold text-slate-300">Shield</span>
+                        </div>
+                        <div className="w-48 md:w-64 h-6 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-300"
+                                style={{ width: `${(shield / maxShield) * 100}%` }}
+                            />
+                        </div>
+                        <div className="text-right text-xs font-bold text-blue-400 mt-1">
+                            {Math.floor(shield)}/{maxShield}
                         </div>
                     </div>
-                </div>
-            )}
 
-            {/* Bottom Center - Weapon Info & Skills */}
-            <div className="hud-section hud-section--bottom-center">
-                {weaponInfo && <WeaponDisplay weapon={weaponInfo} />}
-                {skills.length > 0 && <SkillBar skills={skills} onActivate={onSkillActivate} />}
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-white drop-shadow-lg">
+                            Level {level}
+                        </div>
+                        <div className="text-sm text-slate-400">
+                            Wave {wave} / {totalWaves}
+                        </div>
+                    </div>
+
+                    <div className="text-right">
+                        <div className="text-xs font-bold text-yellow-400 uppercase tracking-wider">Score</div>
+                        <div className={`text-2xl md:text-3xl font-bold text-white drop-shadow-lg transition-transform ${scoreAnimation ? 'scale-110' : ''}`}>
+                            {score.toLocaleString()}
+                        </div>
+                        <div className="text-xs font-bold text-red-400 uppercase tracking-wider mt-2">Enemies</div>
+                        <div className="text-xl font-bold text-white drop-shadow-lg">
+                            {enemiesRemaining}
+                        </div>
+                        {fps !== undefined && <FPSDisplay fps={fps} />}
+                    </div>
+                </div>
+
+                {bossHealth !== undefined && bossMaxHealth !== undefined && bossHealth > 0 && (
+                    <div className="flex justify-center">
+                        <div className="w-full max-w-2xl">
+                            <BossHealthBar
+                                health={bossHealth}
+                                maxHealth={bossMaxHealth}
+                                name={bossName || 'Boss'}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex justify-between items-end">
+                    {activeEffects.length > 0 && (
+                        <div className="pointer-events-auto">
+                            <div className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">Active Effects</div>
+                            <div className="flex items-center gap-2">
+                                {activeEffects.map((effect, index) => (
+                                    <EffectIndicator key={index} effect={effect} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-2 pointer-events-auto">
+                        {weaponInfo && <WeaponDisplay weapon={weaponInfo} />}
+                        {skills.length > 0 && <SkillBar skills={skills} onActivate={onSkillActivate} />}
+                    </div>
+                </div>
             </div>
         </div>
     );

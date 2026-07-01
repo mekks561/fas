@@ -1,0 +1,18 @@
+{
+  "id": "shop-item-07",
+  "name": "黑洞发生器",
+  "description": "可制造黑洞吸引并摧毁敌人的终极武器。",
+  "type": "weapon",
+  "subtype": "blackhole",
+  "price": 100000,
+  "currency": "credits",
+  "attributes": {
+    "damage": 1000,
+    "fireRate": 0.1,
+    "pullRadius": 500,
+    "duration": 5
+  },
+  "icon": "icon-bomb",
+  "rarity": "legendary",
+  "level": 30
+}

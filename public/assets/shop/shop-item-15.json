@@ -1,0 +1,15 @@
+{
+  "id": "shop-item-15",
+  "name": "紫色涂装",
+  "description": "为你的战舰更换紫色涂装。",
+  "type": "cosmetic",
+  "subtype": "hull-skin",
+  "price": 2500,
+  "currency": "credits",
+  "attributes": {
+    "texture": "tex-hull-purple"
+  },
+  "icon": "icon-character",
+  "rarity": "rare",
+  "level": 5
+}

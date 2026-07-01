@@ -1,0 +1,15 @@
+{
+  "id": "shop-item-16",
+  "name": "迷彩涂装",
+  "description": "为你的战舰更换军用迷彩涂装。",
+  "type": "cosmetic",
+  "subtype": "hull-skin",
+  "price": 5000,
+  "currency": "credits",
+  "attributes": {
+    "texture": "tex-hull-camo"
+  },
+  "icon": "icon-character",
+  "rarity": "epic",
+  "level": 10
+}

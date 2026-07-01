@@ -1,0 +1,17 @@
+{
+  "id": "achievement-12",
+  "name": "不死之身",
+  "description": "在不受任何伤害的情况下完成一个任务。",
+  "category": "skill",
+  "condition": {
+    "type": "no_damage_mission",
+    "count": 1
+  },
+  "rewards": {
+    "experience": 800,
+    "credits": 4000,
+    "icon": "icon-shield"
+  },
+  "icon": "icon-shield",
+  "rarity": "epic"
+}

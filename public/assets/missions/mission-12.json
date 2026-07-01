@@ -1,0 +1,31 @@
+{
+  "id": "mission-12",
+  "name": "指挥舰突袭",
+  "description": "摧毁敌方指挥舰，瓦解敌方的指挥系统。",
+  "type": "main",
+  "category": "destroy",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "enemy-destroyer",
+      "count": 2,
+      "current": 0
+    },
+    {
+      "type": "boss",
+      "target": "command-ship",
+      "defeat": false
+    }
+  ],
+  "rewards": {
+    "experience": 2000,
+    "credits": 8000,
+    "items": [
+      "skill-stealth"
+    ]
+  },
+  "prerequisites": [
+    "mission-10"
+  ],
+  "chapter": "story-chapter-03"
+}

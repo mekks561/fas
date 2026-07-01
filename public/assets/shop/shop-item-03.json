@@ -1,0 +1,19 @@
+{
+  "id": "shop-item-03",
+  "name": "无畏舰",
+  "description": "联邦最强大的战舰，拥有毁灭性的火力。",
+  "type": "ship",
+  "subtype": "dreadnought",
+  "price": 80000,
+  "currency": "credits",
+  "attributes": {
+    "health": 400,
+    "shield": 200,
+    "speed": 30,
+    "damage": 50,
+    "weaponSlots": 6
+  },
+  "icon": "icon-character",
+  "rarity": "legendary",
+  "level": 20
+}

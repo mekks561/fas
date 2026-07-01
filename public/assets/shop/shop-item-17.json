@@ -1,0 +1,16 @@
+{
+  "id": "shop-item-17",
+  "name": "伤害强化模块",
+  "description": "永久提升武器伤害10%。",
+  "type": "upgrade",
+  "subtype": "damage",
+  "price": 10000,
+  "currency": "credits",
+  "attributes": {
+    "damageBonus": 0.1,
+    "permanent": true
+  },
+  "icon": "icon-damage",
+  "rarity": "rare",
+  "level": 5
+}

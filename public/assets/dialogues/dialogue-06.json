@@ -1,0 +1,40 @@
+{
+  "id": "dialogue-06",
+  "name": "胜利庆祝",
+  "participants": [
+    "commander",
+    "pilot",
+    "wingman"
+  ],
+  "trigger": {
+    "type": "mission",
+    "mission": "mission-07",
+    "stage": "complete"
+  },
+  "lines": [
+    {
+      "speaker": "wingman",
+      "text": "太棒了！我们做到了！",
+      "emotion": "excited",
+      "portrait": "wingman-excited"
+    },
+    {
+      "speaker": "pilot",
+      "text": "这只是开始，更大的挑战还在后面。",
+      "emotion": "calm",
+      "portrait": "pilot-neutral"
+    },
+    {
+      "speaker": "commander",
+      "text": "干得好，飞行员。联邦为你骄傲。",
+      "emotion": "proud",
+      "portrait": "commander-happy"
+    },
+    {
+      "speaker": "pilot",
+      "text": "谢谢，指挥官。这只是职责所在。",
+      "emotion": "humble",
+      "portrait": "pilot-humble"
+    }
+  ]
+}

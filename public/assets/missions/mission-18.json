@@ -1,0 +1,23 @@
+{
+  "id": "mission-18",
+  "name": "日常：歼灭专家",
+  "description": "每日任务：摧毁50个敌方单位。",
+  "type": "daily",
+  "category": "destroy",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "any",
+      "count": 50,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 300,
+    "credits": 1500,
+    "items": []
+  },
+  "prerequisites": [],
+  "chapter": null,
+  "resetDaily": true
+}

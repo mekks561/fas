@@ -1,0 +1,25 @@
+{
+  "id": "mission-04",
+  "name": "生存考验",
+  "description": "在敌方增援不断涌来的情况下存活3分钟。",
+  "type": "side",
+  "category": "survival",
+  "objectives": [
+    {
+      "type": "survive",
+      "duration": 180,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 400,
+    "credits": 2000,
+    "items": [
+      "powerup-health"
+    ]
+  },
+  "prerequisites": [
+    "mission-01"
+  ],
+  "chapter": null
+}

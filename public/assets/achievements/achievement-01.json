@@ -1,0 +1,17 @@
+{
+  "id": "achievement-01",
+  "name": "首次胜利",
+  "description": "完成第一章剧情\"觉醒\"。",
+  "category": "story",
+  "condition": {
+    "type": "story_complete",
+    "target": "story-chapter-01"
+  },
+  "rewards": {
+    "experience": 100,
+    "credits": 500,
+    "icon": "icon-achieve"
+  },
+  "icon": "icon-achieve",
+  "rarity": "common"
+}

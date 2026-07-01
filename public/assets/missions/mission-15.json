@@ -1,0 +1,23 @@
+{
+  "id": "mission-15",
+  "name": "日常：任务达人",
+  "description": "每日任务：完成3个任意任务。",
+  "type": "daily",
+  "category": "collect",
+  "objectives": [
+    {
+      "type": "complete",
+      "target": "any-mission",
+      "count": 3,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 200,
+    "credits": 1000,
+    "items": []
+  },
+  "prerequisites": [],
+  "chapter": null,
+  "resetDaily": true
+}

@@ -1,0 +1,39 @@
+{
+  "id": "dialogue-07",
+  "name": "失败安慰",
+  "participants": [
+    "commander",
+    "pilot"
+  ],
+  "trigger": {
+    "type": "mission",
+    "mission": "any",
+    "stage": "failed"
+  },
+  "lines": [
+    {
+      "speaker": "commander",
+      "text": "飞行员，你还好吗？",
+      "emotion": "concerned",
+      "portrait": "commander-worried"
+    },
+    {
+      "speaker": "pilot",
+      "text": "我没事，只是...任务失败了。",
+      "emotion": "sad",
+      "portrait": "pilot-sad"
+    },
+    {
+      "speaker": "commander",
+      "text": "失败是成功之母，从中学习，下次会更好。",
+      "emotion": "encouraging",
+      "portrait": "commander-encouraging"
+    },
+    {
+      "speaker": "pilot",
+      "text": "您说得对，我不会放弃的。",
+      "emotion": "determined",
+      "portrait": "pilot-determined"
+    }
+  ]
+}

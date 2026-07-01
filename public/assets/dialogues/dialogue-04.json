@@ -1,0 +1,39 @@
+{
+  "id": "dialogue-04",
+  "name": "战友对话",
+  "participants": [
+    "pilot",
+    "wingman"
+  ],
+  "trigger": {
+    "type": "mission",
+    "mission": "mission-02",
+    "stage": "start"
+  },
+  "lines": [
+    {
+      "speaker": "wingman",
+      "text": "老伙计，又要一起执行任务了。",
+      "emotion": "happy",
+      "portrait": "wingman-happy"
+    },
+    {
+      "speaker": "pilot",
+      "text": "是啊，这次是护送任务，要小心。",
+      "emotion": "calm",
+      "portrait": "pilot-neutral"
+    },
+    {
+      "speaker": "wingman",
+      "text": "放心，有我掩护你的侧翼。",
+      "emotion": "confident",
+      "portrait": "wingman-confident"
+    },
+    {
+      "speaker": "pilot",
+      "text": "那就拜托你了。",
+      "emotion": "grateful",
+      "portrait": "pilot-happy"
+    }
+  ]
+}

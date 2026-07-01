@@ -1,0 +1,19 @@
+{
+  "id": "shop-item-01",
+  "name": "重型巡洋舰",
+  "description": "火力强大的重型战舰，适合正面战斗。",
+  "type": "ship",
+  "subtype": "cruiser",
+  "price": 15000,
+  "currency": "credits",
+  "attributes": {
+    "health": 200,
+    "shield": 100,
+    "speed": 50,
+    "damage": 30,
+    "weaponSlots": 4
+  },
+  "icon": "icon-character",
+  "rarity": "rare",
+  "level": 5
+}

@@ -1,11 +1,9 @@
-/**
- * LevelSelect 组件
- * 关卡选择界面
- */
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button, Text, Icon, ProgressBar } from './ui';
-import './LevelSelect.css';
+import { useTranslation } from 'react-i18next';
+import { Button } from './ui/shadcn';
+import { Card, CardContent, CardHeader } from './ui/shadcn';
+import { Badge } from './ui/shadcn';
+import { ArrowLeft, Lock, Star, Target, Zap, Medal, Trophy } from 'lucide-react';
 
 export interface LevelData {
   id: number;
@@ -13,11 +11,10 @@ export interface LevelData {
   description: string;
   difficulty: 'easy' | 'normal' | 'hard' | 'nightmare';
   recommendedLevel: number;
-  stars: number; // 0-3 stars earned
+  stars: number;
   maxStars: number;
   unlocked: boolean;
   highScore?: number;
-  completionRate?: number;
   enemies: number;
   waves: number;
 }
@@ -91,14 +88,23 @@ const defaultLevels: LevelData[] = [
   }
 ];
 
+const getDifficultyConfig = (difficulty: LevelData['difficulty']) => {
+  switch (difficulty) {
+    case 'easy': return { color: 'bg-green-500', label: '简单', textColor: 'text-green-400' };
+    case 'normal': return { color: 'bg-blue-500', label: '普通', textColor: 'text-blue-400' };
+    case 'hard': return { color: 'bg-red-500', label: '困难', textColor: 'text-red-400' };
+    case 'nightmare': return { color: 'bg-purple-500', label: '噩梦', textColor: 'text-purple-400' };
+  }
+};
+
 export const LevelSelect: React.FC<LevelSelectProps> = ({
   onSelectLevel,
   onBack,
   currentPlayerLevel = 1
 }) => {
+  const { t } = useTranslation();
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [levels, setLevels] = useState<LevelData[]>(() => {
-    // 加载保存的进度
     const saved = localStorage.getItem('levelProgress');
     if (saved) {
       try {
@@ -120,27 +126,6 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
 
   const [showAnimation, setShowAnimation] = useState(false);
 
-  // 获取难度颜色
-  const getDifficultyColor = (difficulty: LevelData['difficulty']): string => {
-    switch (difficulty) {
-      case 'easy': return '#22c55e';
-      case 'normal': return '#3b82f6';
-      case 'hard': return '#ef4444';
-      case 'nightmare': return '#a855f7';
-    }
-  };
-
-  // 获取难度标签
-  const getDifficultyLabel = (difficulty: LevelData['difficulty']): string => {
-    switch (difficulty) {
-      case 'easy': return '简单';
-      case 'normal': return '普通';
-      case 'hard': return '困难';
-      case 'nightmare': return '噩梦';
-    }
-  };
-
-  // 键盘导航
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.code) {
@@ -183,12 +168,10 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [levels, selectedLevel, onSelectLevel, onBack]);
 
-  // 启动动画
   useEffect(() => {
     setShowAnimation(true);
   }, []);
 
-  // 处理关卡点击
   const handleLevelClick = useCallback((levelId: number) => {
     setSelectedLevel(levelId);
     const level = levels.find(l => l.id === levelId);
@@ -197,149 +180,139 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
     }
   }, [levels, onSelectLevel]);
 
-  // 渲染星星
-  const renderStars = (count: number, max: number, earned: boolean) => {
-    const stars = [];
-    for (let i = 0; i < max; i++) {
-      stars.push(
-        <Icon 
-          key={i} 
-          name="star" 
-          size={20} 
-          color={i < count && earned ? '#fbbf24' : '#374151'} 
-          className={i < count && earned ? 'level-star--filled' : 'level-star--empty'}
-        />
-      );
-    }
-    return stars;
-  };
-
-  // 获取选中的关卡数据
   const selectedLevelData = levels.find(l => l.id === selectedLevel);
 
   return (
-    <div className={`levelselect-container ${showAnimation ? 'levelselect-container--visible' : ''}`}>
-      {/* 头部 */}
-      <div className="levelselect-header">
-        <Button variant="ghost" size="small" onClick={onBack}>
-          <Icon name="arrow-left" size={20} />
-          返回
-        </Button>
-        <Text variant="h2" color="white" bold>
-          选择关卡
-        </Text>
-        <div className="levelselect-header-placeholder" />
-      </div>
+    <div className={`min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 p-4 md:p-8 transition-opacity duration-1000 ${showAnimation ? 'opacity-100' : 'opacity-0'}`}>
+      <Card className="max-w-6xl mx-auto bg-slate-900/80 backdrop-blur-xl border-indigo-500/30 shadow-2xl shadow-indigo-500/20">
+        <CardHeader className="flex items-center justify-between pb-6">
+          <Button variant="outline" size="sm" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            {t('common.back')}
+          </Button>
+          <h2 className="text-2xl font-bold text-white">{t('levelSelect.title')}</h2>
+          <div className="w-20" />
+        </CardHeader>
 
-      {/* 关卡网格 */}
-      <div className="levelselect-grid">
-        {levels.map((level, index) => (
-          <div
-            key={level.id}
-            className={`levelselect-card ${selectedLevel === level.id ? 'levelselect-card--selected' : ''} ${!level.unlocked ? 'levelselect-card--locked' : ''}`}
-            onClick={() => handleLevelClick(level.id)}
-            style={{ animationDelay: `${index * 0.1}s` }}
-          >
-            {/* 关卡编号 */}
-            <div className="levelselect-card-number">
-              {level.unlocked ? level.id : <Icon name="lock" size={24} color="#6b7280" />}
-            </div>
+        <CardContent className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+            {levels.map((level, index) => {
+              const diffConfig = getDifficultyConfig(level.difficulty);
+              const isSelected = selectedLevel === level.id;
+              const isUnlocked = level.unlocked;
 
-            {/* 关卡信息 */}
-            <div className="levelselect-card-info">
-              <Text variant="h5" color={level.unlocked ? 'white' : 'muted'} bold>
-                {level.name}
-              </Text>
-              <Text variant="caption" color="muted">
-                {level.description}
-              </Text>
-            </div>
+              return (
+                <div
+                  key={level.id}
+                  className={`relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                    isSelected
+                      ? 'border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/20 scale-[1.02]'
+                      : isUnlocked
+                        ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800'
+                        : 'border-slate-800 bg-slate-900/50 opacity-60'
+                  }`}
+                  onClick={() => handleLevelClick(level.id)}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                      isUnlocked ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white' : 'bg-slate-700 text-slate-500'
+                    }`}>
+                      {isUnlocked ? level.id : <Lock className="w-5 h-5" />}
+                    </div>
+                    <Badge className={`${diffConfig.color} text-white`}>
+                      {diffConfig.label}
+                    </Badge>
+                  </div>
 
-            {/* 难度标签 */}
-            <div 
-              className="levelselect-card-difficulty"
-              style={{ backgroundColor: getDifficultyColor(level.difficulty) }}
-            >
-              {getDifficultyLabel(level.difficulty)}
-            </div>
+                  <h3 className={`font-bold mb-1 ${isUnlocked ? 'text-white' : 'text-slate-500'}`}>
+                    {level.name}
+                  </h3>
+                  <p className="text-slate-500 text-xs mb-3 line-clamp-2">
+                    {level.description}
+                  </p>
 
-            {/* 星星 */}
-            <div className="levelselect-card-stars">
-              {renderStars(level.stars, level.maxStars, level.unlocked)}
-            </div>
+                  <div className="flex items-center justify-center gap-1">
+                    {Array.from({ length: level.maxStars }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${i < level.stars ? 'text-yellow-400 fill-yellow-400' : 'text-slate-700'}`}
+                      />
+                    ))}
+                  </div>
 
-            {/* 锁定遮罩 */}
-            {!level.unlocked && (
-              <div className="levelselect-card-overlay">
-                <Icon name="lock" size={48} color="#6b7280" />
-                <Text variant="caption" color="muted">
-                  需要等级 {level.recommendedLevel}
-                </Text>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* 详情面板 */}
-      {selectedLevelData && (
-        <div className="levelselect-detail">
-          <div className="levelselect-detail-header">
-            <Text variant="h3" color="white" bold>
-              {selectedLevelData.name}
-            </Text>
-            <div 
-              className="levelselect-detail-difficulty"
-              style={{ backgroundColor: getDifficultyColor(selectedLevelData.difficulty) }}
-            >
-              {getDifficultyLabel(selectedLevelData.difficulty)}
-            </div>
+                  {!isUnlocked && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 rounded-xl">
+                      <Lock className="w-8 h-8 text-slate-500 mb-2" />
+                      <span className="text-slate-500 text-xs">{t('levelSelect.requiresLevel', { level: level.recommendedLevel })}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          <Text variant="body" color="secondary" className="levelselect-detail-desc">
-            {selectedLevelData.description}
-          </Text>
+          {selectedLevelData && (
+            <div className="space-y-4">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xl font-bold text-white">
+                      {selectedLevelData.name}
+                    </h3>
+                    <Badge className={`${getDifficultyConfig(selectedLevelData.difficulty).color} text-white`}>
+                      {getDifficultyConfig(selectedLevelData.difficulty).label}
+                    </Badge>
+                  </div>
 
-          <div className="levelselect-detail-stats">
-            <div className="levelselect-detail-stat">
-              <Icon name="target" size={20} color="#ef4444" />
-              <span>敌人: {selectedLevelData.enemies}</span>
-            </div>
-            <div className="levelselect-detail-stat">
-              <Icon name="bolt" size={20} color="#3b82f6" />
-              <span>波次: {selectedLevelData.waves}</span>
-            </div>
-            <div className="levelselect-detail-stat">
-              <Icon name="medal" size={20} color="#fbbf24" />
-              <span>等级: {selectedLevelData.recommendedLevel}</span>
-            </div>
-          </div>
+                  <p className="text-slate-400 text-sm mb-4">
+                    {selectedLevelData.description}
+                  </p>
 
-          {selectedLevelData.highScore !== undefined && (
-            <div className="levelselect-detail-highscore">
-              <Icon name="trophy" size={18} color="#fbbf24" />
-              <span>最高分: {selectedLevelData.highScore.toLocaleString()}</span>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                      <Target className="w-5 h-5 text-red-400 mx-auto mb-1" />
+                      <span className="text-white font-bold">{selectedLevelData.enemies}</span>
+                      <p className="text-slate-500 text-xs">{t('levelSelect.enemies')}</p>
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                      <Zap className="w-5 h-5 text-blue-400 mx-auto mb-1" />
+                      <span className="text-white font-bold">{selectedLevelData.waves}</span>
+                      <p className="text-slate-500 text-xs">{t('levelSelect.waves')}</p>
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-3 text-center">
+                      <Medal className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
+                      <span className="text-white font-bold">{selectedLevelData.recommendedLevel}</span>
+                      <p className="text-slate-500 text-xs">{t('levelSelect.recommendedLevel')}</p>
+                    </div>
+                  </div>
+
+                  {selectedLevelData.highScore !== undefined && (
+                    <div className="flex items-center gap-2 text-yellow-400 mb-4 bg-yellow-400/10 rounded-lg p-3">
+                      <Trophy className="w-5 h-5" />
+                      <span className="font-medium">{t('levelSelect.highScore')}: {selectedLevelData.highScore.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  <Button
+                    variant="default"
+                    size="lg"
+                    className="w-full"
+                    disabled={!selectedLevelData.unlocked}
+                    onClick={() => selectedLevelData.unlocked && onSelectLevel(selectedLevelData.id)}
+                  >
+                    {selectedLevelData.unlocked ? t('levelSelect.startChallenge') : t('levelSelect.locked')}
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          <Button
-            variant="primary"
-            size="large"
-            fullWidth
-            disabled={!selectedLevelData.unlocked}
-            onClick={() => selectedLevelData.unlocked && onSelectLevel(selectedLevelData.id)}
-          >
-            {selectedLevelData.unlocked ? '开始挑战' : '未解锁'}
-          </Button>
-        </div>
-      )}
-
-      {/* 提示信息 */}
-      <div className="levelselect-hint">
-        <Text variant="caption" color="muted" align="center">
-          W/S/A/D or Arrow Keys to navigate | Enter to select | ESC to go back
-        </Text>
-      </div>
+      <p className="text-center text-slate-600 text-xs mt-6">
+        {t('levelSelect.navigateHint')}
+      </p>
     </div>
   );
 };

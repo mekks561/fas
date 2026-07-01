@@ -1,0 +1,45 @@
+{
+  "id": "dialogue-03",
+  "name": "情报汇报",
+  "participants": [
+    "intelligence_officer",
+    "pilot"
+  ],
+  "trigger": {
+    "type": "story",
+    "chapter": "story-chapter-03",
+    "stage": "start"
+  },
+  "lines": [
+    {
+      "speaker": "intelligence_officer",
+      "text": "我们破解了敌方通讯，定位了指挥舰。",
+      "emotion": "excited",
+      "portrait": "intel-excited"
+    },
+    {
+      "speaker": "pilot",
+      "text": "在哪里？",
+      "emotion": "curious",
+      "portrait": "pilot-neutral"
+    },
+    {
+      "speaker": "intelligence_officer",
+      "text": "在敌方腹地，需要潜行进入。",
+      "emotion": "serious",
+      "portrait": "intel-serious"
+    },
+    {
+      "speaker": "pilot",
+      "text": "隐形飞船能帮我做到。",
+      "emotion": "confident",
+      "portrait": "pilot-confident"
+    },
+    {
+      "speaker": "intelligence_officer",
+      "text": "记住，不要被发现，情报比战斗更重要。",
+      "emotion": "cautious",
+      "portrait": "intel-cautious"
+    }
+  ]
+}

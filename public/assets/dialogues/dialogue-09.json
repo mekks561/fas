@@ -1,0 +1,45 @@
+{
+  "id": "dialogue-09",
+  "name": "最终决战前",
+  "participants": [
+    "admiral",
+    "pilot"
+  ],
+  "trigger": {
+    "type": "story",
+    "chapter": "story-chapter-05",
+    "stage": "start"
+  },
+  "lines": [
+    {
+      "speaker": "admiral",
+      "text": "飞行员，今天将载入史册。",
+      "emotion": "solemn",
+      "portrait": "admiral-solemn"
+    },
+    {
+      "speaker": "pilot",
+      "text": "将军，我会尽我所能。",
+      "emotion": "serious",
+      "portrait": "pilot-serious"
+    },
+    {
+      "speaker": "admiral",
+      "text": "Overlord 是强大的敌人，但我相信你能做到。",
+      "emotion": "confident",
+      "portrait": "admiral-confident"
+    },
+    {
+      "speaker": "pilot",
+      "text": "为了联邦，为了银河系，我不会失败。",
+      "emotion": "determined",
+      "portrait": "pilot-determined"
+    },
+    {
+      "speaker": "admiral",
+      "text": "去吧，英雄。愿星辰与你同在。",
+      "emotion": "inspiring",
+      "portrait": "admiral-inspiring"
+    }
+  ]
+}

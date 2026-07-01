@@ -1,0 +1,26 @@
+{
+  "id": "mission-03",
+  "name": "能量晶体收集",
+  "description": "在小行星带中收集稀有的能量晶体，用于联邦的武器研发。",
+  "type": "side",
+  "category": "collect",
+  "objectives": [
+    {
+      "type": "collect",
+      "target": "energy-crystal",
+      "count": 10,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 250,
+    "credits": 1200,
+    "items": [
+      "powerup-energy"
+    ]
+  },
+  "prerequisites": [
+    "mission-01"
+  ],
+  "chapter": null
+}

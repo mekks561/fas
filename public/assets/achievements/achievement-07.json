@@ -1,0 +1,17 @@
+{
+  "id": "achievement-07",
+  "name": "任务大师",
+  "description": "累计完成20个任务。",
+  "category": "mission",
+  "condition": {
+    "type": "mission_count",
+    "count": 20
+  },
+  "rewards": {
+    "experience": 1000,
+    "credits": 5000,
+    "icon": "icon-achieve"
+  },
+  "icon": "icon-achieve",
+  "rarity": "rare"
+}

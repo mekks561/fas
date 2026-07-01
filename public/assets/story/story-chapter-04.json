@@ -1,0 +1,51 @@
+{
+  "id": "story-chapter-04",
+  "number": 4,
+  "title": "大举进攻",
+  "titleEn": "The Great Offensive",
+  "description": "掌握了敌方情报后，联邦集结全部舰队发动总攻。你的任务是突破敌方防线，为联邦舰队开辟通往敌方母舰的道路。",
+  "background": "情报显示外星人的母舰由强大的护卫舰队保护。联邦集结了所有可用的战舰，发动了史上最大规模的进攻行动。你是这次行动的先锋。",
+  "dialogueSequence": [
+    {
+      "speaker": "admiral",
+      "text": "飞行员，今天是决定性的时刻。联邦的全部希望寄托在你身上。",
+      "emotion": "solemn"
+    },
+    {
+      "speaker": "pilot",
+      "text": "将军，我已经准备好了。",
+      "emotion": "determined"
+    },
+    {
+      "speaker": "admiral",
+      "text": "突破敌方护卫舰队，为我们打开通往母舰的道路。",
+      "emotion": "commanding"
+    },
+    {
+      "speaker": "wingman",
+      "text": "我会掩护你的侧翼，祝我们好运。",
+      "emotion": "nervous"
+    },
+    {
+      "speaker": "pilot",
+      "text": "不需要运气，让我们出发吧！",
+      "emotion": "fearless"
+    }
+  ],
+  "objectives": [
+    "摧毁敌方前锋舰队",
+    "击败重型护卫舰",
+    "保护联邦旗舰",
+    "为进攻舰队开辟道路"
+  ],
+  "rewards": {
+    "experience": 5000,
+    "credits": 25000,
+    "unlocks": [
+      "ship-dreadnought",
+      "weapon-nuke",
+      "mission-17"
+    ],
+    "achievement": "achievement-04"
+  }
+}

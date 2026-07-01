@@ -1,0 +1,31 @@
+{
+  "id": "mission-13",
+  "name": "生存挑战",
+  "description": "在密集的敌方火力下存活5分钟。",
+  "type": "side",
+  "category": "survival",
+  "objectives": [
+    {
+      "type": "survive",
+      "duration": 300,
+      "current": 0
+    },
+    {
+      "type": "destroy",
+      "target": "any",
+      "count": 20,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 800,
+    "credits": 4000,
+    "items": [
+      "powerup-invincible"
+    ]
+  },
+  "prerequisites": [
+    "mission-07"
+  ],
+  "chapter": null
+}

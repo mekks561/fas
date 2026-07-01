@@ -1,0 +1,18 @@
+{
+  "id": "shop-item-04",
+  "name": "等离子炮",
+  "description": "高伤害的能量武器，可穿透护盾。",
+  "type": "weapon",
+  "subtype": "plasma",
+  "price": 5000,
+  "currency": "credits",
+  "attributes": {
+    "damage": 35,
+    "fireRate": 2,
+    "energyCost": 15,
+    "shieldPiercing": true
+  },
+  "icon": "icon-gun",
+  "rarity": "rare",
+  "level": 5
+}

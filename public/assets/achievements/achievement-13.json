@@ -1,0 +1,17 @@
+{
+  "id": "achievement-13",
+  "name": "速度狂魔",
+  "description": "在5分钟内完成一个任务。",
+  "category": "skill",
+  "condition": {
+    "type": "speed_run",
+    "timeLimit": 300
+  },
+  "rewards": {
+    "experience": 600,
+    "credits": 3000,
+    "icon": "icon-speed"
+  },
+  "icon": "icon-speed",
+  "rarity": "rare"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "achievement-08",
+  "name": "屠夫",
+  "description": "累计摧毁100个敌方单位。",
+  "category": "combat",
+  "condition": {
+    "type": "kill_count",
+    "count": 100
+  },
+  "rewards": {
+    "experience": 300,
+    "credits": 1500,
+    "icon": "icon-crosshair"
+  },
+  "icon": "icon-crosshair",
+  "rarity": "common"
+}

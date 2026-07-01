@@ -1,0 +1,23 @@
+{
+  "id": "mission-05",
+  "name": "日常：歼灭任务",
+  "description": "每日任务：摧毁10个敌方单位。",
+  "type": "daily",
+  "category": "destroy",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "any",
+      "count": 10,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 100,
+    "credits": 500,
+    "items": []
+  },
+  "prerequisites": [],
+  "chapter": null,
+  "resetDaily": true
+}

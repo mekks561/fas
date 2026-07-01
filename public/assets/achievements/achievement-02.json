@@ -1,0 +1,17 @@
+{
+  "id": "achievement-02",
+  "name": "反击先锋",
+  "description": "完成第二章剧情\"反击\"。",
+  "category": "story",
+  "condition": {
+    "type": "story_complete",
+    "target": "story-chapter-02"
+  },
+  "rewards": {
+    "experience": 300,
+    "credits": 1000,
+    "icon": "icon-achieve"
+  },
+  "icon": "icon-achieve",
+  "rarity": "common"
+}

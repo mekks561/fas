@@ -1,0 +1,16 @@
+{
+  "id": "shop-item-20",
+  "name": "能量强化模块",
+  "description": "永久提升最大能量值30%。",
+  "type": "upgrade",
+  "subtype": "energy",
+  "price": 15000,
+  "currency": "credits",
+  "attributes": {
+    "energyBonus": 0.3,
+    "permanent": true
+  },
+  "icon": "icon-energy",
+  "rarity": "epic",
+  "level": 10
+}

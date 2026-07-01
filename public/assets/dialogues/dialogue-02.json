@@ -1,0 +1,46 @@
+{
+  "id": "dialogue-02",
+  "name": "战术简报",
+  "participants": [
+    "commander",
+    "tactical_officer",
+    "pilot"
+  ],
+  "trigger": {
+    "type": "story",
+    "chapter": "story-chapter-02",
+    "stage": "start"
+  },
+  "lines": [
+    {
+      "speaker": "commander",
+      "text": "我们发现了敌方的补给线，是时候反击了。",
+      "emotion": "calm",
+      "portrait": "commander-neutral"
+    },
+    {
+      "speaker": "tactical_officer",
+      "text": "补给线由运输船和护卫舰队保护，建议分批攻击。",
+      "emotion": "analytical",
+      "portrait": "tactical-focused"
+    },
+    {
+      "speaker": "pilot",
+      "text": "我可以先解决护卫舰队。",
+      "emotion": "confident",
+      "portrait": "pilot-confident"
+    },
+    {
+      "speaker": "tactical_officer",
+      "text": "不，先打运输船，趁护卫舰队混乱时撤离。",
+      "emotion": "cautious",
+      "portrait": "tactical-worried"
+    },
+    {
+      "speaker": "pilot",
+      "text": "明白了，速战速决。",
+      "emotion": "serious",
+      "portrait": "pilot-serious"
+    }
+  ]
+}

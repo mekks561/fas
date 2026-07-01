@@ -1,0 +1,53 @@
+{
+  "id": "dialogue-10",
+  "name": "结局对话",
+  "participants": [
+    "admiral",
+    "pilot",
+    "commander",
+    "wingman"
+  ],
+  "trigger": {
+    "type": "story",
+    "chapter": "story-chapter-05",
+    "stage": "complete"
+  },
+  "lines": [
+    {
+      "speaker": "wingman",
+      "text": "你做到了！Overlord 被击败了！",
+      "emotion": "ecstatic",
+      "portrait": "wingman-excited"
+    },
+    {
+      "speaker": "commander",
+      "text": "银河系得救了，全靠你。",
+      "emotion": "grateful",
+      "portrait": "commander-grateful"
+    },
+    {
+      "speaker": "pilot",
+      "text": "这不是我一个人的功劳，是大家共同的胜利。",
+      "emotion": "humble",
+      "portrait": "pilot-humble"
+    },
+    {
+      "speaker": "admiral",
+      "text": "飞行员，你将被授予联邦最高荣誉。",
+      "emotion": "proud",
+      "portrait": "admiral-proud"
+    },
+    {
+      "speaker": "pilot",
+      "text": "谢谢，将军。但和平到来才是最好的奖励。",
+      "emotion": "peaceful",
+      "portrait": "pilot-peaceful"
+    },
+    {
+      "speaker": "admiral",
+      "text": "说得好。愿你未来的飞行永远平安。",
+      "emotion": "warm",
+      "portrait": "admiral-warm"
+    }
+  ]
+}

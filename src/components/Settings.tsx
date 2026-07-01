@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/shadcn';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/shadcn';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/shadcn';
@@ -35,6 +36,7 @@ const defaultSettings: GameSettings = {
 };
 
 export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<GameSettings>(() => {
     const saved = localStorage.getItem('gameSettings');
     if (saved) {
@@ -60,7 +62,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     <div className="space-y-6">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-slate-300 font-medium">主音量</span>
+          <span className="text-slate-300 font-medium">{t('settings.masterVolume')}</span>
           <span className="text-slate-500 text-sm">{settings.volume}%</span>
         </div>
         <Progress value={settings.volume} className="h-2" />
@@ -76,7 +78,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-slate-300 font-medium">音乐音量</span>
+          <span className="text-slate-300 font-medium">{t('settings.musicVolume')}</span>
           <span className="text-slate-500 text-sm">{settings.musicVolume}%</span>
         </div>
         <Progress value={settings.musicVolume} className="h-2 bg-blue-500" />
@@ -92,7 +94,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-slate-300 font-medium">音效音量</span>
+          <span className="text-slate-300 font-medium">{t('settings.sfxVolume')}</span>
           <span className="text-slate-500 text-sm">{settings.sfxVolume}%</span>
         </div>
         <Progress value={settings.sfxVolume} className="h-2 bg-yellow-500" />
@@ -106,12 +108,12 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         />
       </div>
     </div>
-  ), [settings, updateSetting]);
+  ), [settings, updateSetting, t]);
 
   const renderGameSettings = useMemo(() => (
     <div className="space-y-6">
       <div className="space-y-3">
-        <span className="text-slate-300 font-medium">难度</span>
+        <span className="text-slate-300 font-medium">{t('settings.difficulty')}</span>
         <div className="flex gap-2">
           {(['easy', 'normal', 'hard'] as const).map(diff => (
             <button
@@ -123,14 +125,14 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
               }`}
               onClick={() => updateSetting('difficulty', diff)}
             >
-              {diff === 'easy' ? '简单' : diff === 'normal' ? '普通' : '困难'}
+              {diff === 'easy' ? t('settings.easy') : diff === 'normal' ? t('settings.normal') : t('settings.hard')}
             </button>
           ))}
         </div>
       </div>
 
       <div className="flex items-center justify-between py-3 border-b border-slate-800">
-        <span className="text-slate-300 font-medium">显示FPS</span>
+        <span className="text-slate-300 font-medium">{t('settings.showFPS')}</span>
         <Switch
           checked={settings.showFPS}
           onCheckedChange={(checked) => updateSetting('showFPS', checked)}
@@ -138,7 +140,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       </div>
 
       <div className="flex items-center justify-between py-3 border-b border-slate-800">
-        <span className="text-slate-300 font-medium">显示伤害数字</span>
+        <span className="text-slate-300 font-medium">{t('settings.showDamageNumbers')}</span>
         <Switch
           checked={settings.showDamageNumbers}
           onCheckedChange={(checked) => updateSetting('showDamageNumbers', checked)}
@@ -146,19 +148,19 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       </div>
 
       <div className="flex items-center justify-between py-3">
-        <span className="text-slate-300 font-medium">屏幕震动</span>
+        <span className="text-slate-300 font-medium">{t('settings.screenShake')}</span>
         <Switch
           checked={settings.screenShake}
           onCheckedChange={(checked) => updateSetting('screenShake', checked)}
         />
       </div>
     </div>
-  ), [settings, updateSetting]);
+  ), [settings, updateSetting, t]);
 
   const renderVisualSettings = useMemo(() => (
     <div className="space-y-6">
       <div className="space-y-3">
-        <span className="text-slate-300 font-medium">画质</span>
+        <span className="text-slate-300 font-medium">{t('settings.quality')}</span>
         <div className="flex gap-2">
           {(['low', 'medium', 'high'] as const).map(quality => (
             <button
@@ -170,21 +172,21 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
               }`}
               onClick={() => updateSetting('quality', quality)}
             >
-              {quality === 'low' ? '低' : quality === 'medium' ? '中' : '高'}
+              {quality === 'low' ? t('settings.low') : quality === 'medium' ? t('settings.medium') : t('settings.high')}
             </button>
           ))}
         </div>
       </div>
 
       <div className="flex items-center justify-between py-3">
-        <span className="text-slate-300 font-medium">粒子效果</span>
+        <span className="text-slate-300 font-medium">{t('settings.particleEffects')}</span>
         <Switch
           checked={settings.particleEffects}
           onCheckedChange={(checked) => updateSetting('particleEffects', checked)}
         />
       </div>
     </div>
-  ), [settings, updateSetting]);
+  ), [settings, updateSetting, t]);
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
@@ -192,7 +194,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-blue-400" />
-            设置
+            {t('settings.title')}
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-4 h-4" />
@@ -204,15 +206,15 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="audio" className="gap-2">
                 <Volume2 className="w-4 h-4" />
-                音频
+                {t('settings.audio')}
               </TabsTrigger>
               <TabsTrigger value="game" className="gap-2">
                 <Target className="w-4 h-4" />
-                游戏
+                {t('settings.game')}
               </TabsTrigger>
               <TabsTrigger value="visual" className="gap-2">
                 <Zap className="w-4 h-4" />
-                视觉
+                {t('settings.visual')}
               </TabsTrigger>
             </TabsList>
 
@@ -230,7 +232,18 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
 
         <CardFooter className="flex justify-end gap-3 pt-2">
           <Button variant="outline" onClick={onClose}>
-            关闭
+            {t('common.close')}
           </Button>
           <Button onClick={() => {
             saveSettings();
+            onClose();
+          }}>
+            {t('settings.saveSettings')}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+};
+
+export default Settings;

@@ -1,0 +1,56 @@
+{
+  "id": "story-chapter-05",
+  "number": 5,
+  "title": "最终决战",
+  "titleEn": "Final Stand",
+  "description": "联邦舰队已抵达敌方母舰前。现在，你必须直面外星首领 Overlord，在一场决定银河系命运的最终决战中击败他。",
+  "background": "经过漫长的战斗，联邦舰队终于突破了所有防线，来到了外星母舰面前。Overlord——外星种族的至高领袖——亲自驾驶着他的旗舰迎战。这场战斗的胜者，将决定整个银河系的命运。",
+  "dialogueSequence": [
+    {
+      "speaker": "admiral",
+      "text": "飞行员，Overlord 的母舰就在前方。这是你的时刻。",
+      "emotion": "solemn"
+    },
+    {
+      "speaker": "overlord",
+      "text": "渺小的人类，你以为你能挑战我吗？",
+      "emotion": "arrogant"
+    },
+    {
+      "speaker": "pilot",
+      "text": "为了银河系的和平，我必须击败你！",
+      "emotion": "determined"
+    },
+    {
+      "speaker": "overlord",
+      "text": "你的联邦将在我的铁蹄下灰飞烟灭！",
+      "emotion": "menacing"
+    },
+    {
+      "speaker": "commander",
+      "text": "全舰队为飞行员提供火力支援，这是我们的最后机会！",
+      "emotion": "urgent"
+    },
+    {
+      "speaker": "pilot",
+      "text": "为了联邦，为了银河系，冲啊！",
+      "emotion": "fearless"
+    }
+  ],
+  "objectives": [
+    "击败 Overlord 的护卫舰队",
+    "摧毁 Overlord 旗舰的护盾发生器",
+    "击败 Overlord",
+    "存活到最终时刻"
+  ],
+  "rewards": {
+    "experience": 10000,
+    "credits": 100000,
+    "unlocks": [
+      "ship-corvette",
+      "weapon-blackhole",
+      "skill-rebirth"
+    ],
+    "achievement": "achievement-05"
+  }
+}

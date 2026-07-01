@@ -1,0 +1,15 @@
+{
+  "id": "shop-item-13",
+  "name": "红色涂装",
+  "description": "为你的战舰更换红色涂装。",
+  "type": "cosmetic",
+  "subtype": "hull-skin",
+  "price": 2000,
+  "currency": "credits",
+  "attributes": {
+    "texture": "tex-hull-red"
+  },
+  "icon": "icon-character",
+  "rarity": "common",
+  "level": 1
+}

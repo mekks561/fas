@@ -1,0 +1,20 @@
+{
+  "id": "shop-item-02",
+  "name": "隐形战机",
+  "description": "可短暂隐形的轻型战机，适合潜行任务。",
+  "type": "ship",
+  "subtype": "stealth",
+  "price": 25000,
+  "currency": "credits",
+  "attributes": {
+    "health": 80,
+    "shield": 50,
+    "speed": 90,
+    "damage": 25,
+    "weaponSlots": 3,
+    "stealth": true
+  },
+  "icon": "icon-character",
+  "rarity": "epic",
+  "level": 10
+}

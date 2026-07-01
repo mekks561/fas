@@ -1,0 +1,16 @@
+{
+  "id": "shop-item-11",
+  "name": "能量电池（5个）",
+  "description": "恢复100点能量值的消耗品，包含5个。",
+  "type": "consumable",
+  "subtype": "energy",
+  "price": 800,
+  "currency": "credits",
+  "attributes": {
+    "energyAmount": 100,
+    "count": 5
+  },
+  "icon": "icon-energy",
+  "rarity": "common",
+  "level": 1
+}

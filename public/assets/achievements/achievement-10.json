@@ -1,0 +1,17 @@
+{
+  "id": "achievement-10",
+  "name": "Boss杀手",
+  "description": "击败第一个Boss——Sentinel。",
+  "category": "combat",
+  "condition": {
+    "type": "boss_defeat",
+    "target": "boss-sentinel"
+  },
+  "rewards": {
+    "experience": 500,
+    "credits": 3000,
+    "icon": "icon-star"
+  },
+  "icon": "icon-star",
+  "rarity": "rare"
+}

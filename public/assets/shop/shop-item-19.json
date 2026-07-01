@@ -1,0 +1,16 @@
+{
+  "id": "shop-item-19",
+  "name": "速度强化模块",
+  "description": "永久提升飞船速度15%。",
+  "type": "upgrade",
+  "subtype": "speed",
+  "price": 12000,
+  "currency": "credits",
+  "attributes": {
+    "speedBonus": 0.15,
+    "permanent": true
+  },
+  "icon": "icon-speed",
+  "rarity": "rare",
+  "level": 8
+}

@@ -1,0 +1,16 @@
+{
+  "id": "shop-item-18",
+  "name": "防御强化模块",
+  "description": "永久提升护盾值20%。",
+  "type": "upgrade",
+  "subtype": "defense",
+  "price": 10000,
+  "currency": "credits",
+  "attributes": {
+    "shieldBonus": 0.2,
+    "permanent": true
+  },
+  "icon": "icon-defense",
+  "rarity": "rare",
+  "level": 5
+}

@@ -1,0 +1,31 @@
+{
+  "id": "mission-10",
+  "name": "情报收集",
+  "description": "在敌方区域内收集关于敌方指挥系统的关键情报。",
+  "type": "main",
+  "category": "collect",
+  "objectives": [
+    {
+      "type": "collect",
+      "target": "intel-data",
+      "count": 5,
+      "current": 0
+    },
+    {
+      "type": "survive",
+      "duration": 120,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 1200,
+    "credits": 5000,
+    "items": [
+      "weapon-sniper"
+    ]
+  },
+  "prerequisites": [
+    "mission-09"
+  ],
+  "chapter": "story-chapter-03"
+}

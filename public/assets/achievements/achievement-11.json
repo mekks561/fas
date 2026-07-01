@@ -1,0 +1,17 @@
+{
+  "id": "achievement-11",
+  "name": "终结者",
+  "description": "击败最终Boss——Overlord。",
+  "category": "combat",
+  "condition": {
+    "type": "boss_defeat",
+    "target": "boss-overlord"
+  },
+  "rewards": {
+    "experience": 5000,
+    "credits": 20000,
+    "icon": "icon-star"
+  },
+  "icon": "icon-star",
+  "rarity": "legendary"
+}

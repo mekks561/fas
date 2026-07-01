@@ -1,11 +1,9 @@
-/**
- * GameOver 组件
- * 游戏结算界面
- */
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button, Text, Icon, ProgressBar } from './ui';
-import './GameOver.css';
+import { Button } from './ui/shadcn';
+import { Card, CardContent } from './ui/shadcn';
+import { Badge } from './ui/shadcn';
+import { Trophy, ArrowRight, RotateCcw, ArrowLeft, Star, Target, Zap, Medal, Crosshair } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface GameOverProps {
   isVictory: boolean;
@@ -39,27 +37,24 @@ export const GameOver: React.FC<GameOverProps> = ({
   const [selectedOption, setSelectedOption] = useState(0);
   const [showAnimation, setShowAnimation] = useState(false);
   const [animateStats, setAnimateStats] = useState(false);
+  const { t } = useTranslation();
 
-  // 菜单选项
   const menuOptions = useMemo(() => [
-    ...(onNextLevel && isVictory ? [{ id: 'next', label: '下一关', icon: 'arrow-right', action: onNextLevel, primary: true }] : []),
-    { id: 'restart', label: '重新开始', icon: 'stop', action: onRestart, primary: !onNextLevel || !isVictory },
-    { id: 'mainMenu', label: '返回主菜单', icon: 'arrow-left', action: onMainMenu }
-  ], [isVictory, onNextLevel, onRestart, onMainMenu]);
+    ...(onNextLevel && isVictory ? [{ id: 'next', label: t('gameOver.nextLevel'), icon: ArrowRight, action: onNextLevel, primary: true }] : []),
+    { id: 'restart', label: t('gameOver.restart'), icon: RotateCcw, action: onRestart, primary: !onNextLevel || !isVictory },
+    { id: 'mainMenu', label: t('gameOver.mainMenu'), icon: ArrowLeft, action: onMainMenu }
+  ], [isVictory, onNextLevel, onRestart, onMainMenu, t]);
 
-  // 格式化时间
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 格式化精度
   const formatAccuracy = (accuracy: number): string => {
     return `${Math.round(accuracy * 100)}%`;
   };
 
-  // 键盘导航
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.code) {
@@ -85,13 +80,11 @@ export const GameOver: React.FC<GameOverProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [menuOptions, selectedOption]);
 
-  // 启动动画
   useEffect(() => {
     setShowAnimation(true);
     setTimeout(() => setAnimateStats(true), 500);
   }, []);
 
-  // 处理点击
   const handleClick = useCallback((index: number, action?: () => void) => {
     setSelectedOption(index);
     if (action) {
@@ -99,167 +92,145 @@ export const GameOver: React.FC<GameOverProps> = ({
     }
   }, []);
 
-  // 计算分数百分比
   const scorePercentage = useMemo(() => {
     return Math.min(100, (stats.score / stats.highScore) * 100);
   }, [stats.score, stats.highScore]);
 
   return (
-    <div className={`gameover-container ${showAnimation ? 'gameover-container--visible' : ''}`}>
-      {/* 背景效果 */}
-      <div className={`gameover-backdrop ${isVictory ? 'gameover-backdrop--victory' : 'gameover-backdrop--defeat'}`} />
+    <div className={`fixed inset-0 flex items-center justify-center z-50 transition-opacity duration-1000 ${showAnimation ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`absolute inset-0 ${isVictory ? 'bg-gradient-to-b from-blue-950/80 to-slate-950/90' : 'bg-gradient-to-b from-red-950/80 to-slate-950/90'}`} />
       
-      {/* 结算面板 */}
-      <div className="gameover-panel">
-        {/* 标题 */}
-        <div className="gameover-header">
-          <Text 
-            variant="h1" 
-            gradient={isVictory ? 'primary' : 'fire'} 
-            glow 
-            glowColor={isVictory ? '#3b82f6' : '#ef4444'}
-            align="center"
-            className="gameover-title"
-          >
-            {isVictory ? 'VICTORY!' : 'GAME OVER'}
-          </Text>
-          <Text variant="body" color="secondary" align="center">
-            {isVictory ? '恭喜你完成了这一关！' : '再接再厉！'}
-          </Text>
-        </div>
-
-        {/* 统计数据 */}
-        <div className="gameover-stats">
-          {/* 分数 */}
-          <div className="gameover-stat-main">
-            <div className="gameover-stat-main-header">
-              <Icon name="trophy" size={24} color="#fbbf24" />
-              <Text variant="h4" color="white" bold>
-                最终得分
-              </Text>
-            </div>
-            <Text 
-              variant="h1" 
-              color="white" 
-              bold 
-              align="center"
-              className="gameover-score"
-            >
-              {stats.score.toLocaleString()}
-            </Text>
-            {stats.score >= stats.highScore && (
-              <div className="gameover-new-record">
-                <Icon name="star" size={16} color="#fbbf24" />
-                <Text variant="caption" color="yellow" bold>
-                  NEW RECORD!
-                </Text>
-              </div>
-            )}
-            <div className="gameover-score-bar">
-              <ProgressBar 
-                value={scorePercentage} 
-                maxValue={100} 
-                color={isVictory ? 'primary' : 'red'} 
-                size="medium"
-              />
-              <Text variant="caption" color="muted" align="center">
-                最高分: {stats.highScore.toLocaleString()}
-              </Text>
-            </div>
+      <Card className={`relative z-10 w-full max-w-lg bg-slate-900/95 backdrop-blur-xl border-${isVictory ? 'blue' : 'red'}-500/30 shadow-2xl shadow-${isVictory ? 'blue' : 'red'}-500/20`}>
+        <CardContent className="p-8 space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className={`text-4xl md:text-5xl font-bold bg-gradient-to-r ${isVictory ? 'from-blue-400 via-purple-400 to-cyan-400' : 'from-red-400 via-orange-400 to-yellow-400'} bg-clip-text text-transparent drop-shadow-lg`}>
+              {isVictory ? t('gameOver.victory') : t('gameOver.defeat')}
+            </h1>
+            <p className="text-slate-400">
+              {isVictory ? t('gameOver.victoryDesc') : t('gameOver.defeatDesc')}
+            </p>
           </div>
 
-          {/* 详细统计 */}
-          <div className="gameover-stats-grid">
-            <div className="gameover-stat-item">
-              <Icon name="target" size={18} color="#ef4444" />
-              <div className="gameover-stat-info">
-                <span className="gameover-stat-label">消灭敌人</span>
-                <span className="gameover-stat-value">{stats.enemiesDefeated}</span>
+          <div className="space-y-4">
+            <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Trophy className="w-6 h-6 text-yellow-400" />
+                <span className="text-lg font-bold text-white">{t('gameOver.finalScore')}</span>
               </div>
-            </div>
-            
-            <div className="gameover-stat-item">
-              <Icon name="bolt" size={18} color="#3b82f6" />
-              <div className="gameover-stat-info">
-                <span className="gameover-stat-label">到达波次</span>
-                <span className="gameover-stat-value">Wave {stats.wave}</span>
+              <div className="text-4xl font-bold text-center text-white mb-2">
+                {stats.score.toLocaleString()}
               </div>
-            </div>
-            
-            <div className="gameover-stat-item">
-              <Icon name="medal" size={18} color="#22c55e" />
-              <div className="gameover-stat-info">
-                <span className="gameover-stat-label">游戏时间</span>
-                <span className="gameover-stat-value">{formatTime(stats.timeElapsed)}</span>
-              </div>
-            </div>
-            
-            <div className="gameover-stat-item">
-              <Icon name="target" size={18} color="#a855f7" />
-              <div className="gameover-stat-info">
-                <span className="gameover-stat-label">命中率</span>
-                <span className="gameover-stat-value">{formatAccuracy(stats.accuracy)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 解锁成就 */}
-        {unlockedAchievements.length > 0 && (
-          <div className="gameover-achievements">
-            <Text variant="h5" color="white" bold align="center">
-              解锁成就
-            </Text>
-            <div className="gameover-achievements-list">
-              {unlockedAchievements.map((achievement, index) => (
-                <div 
-                  key={achievement.id} 
-                  className="gameover-achievement-item"
-                  style={{ animationDelay: `${index * 0.2}s` }}
-                >
-                  <Icon name={achievement.icon as any} size={24} color="#fbbf24" />
-                  <Text variant="body" color="white">{achievement.name}</Text>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 菜单选项 */}
-        <div className="gameover-options">
-          {menuOptions.map((option, index) => (
-            <div 
-              key={option.id}
-              className={`gameover-option ${selectedOption === index ? 'gameover-option--selected' : ''}`}
-              onClick={() => handleClick(index, option.action)}
-              onMouseEnter={() => setSelectedOption(index)}
-            >
-              <Button
-                variant={option.primary ? 'primary' : 'secondary'}
-                size="large"
-                fullWidth
-                leftIcon={<Icon name={option.icon as any} size={20} />}
-                className="gameover-option-button"
-              >
-                {option.label}
-              </Button>
-              
-              {selectedOption === index && (
-                <div className="gameover-option-indicator">
-                  <Icon name="arrow-right" size={16} color="#fbbf24" />
+              {stats.score >= stats.highScore && (
+                <div className="flex items-center justify-center gap-2 text-yellow-400 mb-3">
+                  <Star className="w-4 h-4 fill-yellow-400" />
+                  <span className="text-sm font-bold">{t('gameOver.newRecord')}</span>
                 </div>
               )}
+              <div className="space-y-2">
+                <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r ${isVictory ? 'from-blue-500 to-cyan-500' : 'from-red-500 to-orange-500'} transition-all duration-1000 ${animateStats ? '' : 'w-0'}`}
+                    style={{ width: `${scorePercentage}%` }}
+                  />
+                </div>
+                <p className="text-center text-xs text-slate-500">
+                  {t('gameOver.highScore')}: {stats.highScore.toLocaleString()}
+                </p>
+              </div>
             </div>
-          ))}
-        </div>
 
-        {/* 提示 */}
-        <div className="gameover-hint">
-          <Text variant="caption" color="muted" align="center">
-            Press W/S to navigate | Enter to select
-          </Text>
-        </div>
-      </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-800/50 rounded-lg p-3 flex items-center gap-3">
+                <Target className="w-5 h-5 text-red-400" />
+                <div>
+                  <div className="text-xs text-slate-500">{t('gameOver.enemiesDefeated')}</div>
+                  <div className="text-lg font-bold text-white">{stats.enemiesDefeated}</div>
+                </div>
+              </div>
+              
+              <div className="bg-slate-800/50 rounded-lg p-3 flex items-center gap-3">
+                <Zap className="w-5 h-5 text-blue-400" />
+                <div>
+                  <div className="text-xs text-slate-500">{t('gameOver.waveReached')}</div>
+                  <div className="text-lg font-bold text-white">Wave {stats.wave}</div>
+                </div>
+              </div>
+              
+              <div className="bg-slate-800/50 rounded-lg p-3 flex items-center gap-3">
+                <Medal className="w-5 h-5 text-green-400" />
+                <div>
+                  <div className="text-xs text-slate-500">{t('gameOver.playTime')}</div>
+                  <div className="text-lg font-bold text-white">{formatTime(stats.timeElapsed)}</div>
+                </div>
+              </div>
+              
+              <div className="bg-slate-800/50 rounded-lg p-3 flex items-center gap-3">
+                <Crosshair className="w-5 h-5 text-purple-400" />
+                <div>
+                  <div className="text-xs text-slate-500">{t('gameOver.accuracy')}</div>
+                  <div className="text-lg font-bold text-white">{formatAccuracy(stats.accuracy)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {unlockedAchievements.length > 0 && (
+            <div className="bg-yellow-400/10 rounded-xl p-4">
+              <h3 className="text-sm font-bold text-white text-center mb-3">{t('gameOver.unlockedAchievements')}</h3>
+              <div className="flex flex-wrap justify-center gap-3">
+                {unlockedAchievements.map((achievement, index) => (
+                  <div
+                    key={achievement.id}
+                    className="flex items-center gap-2 bg-yellow-400/20 rounded-lg px-3 py-2"
+                    style={{ animationDelay: `${index * 0.2}s` }}
+                  >
+                    <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                    <span className="text-sm font-medium text-white">{achievement.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {menuOptions.map((option, index) => {
+              const IconComponent = option.icon;
+              return (
+                <div
+                  key={option.id}
+                  className={`relative ${selectedOption === index ? 'scale-[1.02]' : ''} transition-transform duration-200`}
+                  onClick={() => handleClick(index, option.action)}
+                  onMouseEnter={() => setSelectedOption(index)}
+                >
+                  <Button
+                    variant={option.primary ? 'default' : 'outline'}
+                    size="lg"
+                    className={`w-full h-14 text-base font-semibold ${
+                      selectedOption === index 
+                        ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-slate-900' 
+                        : ''
+                    } ${option.primary ? isVictory ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500' : 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500' : ''}`}
+                    onClick={() => option.action?.()}
+                  >
+                    <IconComponent className="w-5 h-5" />
+                    {option.label}
+                  </Button>
+                  
+                  {selectedOption === index && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2">
+                      <ArrowRight className="w-5 h-5 text-yellow-400" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-center text-slate-600 text-xs">
+            {t('gameOver.navigateHint')}
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };

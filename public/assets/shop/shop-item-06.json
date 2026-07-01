@@ -1,0 +1,18 @@
+{
+  "id": "shop-item-06",
+  "name": "核弹发射器",
+  "description": "可发射核弹的强大武器，造成范围伤害。",
+  "type": "weapon",
+  "subtype": "nuke",
+  "price": 30000,
+  "currency": "credits",
+  "attributes": {
+    "damage": 500,
+    "fireRate": 0.2,
+    "splashRadius": 200,
+    "energyCost": 100
+  },
+  "icon": "icon-bomb",
+  "rarity": "legendary",
+  "level": 20
+}

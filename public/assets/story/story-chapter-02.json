@@ -1,0 +1,49 @@
+{
+  "id": "story-chapter-02",
+  "number": 2,
+  "title": "反击",
+  "titleEn": "Counterstrike",
+  "description": "在成功击退边境入侵后，联邦决定主动出击。你的任务是深入敌方区域，摧毁外星人的补给线，切断他们的后勤支援。",
+  "background": "边境保卫战胜利后，联邦指挥部分析了缴获的敌方数据，发现外星人的补给线是他们的弱点。一次精心策划的反击行动就此展开。",
+  "dialogueSequence": [
+    {
+      "speaker": "commander",
+      "text": "飞行员，根据缴获的情报，我们发现了敌方的补给线。",
+      "emotion": "calm"
+    },
+    {
+      "speaker": "tactical_officer",
+      "text": "补给线由三艘运输船和护卫舰队保护，建议分批次攻击。",
+      "emotion": "analytical"
+    },
+    {
+      "speaker": "pilot",
+      "text": "我可以在护卫舰队反应过来之前摧毁运输船。",
+      "emotion": "confident"
+    },
+    {
+      "speaker": "commander",
+      "text": "小心行事，这次任务比上次危险得多。",
+      "emotion": "concerned"
+    },
+    {
+      "speaker": "pilot",
+      "text": "明白，我不会让您失望的。",
+      "emotion": "determined"
+    }
+  ],
+  "objectives": [
+    "摧毁3艘敌方运输船",
+    "击败护卫舰队",
+    "不被敌方主力舰队发现"
+  ],
+  "rewards": {
+    "experience": 1200,
+    "credits": 5000,
+    "unlocks": [
+      "ship-bomber",
+      "mission-06"
+    ],
+    "achievement": "achievement-02"
+  }
+}

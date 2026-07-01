@@ -1,0 +1,32 @@
+{
+  "id": "mission-20",
+  "name": "Boss战：霸主",
+  "description": "最终决战：击败外星首领 Overlord，拯救银河系。",
+  "type": "main",
+  "category": "boss",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "shield-generator",
+      "count": 4,
+      "current": 0
+    },
+    {
+      "type": "boss",
+      "target": "boss-overlord",
+      "defeat": false
+    }
+  ],
+  "rewards": {
+    "experience": 10000,
+    "credits": 100000,
+    "items": [
+      "weapon-blackhole",
+      "ship-corvette"
+    ]
+  },
+  "prerequisites": [
+    "mission-17"
+  ],
+  "chapter": "story-chapter-05"
+}

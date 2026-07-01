@@ -1,0 +1,31 @@
+{
+  "id": "mission-08",
+  "name": "VIP护送",
+  "description": "护送联邦高级官员安全抵达前线指挥部。",
+  "type": "side",
+  "category": "escort",
+  "objectives": [
+    {
+      "type": "escort",
+      "target": "vip-ship",
+      "healthThreshold": 80
+    },
+    {
+      "type": "destroy",
+      "target": "enemy-assassin",
+      "count": 3,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 500,
+    "credits": 2500,
+    "items": [
+      "powerup-defense"
+    ]
+  },
+  "prerequisites": [
+    "mission-02"
+  ],
+  "chapter": null
+}

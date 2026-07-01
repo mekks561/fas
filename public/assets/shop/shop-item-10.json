@@ -1,0 +1,16 @@
+{
+  "id": "shop-item-10",
+  "name": "护盾电池（5个）",
+  "description": "恢复50点护盾值的消耗品，包含5个。",
+  "type": "consumable",
+  "subtype": "shield",
+  "price": 1200,
+  "currency": "credits",
+  "attributes": {
+    "shieldAmount": 50,
+    "count": 5
+  },
+  "icon": "icon-shield",
+  "rarity": "common",
+  "level": 1
+}

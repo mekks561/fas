@@ -1,0 +1,39 @@
+{
+  "id": "dialogue-01",
+  "name": "紧急召集",
+  "participants": [
+    "commander",
+    "pilot"
+  ],
+  "trigger": {
+    "type": "story",
+    "chapter": "story-chapter-01",
+    "stage": "start"
+  },
+  "lines": [
+    {
+      "speaker": "commander",
+      "text": "飞行员，紧急情况！外星入侵者出现在边境。",
+      "emotion": "urgent",
+      "portrait": "commander-worried"
+    },
+    {
+      "speaker": "pilot",
+      "text": "发生了什么？",
+      "emotion": "surprised",
+      "portrait": "pilot-neutral"
+    },
+    {
+      "speaker": "commander",
+      "text": "未知种族的舰队突袭了我们的边境哨站，我们需要你立即起飞。",
+      "emotion": "serious",
+      "portrait": "commander-serious"
+    },
+    {
+      "speaker": "pilot",
+      "text": "我马上出发！",
+      "emotion": "determined",
+      "portrait": "pilot-determined"
+    }
+  ]
+}

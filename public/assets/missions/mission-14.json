@@ -1,0 +1,32 @@
+{
+  "id": "mission-14",
+  "name": "舰队先锋",
+  "description": "作为联邦舰队的先锋，突破敌方前锋防线。",
+  "type": "main",
+  "category": "destroy",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "enemy-fighter",
+      "count": 15,
+      "current": 0
+    },
+    {
+      "type": "destroy",
+      "target": "enemy-bomber",
+      "count": 5,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 2500,
+    "credits": 10000,
+    "items": [
+      "ship-dreadnought"
+    ]
+  },
+  "prerequisites": [
+    "mission-12"
+  ],
+  "chapter": "story-chapter-04"
+}

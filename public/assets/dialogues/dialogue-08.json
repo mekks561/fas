@@ -1,0 +1,33 @@
+{
+  "id": "dialogue-08",
+  "name": "任务完成",
+  "participants": [
+    "commander",
+    "pilot"
+  ],
+  "trigger": {
+    "type": "mission",
+    "mission": "any",
+    "stage": "complete"
+  },
+  "lines": [
+    {
+      "speaker": "pilot",
+      "text": "指挥官，任务完成。",
+      "emotion": "satisfied",
+      "portrait": "pilot-satisfied"
+    },
+    {
+      "speaker": "commander",
+      "text": "出色的表现，飞行员。奖励已发送到你的账户。",
+      "emotion": "pleased",
+      "portrait": "commander-happy"
+    },
+    {
+      "speaker": "pilot",
+      "text": "谢谢！随时准备下一个任务。",
+      "emotion": "eager",
+      "portrait": "pilot-eager"
+    }
+  ]
+}

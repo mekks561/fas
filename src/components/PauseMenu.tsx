@@ -4,8 +4,21 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button, Text, Icon } from './ui';
-import './PauseMenu.css';
+import { useTranslation } from 'react-i18next';
+import { Button } from './ui/shadcn';
+import {
+  Play,
+  RotateCcw,
+  Settings,
+  ArrowLeft,
+  ArrowRight,
+  Pause,
+  Trophy,
+  Target,
+  Zap,
+  Star,
+  Medal,
+} from 'lucide-react';
 
 interface PauseMenuProps {
   onResume: () => void;
@@ -21,6 +34,13 @@ interface PauseMenuProps {
   };
 }
 
+const menuIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  play: Play,
+  stop: RotateCcw,
+  settings: Settings,
+  'arrow-left': ArrowLeft,
+};
+
 export const PauseMenu: React.FC<PauseMenuProps> = ({
   onResume,
   onRestart,
@@ -34,6 +54,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
     timeElapsed: 0
   }
 }) => {
+  const { t } = useTranslation();
   const [selectedOption, setSelectedOption] = useState(0);
   const [showAnimation, setShowAnimation] = useState(false);
 
@@ -46,11 +67,11 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
 
   // 菜单选项
   const menuOptions = useMemo(() => [
-    { id: 'resume', label: '继续游戏', icon: 'play', action: onResume, primary: true },
-    { id: 'restart', label: '重新开始', icon: 'stop', action: onRestart },
-    { id: 'settings', label: '设置', icon: 'settings', action: onSettings },
-    { id: 'mainMenu', label: '返回主菜单', icon: 'arrow-left', action: onMainMenu, danger: true }
-  ], [onResume, onRestart, onSettings, onMainMenu]);
+    { id: 'resume', label: t('pause.resume'), icon: 'play', action: onResume, primary: true },
+    { id: 'restart', label: t('pause.restart'), icon: 'stop', action: onRestart },
+    { id: 'settings', label: t('pause.settings'), icon: 'settings', action: onSettings },
+    { id: 'mainMenu', label: t('pause.mainMenu'), icon: 'arrow-left', action: onMainMenu, danger: true }
+  ], [onResume, onRestart, onSettings, onMainMenu, t]);
 
   // 键盘导航
   useEffect(() => {
@@ -96,97 +117,103 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
   }, []);
 
   return (
-    <div className={`pause-container ${showAnimation ? 'pause-container--visible' : ''}`}>
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
+        showAnimation ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
       {/* 半透明背景 */}
-      <div className="pause-backdrop" onClick={onResume} />
-      
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onResume} />
+
       {/* 暂停面板 */}
-      <div className="pause-panel">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl">
         {/* 标题 */}
-        <div className="pause-header">
-          <Text variant="h2" color="white" bold align="center">
-            <Icon name="pause" size={28} color="#fbbf24" />
-            游戏暂停
-          </Text>
+        <div className="mb-4 flex items-center justify-center gap-2">
+          <Pause className="h-7 w-7 text-yellow-400" />
+          <h2 className="text-xl font-bold text-white">{t('pause.title')}</h2>
         </div>
 
         {/* 当前统计 */}
-        <div className="pause-stats">
-          <div className="pause-stat-item">
-            <Icon name="trophy" size={18} color="#fbbf24" />
-            <div className="pause-stat-info">
-              <span className="pause-stat-label">分数</span>
-              <span className="pause-stat-value">{currentStats.score.toLocaleString()}</span>
-            </div>
-          </div>
-          
-          <div className="pause-stat-item">
-            <Icon name="target" size={18} color="#ef4444" />
-            <div className="pause-stat-info">
-              <span className="pause-stat-label">消灭敌人</span>
-              <span className="pause-stat-value">{currentStats.enemiesDefeated}</span>
-            </div>
-          </div>
-          
-          <div className="pause-stat-item">
-            <Icon name="bolt" size={18} color="#3b82f6" />
-            <div className="pause-stat-info">
-              <span className="pause-stat-label">波次</span>
-              <span className="pause-stat-value">Wave {currentStats.wave}</span>
-            </div>
-          </div>
-          
-          <div className="pause-stat-item">
-            <Icon name="star" size={18} color="#a855f7" />
-            <div className="pause-stat-info">
-              <span className="pause-stat-label">等级</span>
-              <span className="pause-stat-value">Level {currentStats.level}</span>
+        <div className="mb-6 space-y-3">
+          <div className="flex items-center gap-3">
+            <Trophy className="h-5 w-5 text-yellow-400" />
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400">{t('pause.score')}</span>
+              <span className="text-sm font-semibold text-white">{currentStats.score.toLocaleString()}</span>
             </div>
           </div>
 
-          <div className="pause-stat-item">
-            <Icon name="medal" size={18} color="#22c55e" />
-            <div className="pause-stat-info">
-              <span className="pause-stat-label">游戏时间</span>
-              <span className="pause-stat-value">{formatTime(currentStats.timeElapsed)}</span>
+          <div className="flex items-center gap-3">
+            <Target className="h-5 w-5 text-red-500" />
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400">{t('pause.enemiesDefeated')}</span>
+              <span className="text-sm font-semibold text-white">{currentStats.enemiesDefeated}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Zap className="h-5 w-5 text-blue-500" />
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400">{t('pause.wave')}</span>
+              <span className="text-sm font-semibold text-white">Wave {currentStats.wave}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Star className="h-5 w-5 text-purple-500" />
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400">{t('pause.level')}</span>
+              <span className="text-sm font-semibold text-white">Level {currentStats.level}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Medal className="h-5 w-5 text-green-500" />
+            <div className="flex flex-col">
+              <span className="text-xs text-slate-400">{t('pause.playTime')}</span>
+              <span className="text-sm font-semibold text-white">{formatTime(currentStats.timeElapsed)}</span>
             </div>
           </div>
         </div>
 
         {/* 菜单选项 */}
-        <div className="pause-options">
-          {menuOptions.map((option, index) => (
-            <div 
-              key={option.id}
-              className={`pause-option ${selectedOption === index ? 'pause-option--selected' : ''} ${option.danger ? 'pause-option--danger' : ''}`}
-              onClick={() => handleClick(index, option.action)}
-              onMouseEnter={() => setSelectedOption(index)}
-            >
-              <Button
-                variant={option.primary ? 'primary' : option.danger ? 'danger' : 'secondary'}
-                size="large"
-                fullWidth
-                leftIcon={<Icon name={option.icon as any} size={20} />}
-                className="pause-option-button"
+        <div className="space-y-2">
+          {menuOptions.map((option, index) => {
+            const IconComponent = menuIconMap[option.icon] ?? Play;
+            return (
+              <div
+                key={option.id}
+                className={`relative rounded-xl transition-colors ${
+                  selectedOption === index ? 'bg-slate-800' : ''
+                }`}
+                onClick={() => handleClick(index, option.action)}
+                onMouseEnter={() => setSelectedOption(index)}
               >
-                {option.label}
-              </Button>
-              
-              {/* 选中指示器 */}
-              {selectedOption === index && (
-                <div className="pause-option-indicator">
-                  <Icon name="arrow-right" size={16} color="#fbbf24" />
-                </div>
-              )}
-            </div>
-          ))}
+                <Button
+                  variant={option.primary ? 'default' : option.danger ? 'destructive' : 'secondary'}
+                  size="lg"
+                  className="w-full justify-start"
+                >
+                  <IconComponent />
+                  {option.label}
+                </Button>
+
+                {/* 选中指示器 */}
+                {selectedOption === index && (
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                    <ArrowRight className="h-4 w-4 text-yellow-400" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* 提示信息 */}
-        <div className="pause-hint">
-          <Text variant="caption" color="muted" align="center">
-            Press ESC to resume | W/S to navigate | Enter to select
-          </Text>
+        <div className="mt-4">
+          <p className="text-center text-xs text-slate-500">
+            {t('pause.navigateHint')}
+          </p>
         </div>
       </div>
     </div>

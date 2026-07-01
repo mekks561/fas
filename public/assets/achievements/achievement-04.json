@@ -1,0 +1,17 @@
+{
+  "id": "achievement-04",
+  "name": "进攻英雄",
+  "description": "完成第四章剧情\"大举进攻\"。",
+  "category": "story",
+  "condition": {
+    "type": "story_complete",
+    "target": "story-chapter-04"
+  },
+  "rewards": {
+    "experience": 1000,
+    "credits": 5000,
+    "icon": "icon-achieve"
+  },
+  "icon": "icon-achieve",
+  "rarity": "rare"
+}

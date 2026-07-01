@@ -1,0 +1,39 @@
+{
+  "id": "dialogue-05",
+  "name": "Boss战前",
+  "participants": [
+    "commander",
+    "pilot"
+  ],
+  "trigger": {
+    "type": "mission",
+    "mission": "mission-07",
+    "stage": "start"
+  },
+  "lines": [
+    {
+      "speaker": "commander",
+      "text": "飞行员，前方就是 Sentinel 的旗舰。",
+      "emotion": "serious",
+      "portrait": "commander-serious"
+    },
+    {
+      "speaker": "pilot",
+      "text": "我看到了，它比我想象的更大。",
+      "emotion": "nervous",
+      "portrait": "pilot-nervous"
+    },
+    {
+      "speaker": "commander",
+      "text": "不要被它的外表吓到，找到它的弱点。",
+      "emotion": "encouraging",
+      "portrait": "commander-encouraging"
+    },
+    {
+      "speaker": "pilot",
+      "text": "明白，我会全力以赴的！",
+      "emotion": "determined",
+      "portrait": "pilot-determined"
+    }
+  ]
+}

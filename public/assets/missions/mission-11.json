@@ -1,0 +1,23 @@
+{
+  "id": "mission-11",
+  "name": "日常：信用点收集",
+  "description": "每日任务：通过战斗收集1000信用点。",
+  "type": "daily",
+  "category": "collect",
+  "objectives": [
+    {
+      "type": "collect",
+      "target": "credits",
+      "count": 1000,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 150,
+    "credits": 600,
+    "items": []
+  },
+  "prerequisites": [],
+  "chapter": null,
+  "resetDaily": true
+}

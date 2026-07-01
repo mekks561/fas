@@ -1,0 +1,17 @@
+{
+  "id": "achievement-06",
+  "name": "战场老兵",
+  "description": "累计完成5个任务。",
+  "category": "mission",
+  "condition": {
+    "type": "mission_count",
+    "count": 5
+  },
+  "rewards": {
+    "experience": 200,
+    "credits": 1000,
+    "icon": "icon-achieve"
+  },
+  "icon": "icon-achieve",
+  "rarity": "common"
+}

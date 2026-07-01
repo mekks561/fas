@@ -1,0 +1,18 @@
+{
+  "id": "shop-item-05",
+  "name": "狙击激光",
+  "description": "超远射程的精确激光武器。",
+  "type": "weapon",
+  "subtype": "sniper",
+  "price": 8000,
+  "currency": "credits",
+  "attributes": {
+    "damage": 80,
+    "fireRate": 0.5,
+    "range": 1000,
+    "accuracy": 95
+  },
+  "icon": "icon-gun",
+  "rarity": "epic",
+  "level": 10
+}

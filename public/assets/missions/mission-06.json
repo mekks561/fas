@@ -1,0 +1,32 @@
+{
+  "id": "mission-06",
+  "name": "补给线突袭",
+  "description": "深入敌方区域，摧毁3艘敌方运输船，切断敌方补给线。",
+  "type": "main",
+  "category": "destroy",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "enemy-transport",
+      "count": 3,
+      "current": 0
+    },
+    {
+      "type": "destroy",
+      "target": "enemy-corvette",
+      "count": 2,
+      "current": 0
+    }
+  ],
+  "rewards": {
+    "experience": 800,
+    "credits": 3000,
+    "items": [
+      "weapon-missile"
+    ]
+  },
+  "prerequisites": [
+    "mission-02"
+  ],
+  "chapter": "story-chapter-02"
+}

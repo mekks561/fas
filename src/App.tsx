@@ -3,16 +3,29 @@
  * 管理游戏的整体UI状态
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { GameScene } from './components/GameScene';
+import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { MainMenu } from './components/MainMenu';
-import { Settings } from './components/Settings';
-import { PauseMenu } from './components/PauseMenu';
-import { GameOver } from './components/GameOver';
-import { LevelSelect } from './components/LevelSelect';
 import { useGameStore } from './store/useGameStore';
 import { GameState } from './game/GameStateMachine';
+import { Progress } from './components/ui/shadcn';
 import './App.css';
+
+const GameScene = lazy(() => import('./components/GameScene').then(m => ({ default: m.GameScene })));
+const LevelSelect = lazy(() => import('./components/LevelSelect').then(m => ({ default: m.LevelSelect })));
+const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const PauseMenu = lazy(() => import('./components/PauseMenu').then(m => ({ default: m.PauseMenu })));
+const GameOver = lazy(() => import('./components/GameOver').then(m => ({ default: m.GameOver })));
+
+const PageLoader = () => (
+  <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
+    <div className="w-64 space-y-4">
+      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" style={{ width: '60%' }} />
+      </div>
+      <p className="text-center text-slate-500 text-sm">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
@@ -159,45 +172,55 @@ function App() {
 
       {/* 关卡选择 */}
       {gameState === GameState.LEVEL_SELECT && (
-        <LevelSelect
-          onSelectLevel={handleSelectLevel}
-          onBack={handleBackToMenu}
-          currentPlayerLevel={playerLevel}
-        />
+        <Suspense fallback={<PageLoader />}>
+          <LevelSelect
+            onSelectLevel={handleSelectLevel}
+            onBack={handleBackToMenu}
+            currentPlayerLevel={playerLevel}
+          />
+        </Suspense>
       )}
 
       {/* 设置面板 */}
       {gameState === GameState.SETTINGS && (
-        <Settings onClose={handleCloseSettings} />
+        <Suspense fallback={<PageLoader />}>
+          <Settings onClose={handleCloseSettings} />
+        </Suspense>
       )}
 
       {/* 游戏场景 */}
       {(gameState === GameState.PLAYING && isSceneReady) && (
         <>
-          <GameScene onGameOver={handleGameOver} onLevelComplete={handleLevelComplete} />
+          <Suspense fallback={<PageLoader />}>
+            <GameScene onGameOver={handleGameOver} onLevelComplete={handleLevelComplete} />
+          </Suspense>
           
           {/* 暂停菜单 */}
           {isPaused && (
-            <PauseMenu
-              onResume={handleResume}
-              onRestart={handleRestart}
-              onSettings={handleSettings}
-              onMainMenu={handleBackToMenu}
-              currentStats={pauseStats}
-            />
+            <Suspense fallback={<PageLoader />}>
+              <PauseMenu
+                onResume={handleResume}
+                onRestart={handleRestart}
+                onSettings={handleSettings}
+                onMainMenu={handleBackToMenu}
+                currentStats={pauseStats}
+              />
+            </Suspense>
           )}
         </>
       )}
 
       {/* 游戏结束 */}
       {gameState === GameState.GAME_OVER && (
-        <GameOver
-          isVictory={isVictory}
-          stats={gameStats}
-          onRestart={handleRestart}
-          onMainMenu={handleBackToMenu}
-          onNextLevel={selectedLevel < 5 ? handleNextLevel : undefined}
-        />
+        <Suspense fallback={<PageLoader />}>
+          <GameOver
+            isVictory={isVictory}
+            stats={gameStats}
+            onRestart={handleRestart}
+            onMainMenu={handleBackToMenu}
+            onNextLevel={selectedLevel < 5 ? handleNextLevel : undefined}
+          />
+        </Suspense>
       )}
     </div>
   );

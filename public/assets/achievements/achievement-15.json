@@ -1,0 +1,17 @@
+{
+  "id": "achievement-15",
+  "name": "传奇飞行员",
+  "description": "解锁所有其他成就。",
+  "category": "special",
+  "condition": {
+    "type": "all_achievements"
+  },
+  "rewards": {
+    "experience": 10000,
+    "credits": 50000,
+    "icon": "icon-star",
+    "title": "银河传奇"
+  },
+  "icon": "icon-star",
+  "rarity": "legendary"
+}

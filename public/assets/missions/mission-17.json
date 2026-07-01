@@ -1,0 +1,37 @@
+{
+  "id": "mission-17",
+  "name": "护卫舰队歼灭",
+  "description": "击败保护 Overlord 母舰的护卫舰队。",
+  "type": "main",
+  "category": "destroy",
+  "objectives": [
+    {
+      "type": "destroy",
+      "target": "enemy-destroyer",
+      "count": 4,
+      "current": 0
+    },
+    {
+      "type": "destroy",
+      "target": "enemy-corvette",
+      "count": 6,
+      "current": 0
+    },
+    {
+      "type": "boss",
+      "target": "boss-sentinel",
+      "defeat": false
+    }
+  ],
+  "rewards": {
+    "experience": 4000,
+    "credits": 20000,
+    "items": [
+      "weapon-nuke"
+    ]
+  },
+  "prerequisites": [
+    "mission-14"
+  ],
+  "chapter": "story-chapter-04"
+}
