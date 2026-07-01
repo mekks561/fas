@@ -112,7 +112,7 @@ const safeLocalStorage = {
     try {
       localStorage.setItem(key, value);
       return true;
-    } catch (e) {
+    } catch {
       console.warn('Storage quota exceeded, save failed');
       return false;
     }

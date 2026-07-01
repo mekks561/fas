@@ -129,5 +129,5 @@ export interface WaveConfig {
 export interface GameEvent {
   type: 'ENEMY_KILLED' | 'POWERUP_COLLECTED' | 'LEVEL_UP' | 'WAVE_COMPLETED' | 'DAMAGE_TAKEN';
   timestamp: number;
-  data: any;
+  data: unknown;
 }

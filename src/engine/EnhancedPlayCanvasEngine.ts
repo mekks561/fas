@@ -43,8 +43,8 @@ export class EnhancedPlayCanvasEngine {
   constructor(config: GameConfig) {
     const { 
       canvas, 
-      width = window.innerWidth, 
-      height = window.innerHeight, 
+      width: _width = window.innerWidth,
+      height: _height = window.innerHeight,
       antialias = true,
       enablePhysics = true,
       enablePostEffects = true
@@ -56,12 +56,15 @@ export class EnhancedPlayCanvasEngine {
       touch: 'ontouchstart' in window ? new pc.TouchDevice(canvas) : null,
       keyboard: new pc.Keyboard(canvas),
       graphicsDeviceOptions: {
+        deviceType: [pc.DEVICETYPE_WEBGPU, pc.DEVICETYPE_WEBGL2],
         antialias,
         alpha: true,
         powerPreference: 'high-performance',
-        webgl2: true
       }
     });
+
+    const deviceType = this.app.graphicsDevice.deviceType;
+    console.log(`[EnhancedPlayCanvasEngine] Application created (GPU: ${deviceType})`);
     
     this.app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
     this.app.setCanvasResolution(pc.RESOLUTION_AUTO);
@@ -101,7 +104,8 @@ export class EnhancedPlayCanvasEngine {
   }
   
   private setupPostEffects(): void {
-    const cameraComponent = this.camera.camera!;
+    const cameraComponent = this.camera.camera;
+    if (!cameraComponent) return;
     
     const bloom = new pc.BloomEffect();
     bloom.intensity = 0.5;
@@ -125,17 +129,18 @@ export class EnhancedPlayCanvasEngine {
     if (config.target) {
       this.camera.lookAt(config.target);
     }
-    if (config.fov) {
-      this.camera.camera!.fov = config.fov;
+    const cameraComp = this.camera.camera;
+    if (config.fov && cameraComp) {
+      cameraComp.fov = config.fov;
     }
-    if (config.nearClip) {
-      this.camera.camera!.nearClip = config.nearClip;
+    if (config.nearClip && cameraComp) {
+      cameraComp.nearClip = config.nearClip;
     }
-    if (config.farClip) {
-      this.camera.camera!.farClip = config.farClip;
+    if (config.farClip && cameraComp) {
+      cameraComp.farClip = config.farClip;
     }
-    if (config.clearColor) {
-      this.camera.camera!.clearColor = config.clearColor;
+    if (config.clearColor && cameraComp) {
+      cameraComp.clearColor = config.clearColor;
     }
   }
   

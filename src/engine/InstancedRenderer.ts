@@ -7,7 +7,7 @@ export interface InstanceData {
   scale: pc.Vec3;
   color: pc.Color;
   visible: boolean;
-  userData?: any;
+  userData?: unknown;
 }
 
 export interface InstanceMesh {
@@ -65,7 +65,7 @@ export class InstancedRenderer {
     }
 
     if (this.batchGroups.has(config.id)) {
-      return this.batchGroups.get(config.id)!;
+      return this.batchGroups.get(config.id) ?? null;
     }
 
     const meshAsset = this.app.assets.find(config.meshAssetId);
@@ -250,7 +250,7 @@ export class InstancedRenderer {
 
     render.enabled = true;
 
-    const meshInstances = (render as any).meshInstances;
+    const meshInstances = (render as unknown as { meshInstances?: { setMatrix?: (index: number, matrix: pc.Mat4) => void; setColor?: (index: number, color: pc.Color) => void; visibleInstanceCount?: number; }[] }).meshInstances;
     if (!meshInstances || meshInstances.length === 0) return;
 
     const meshInstance = meshInstances[0];
@@ -259,7 +259,6 @@ export class InstancedRenderer {
     batch.instances.forEach((instance) => {
       if (instance.visible) {
         const matrix = new pc.Mat4();
-        const translation = new pc.Mat4().setTranslate(instance.position.x, instance.position.y, instance.position.z);
         const rotation = new pc.Mat4().setTRS(instance.position, new pc.Quat().setFromEulerAngles(instance.rotation.x, instance.rotation.y, instance.rotation.z), new pc.Vec3(1, 1, 1));
         const scaleMatrix = new pc.Mat4().setTRS(instance.position, new pc.Quat(), instance.scale);
         

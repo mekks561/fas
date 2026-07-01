@@ -184,7 +184,7 @@ export class EnhancedEnemy {
     
     const body = new pc.Entity('enemyBody');
     body.addComponent('model', { type: this.getModelType() });
-    body.model!.material = material;
+    if (body.model) body.model.material = material;
     body.setLocalScale(this.getScale());
     if (this.type === EnemyType.SCOUT) {
       body.setLocalEulerAngles(0, 0, 90);
@@ -196,7 +196,7 @@ export class EnhancedEnemy {
     const cockpitMaterial = new pc.StandardMaterial();
     cockpitMaterial.diffuse.set(0.6, 0.1, 0.1);
     cockpitMaterial.update();
-    cockpit.model!.material = cockpitMaterial;
+    if (cockpit.model) cockpit.model.material = cockpitMaterial;
     cockpit.setLocalPosition(0, 0.3, 0);
     cockpit.setLocalScale(0.3, 0.3, 0.3);
     enemy.addChild(cockpit);
@@ -336,7 +336,7 @@ export class EnhancedEnemy {
         
         if (this.type === EnemyType.SNIPER) {
           this.targetPosition = playerPos.clone();
-          this.entity.rigidbody!.linearVelocity = new pc.Vec3(0, 0, 0);
+          if (this.entity.rigidbody) this.entity.rigidbody.linearVelocity = new pc.Vec3(0, 0, 0);
         } else {
           this.moveToPosition(playerPos, dt);
         }
@@ -415,7 +415,7 @@ export class EnhancedEnemy {
     material.update();
     
     projectile.addComponent('model', { type: 'sphere' });
-    projectile.model!.material = material;
+    if (projectile.model) projectile.model.material = material;
     projectile.setLocalScale(0.15, 0.15, 0.15);
     
     projectile.addComponent('rigidbody', {
@@ -431,7 +431,7 @@ export class EnhancedEnemy {
     this.engine.addToScene(projectile);
     
     const direction = playerPos.clone().sub(enemyPos).normalize();
-    projectile.rigidbody!.linearVelocity = direction.scale(25);
+    if (projectile.rigidbody) projectile.rigidbody.linearVelocity = direction.scale(25);
   }
   
   public takeDamage(amount: number): void {

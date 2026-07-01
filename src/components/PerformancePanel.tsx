@@ -56,7 +56,7 @@ export const PerformancePanel: React.FC = () => {
       let memoryTotal = 0;
       
       if ('memory' in performance) {
-        const memory = (performance as any).memory;
+        const memory = (performance as Performance & { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
         memoryUsed = Math.round(memory.usedJSHeapSize / (1024 * 1024));
         memoryTotal = Math.round(memory.jsHeapSizeLimit / (1024 * 1024));
       }

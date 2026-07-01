@@ -1,7 +1,7 @@
 import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
-import { Enemy, EnemyType } from './Enemy';
+import { EnemyType } from './Enemy';
 import { EnemyAI, EnemyAIFactory } from './EnemyAI';
 
 export interface Poolable {
@@ -31,7 +31,7 @@ export class ObjectPool<T extends Poolable> {
     let obj: T;
     
     if (this.available.length > 0) {
-      obj = this.available.pop()!;
+      obj = this.available.pop() as T;
     } else if (this.inUse.size < this.maxSize) {
       obj = this.factory();
     } else {
@@ -103,7 +103,7 @@ export class ProjectilePoolItem implements Poolable {
 
     this.entity = new pc.Entity('projectile');
     this.entity.addComponent('model', { type: 'sphere' });
-    this.entity.model!.material = this.material;
+    if (this.entity.model) this.entity.model.material = this.material;
     this.entity.setLocalScale(scale, scale, scale);
   }
 
@@ -267,7 +267,7 @@ export class EnemyPoolItem implements Poolable {
         break;
     }
 
-    enemy.model!.material = material;
+    if (enemy.model) enemy.model.material = material;
     return enemy;
   }
 
@@ -366,7 +366,7 @@ export class ExplosionPoolItem implements Poolable {
   private duration: number = 0;
   private maxDuration: number = 0.5;
 
-  constructor(app: pc.Application) {
+  constructor(_app: pc.Application) {
     this.entity = new pc.Entity('explosion');
     this.entity.addComponent('particlesystem', {
       type: 'sphere',

@@ -27,15 +27,16 @@ export class PlayCanvasGameEngine {
       touch: 'ontouchstart' in window ? new pc.TouchDevice(canvas) : undefined,
       keyboard: new pc.Keyboard(canvas),
       graphicsDeviceOptions: {
+        deviceType: [pc.DEVICETYPE_WEBGPU, pc.DEVICETYPE_WEBGL2],
         antialias,
         alpha: false,
         powerPreference: 'high-performance',
         preserveDrawingBuffer: false,
-        webgl2: true
       }
     });
-    
-    console.log('[PlayCanvasEngine] Application created');
+
+    const deviceType = this.app.graphicsDevice.deviceType;
+    console.log(`[PlayCanvasEngine] Application created (GPU: ${deviceType})`);
     
     this.app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
     this.app.setCanvasResolution(pc.RESOLUTION_AUTO);
@@ -70,7 +71,7 @@ export class PlayCanvasGameEngine {
   
   private enablePhysics(): void {
     try {
-      this.app.systems.physics!.gravity.set(0, 0, 0);
+      this.app.systems.physics?.gravity.set(0, 0, 0);
       this.physicsEnabled = true;
       console.log('[PlayCanvasEngine] Physics system enabled');
     } catch (error) {
@@ -154,7 +155,7 @@ export class PlayCanvasGameEngine {
     if (options.emissive) material.emissive = options.emissive;
     if (options.specular) material.specular = options.specular;
     if (options.shininess !== undefined) {
-      (material as any).shininess = options.shininess;
+      (material as unknown as { shininess: number }).shininess = options.shininess;
     }
     if (options.transparency !== undefined) {
       material.transparency = options.transparency;
@@ -175,7 +176,7 @@ export class PlayCanvasGameEngine {
       height,
       depth
     });
-    box.model!.material = material;
+    if (box.model) box.model.material = material;
     this.app.root.addChild(box);
     return box;
   }
@@ -186,7 +187,7 @@ export class PlayCanvasGameEngine {
       type: 'sphere',
       radius
     });
-    sphere.model!.material = material;
+    if (sphere.model) sphere.model.material = material;
     this.app.root.addChild(sphere);
     return sphere;
   }
@@ -198,7 +199,7 @@ export class PlayCanvasGameEngine {
       radius,
       height
     });
-    cylinder.model!.material = material;
+    if (cylinder.model) cylinder.model.material = material;
     this.app.root.addChild(cylinder);
     return cylinder;
   }
@@ -237,7 +238,7 @@ export class PlayCanvasGameEngine {
     
     const nebula = new pc.Entity('nebula');
     nebula.addComponent('model', { type: 'sphere' });
-    nebula.model!.material = nebulaMaterial;
+    if (nebula.model) nebula.model.material = nebulaMaterial;
     nebula.setPosition(position);
     nebula.setLocalScale(scale, scale * 0.5, scale);
     

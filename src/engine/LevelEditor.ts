@@ -10,7 +10,7 @@ export interface LevelObject {
   position: pc.Vec3;
   rotation: pc.Vec3;
   scale: pc.Vec3;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   entity?: pc.Entity;
 }
 
@@ -45,7 +45,7 @@ export interface SpawnPoint {
   type: 'player' | 'enemy' | 'item';
   position: pc.Vec3;
   rotation: pc.Vec3;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
 }
 
 export interface Objective {
@@ -62,7 +62,7 @@ export interface ObjectTemplate {
   name: string;
   category: 'environment' | 'enemy' | 'item' | 'trigger' | 'decorator';
   icon: string;
-  defaultProperties: Record<string, any>;
+  defaultProperties: Record<string, unknown>;
   meshAssetId?: string;
   materialAssetId?: string;
   color?: pc.Color;
@@ -220,7 +220,7 @@ export class LevelEditor {
       line.addComponent('render', {
         type: 'box'
       });
-      line.render!.material = this.gridMaterial;
+      if (line.render) line.render.material = this.gridMaterial;
 
       if (Math.abs(i) === divisions) {
         line.setLocalScale(0.05, 0.02, size);
@@ -238,7 +238,7 @@ export class LevelEditor {
       line.addComponent('render', {
         type: 'box'
       });
-      line.render!.material = this.gridMaterial;
+      if (line.render) line.render.material = this.gridMaterial;
       line.setLocalScale(size, 0.02, 0.02);
       line.setPosition(0, 0, i * (size / divisions / 2));
       this.editorGrid.addChild(line);
@@ -285,7 +285,7 @@ export class LevelEditor {
     }
   }
 
-  private onMouseUp(event: pc.MouseEvent): void {}
+  private onMouseUp(_event: pc.MouseEvent): void {}
 
   private onKeyDown(event: KeyboardEvent): void {
     if (!this.isEnabled) return;
@@ -326,10 +326,10 @@ export class LevelEditor {
   }
 
   private handleSelect(event: pc.MouseEvent): void {
-    const from = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.nearClip);
-    const to = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
+    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
 
-    const result = this.app!.scenery!.raycast(from, to);
+    const result = this.app?.scenery?.raycast(from, to);
     if (result && result.entity) {
       const levelObject = this.findLevelObjectByEntity(result.entity);
       if (levelObject) {
@@ -341,10 +341,10 @@ export class LevelEditor {
   private handlePlace(event: pc.MouseEvent): void {
     if (!this.currentTemplate || !this.app) return;
 
-    const from = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.nearClip);
-    const to = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
+    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
 
-    const result = this.app!.scenery!.raycastGround(from, to);
+    const result = this.app?.scenery?.raycastGround(from, to);
     if (result) {
       const position = this.snapToGrid ? this.snapPosition(result.point) : result.point;
       this.addObject(this.currentTemplate.id, position);
@@ -352,10 +352,10 @@ export class LevelEditor {
   }
 
   private handleDelete(event: pc.MouseEvent): void {
-    const from = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.nearClip);
-    const to = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
+    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
 
-    const result = this.app!.scenery!.raycast(from, to);
+    const result = this.app?.scenery?.raycast(from, to);
     if (result && result.entity) {
       const levelObject = this.findLevelObjectByEntity(result.entity);
       if (levelObject) {
@@ -365,10 +365,10 @@ export class LevelEditor {
   }
 
   private handleHover(event: pc.MouseEvent): void {
-    const from = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.nearClip);
-    const to = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
+    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
 
-    const result = this.app!.scenery!.raycast(from, to);
+    const result = this.app?.scenery?.raycast(from, to);
     if (result && result.entity) {
       const levelObject = this.findLevelObjectByEntity(result.entity);
       if (levelObject !== this.hoveredObject) {
@@ -382,8 +382,8 @@ export class LevelEditor {
   private updatePreviewPosition(event: pc.MouseEvent): void {
     if (!this.app || !this.previewEntity) return;
 
-    const from = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.nearClip);
-    const to = this.editorCamera!.camera!.screenToWorld(event.x, event.y, this.editorCamera!.camera!.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
+    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
 
     const result = this.app.scenery.raycastGround(from, to);
     if (result) {
@@ -467,7 +467,7 @@ export class LevelEditor {
     material.blendType = pc.BLEND_NORMAL;
     material.update();
 
-    this.previewEntity.render!.material = material;
+    if (this.previewEntity.render) this.previewEntity.render.material = material;
     this.app.root.addChild(this.previewEntity);
   }
 
@@ -503,14 +503,14 @@ export class LevelEditor {
       objectives: []
     };
 
-    this.callbacks.levelChange.forEach(cb => cb(this.level!));
+    this.callbacks.levelChange.forEach(cb => cb(this.level as LevelData));
     return this.level;
   }
 
   public loadLevel(data: LevelData): void {
     this.level = data;
     this.rebuildLevelObjects();
-    this.callbacks.levelChange.forEach(cb => cb(this.level!));
+    this.callbacks.levelChange.forEach(cb => cb(this.level as LevelData));
   }
 
   public saveLevel(): string | null {
@@ -544,7 +544,7 @@ export class LevelEditor {
     this.level.objects.forEach(obj => {
       const entity = this.createObjectEntity(obj);
       obj.entity = entity;
-      this.app!.root.addChild(entity);
+      this.app?.root.addChild(entity);
     });
   }
 
@@ -559,13 +559,13 @@ export class LevelEditor {
     if (template?.materialAssetId && this.app) {
       const material = this.app.assets.find(template.materialAssetId);
       if (material) {
-        entity.render!.material = material.resource;
+        if (entity.render) entity.render.material = material.resource;
       }
     } else if (template?.color) {
       const material = new pc.StandardMaterial();
       material.diffuse = template.color;
       material.update();
-      entity.render!.material = material;
+      if (entity.render) entity.render.material = material;
     }
 
     entity.setPosition(obj.position);
@@ -667,7 +667,7 @@ export class LevelEditor {
     this.selectedObjects.push(object);
 
     if (object.entity && this.selectionMaterial) {
-      object.entity.render!.material = this.selectionMaterial;
+      if (object.entity.render) object.entity.render.material = this.selectionMaterial;
     }
 
     this.callbacks.objectSelect.forEach(cb => cb(object));
@@ -679,7 +679,7 @@ export class LevelEditor {
 
     objects.forEach(obj => {
       if (obj.entity && this.selectionMaterial) {
-        obj.entity.render!.material = this.selectionMaterial;
+        if (obj.entity.render) obj.entity.render.material = this.selectionMaterial;
       }
     });
   }
@@ -692,7 +692,7 @@ export class LevelEditor {
           const material = new pc.StandardMaterial();
           material.diffuse = template.color;
           material.update();
-          obj.entity!.render!.material = material;
+          if (obj.entity?.render) obj.entity.render.material = material;
         }
       }
     });
@@ -708,14 +708,14 @@ export class LevelEditor {
         const material = new pc.StandardMaterial();
         material.diffuse = template.color;
         material.update();
-        this.hoveredObject.entity.render!.material = material;
+        if (this.hoveredObject.entity?.render) this.hoveredObject.entity.render.material = material;
       }
     }
 
     this.hoveredObject = object;
 
     if (object && object.entity && this.hoverMaterial && !this.selectedObjects.includes(object)) {
-      object.entity.render!.material = this.hoverMaterial;
+      if (object.entity.render) object.entity.render.material = this.hoverMaterial;
     }
   }
 
@@ -783,7 +783,7 @@ export class LevelEditor {
               obj.entity = this.createObjectEntity(obj);
               this.app.root.addChild(obj.entity);
             }
-            this.level!.objects.push(obj);
+            this.level?.objects.push(obj);
           });
         }
         break;

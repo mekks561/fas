@@ -22,7 +22,7 @@ export class FileStorageManager {
             }
 
             const blob = new Blob([data], { type: 'application/octet-stream' });
-            const url = URL.createObjectURL(blob);
+            URL.createObjectURL(blob);
 
             this.cache.set(filename, data);
 
@@ -39,7 +39,10 @@ export class FileStorageManager {
     public async load(filename: string): Promise<ArrayBuffer | null> {
         if (this.cache.has(filename)) {
             console.log(`Cache hit for ${filename}`);
-            return this.cache.get(filename)!;
+            const cached = this.cache.get(filename);
+            if (cached) {
+                return cached;
+            }
         }
 
         if (this.usePersistentStorage) {
@@ -175,14 +178,14 @@ export class FileStorageManager {
             };
             
             const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+            URL.createObjectURL(blob);
             console.log(`Metadata updated for ${filename}`);
         } catch (error) {
             console.error('Failed to update metadata:', error);
         }
     }
 
-    private async loadMetadata(): Promise<Record<string, any>> {
+    private async loadMetadata(): Promise<Record<string, unknown>> {
         try {
             const db = await this.openDatabase();
             const tx = db.transaction('metadata', 'readonly');

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from './ui/shadcn';
 import { Card, CardContent } from './ui/shadcn';
-import { Badge } from './ui/shadcn';
 import { Trophy, ArrowRight, RotateCcw, ArrowLeft, Star, Target, Zap, Medal, Crosshair } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

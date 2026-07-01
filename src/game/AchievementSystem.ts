@@ -232,9 +232,12 @@ export class AchievementSystem {
 
     if (newProgress >= achievement.requiredProgress && !achievement.unlocked) {
       achievement.unlocked = true;
-      this.progress.get(id)!.unlocked = true;
-      this.progress.get(id)!.unlockedAt = Date.now();
-      
+      const progressEntry = this.progress.get(id);
+      if (progressEntry) {
+        progressEntry.unlocked = true;
+        progressEntry.unlockedAt = Date.now();
+      }
+
       this.saveProgress();
       this.listeners.forEach(listener => listener(achievement));
     }

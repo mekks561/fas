@@ -165,14 +165,16 @@ export class InputManager {
     if (!this.keyBindings[action]) {
       this.keyBindings[action] = [];
     }
-    if (!this.keyBindings[action]!.includes(key)) {
-      this.keyBindings[action]!.push(key);
+    const bindings = this.keyBindings[action];
+    if (bindings && !bindings.includes(key)) {
+      bindings.push(key);
     }
   }
 
   public removeKeyBinding(action: keyof IKeyBindings, key: string): void {
-    if (this.keyBindings[action]) {
-      this.keyBindings[action] = this.keyBindings[action]!.filter(k => k !== key);
+    const bindings = this.keyBindings[action];
+    if (bindings) {
+      this.keyBindings[action] = bindings.filter(k => k !== key);
     }
   }
 

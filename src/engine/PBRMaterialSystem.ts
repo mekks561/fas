@@ -57,14 +57,14 @@ export class PBRMaterialSystem {
   private setupMetalMaterial(material: pc.StandardMaterial, config?: MaterialConfig): void {
     material.diffuse.set(config?.baseColor?.r || 0.6, config?.baseColor?.g || 0.6, config?.baseColor?.b || 0.7);
     material.specular.set(0.9, 0.9, 0.9);
-    // @ts-ignore - shininess 可能不在类型定义中但在实际 API 中存在
+    // @ts-expect-error - shininess 可能不在类型定义中但在实际 API 中存在
     material.shininess = config?.metalness !== undefined ? 50 + config.metalness * 50 : 80;
-    // @ts-ignore
+    // @ts-expect-error
     material.gloss = config?.roughness !== undefined ? 1 - config.roughness : 0.8;
     material.emissive.set(config?.emissive?.r || 0.1, config?.emissive?.g || 0.1, config?.emissive?.b || 0.2);
     
     if (config?.emissiveIntensity !== undefined) {
-      // @ts-ignore
+      // @ts-expect-error
       material.emissiveIntensity = config.emissiveIntensity;
     }
   }
@@ -72,12 +72,12 @@ export class PBRMaterialSystem {
   private setupEnergyMaterial(material: pc.StandardMaterial, config?: MaterialConfig): void {
     material.diffuse.set(config?.baseColor?.r || 0.2, config?.baseColor?.g || 0.5, config?.baseColor?.b || 1.0);
     material.specular.set(1.0, 1.0, 1.0);
-    // @ts-ignore
+    // @ts-expect-error
     material.shininess = 100;
-    // @ts-ignore
+    // @ts-expect-error
     material.gloss = 1.0;
     material.emissive.set(config?.emissive?.r || 0.3, config?.emissive?.g || 0.7, config?.emissive?.b || 1.0);
-    // @ts-ignore
+    // @ts-expect-error
     material.emissiveIntensity = config?.emissiveIntensity || 2.0;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }
@@ -85,14 +85,14 @@ export class PBRMaterialSystem {
   private setupGlassMaterial(material: pc.StandardMaterial, config?: MaterialConfig): void {
     material.diffuse.set(config?.baseColor?.r || 0.1, config?.baseColor?.g || 0.3, config?.baseColor?.b || 0.5);
     material.specular.set(0.9, 0.9, 0.9);
-    // @ts-ignore
+    // @ts-expect-error
     material.shininess = 100;
-    // @ts-ignore
+    // @ts-expect-error
     material.gloss = 0.9;
-    // @ts-ignore
+    // @ts-expect-error
     material.opacity = config?.transparency || 0.4;
     material.emissive.set(config?.emissive?.r || 0.1, config?.emissive?.g || 0.2, config?.emissive?.b || 0.4);
-    // @ts-ignore
+    // @ts-expect-error
     material.cull = pc.CULLFACE_NONE;
     material.blendType = pc.BLEND_NORMAL;
   }
@@ -100,9 +100,9 @@ export class PBRMaterialSystem {
   private setupPlasticMaterial(material: pc.StandardMaterial, config?: MaterialConfig): void {
     material.diffuse.set(config?.baseColor?.r || 0.7, config?.baseColor?.g || 0.7, config?.baseColor?.b || 0.7);
     material.specular.set(0.5, 0.5, 0.5);
-    // @ts-ignore
+    // @ts-expect-error
     material.shininess = 60;
-    // @ts-ignore
+    // @ts-expect-error
     material.gloss = 0.6;
     material.emissive.set(0, 0, 0);
   }
@@ -110,12 +110,12 @@ export class PBRMaterialSystem {
   private setupGlowMaterial(material: pc.StandardMaterial, config?: MaterialConfig): void {
     material.diffuse.set(config?.baseColor?.r || 1.0, config?.baseColor?.g || 0.8, config?.baseColor?.b || 0.2);
     material.specular.set(1.0, 1.0, 1.0);
-    // @ts-ignore
+    // @ts-expect-error
     material.shininess = 100;
-    // @ts-ignore
+    // @ts-expect-error
     material.gloss = 1.0;
     material.emissive.set(config?.emissive?.r || 1.0, config?.emissive?.g || 0.8, config?.emissive?.b || 0.2);
-    // @ts-ignore
+    // @ts-expect-error
     material.emissiveIntensity = config?.emissiveIntensity || 3.0;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }
@@ -123,16 +123,16 @@ export class PBRMaterialSystem {
   private setupShieldMaterial(material: pc.StandardMaterial, config?: MaterialConfig): void {
     material.diffuse.set(config?.baseColor?.r || 0.1, config?.baseColor?.g || 0.4, config?.baseColor?.b || 0.8);
     material.specular.set(1.0, 1.0, 1.0);
-    // @ts-ignore
+    // @ts-expect-error
     material.shininess = 100;
-    // @ts-ignore
+    // @ts-expect-error
     material.gloss = 1.0;
-    // @ts-ignore
+    // @ts-expect-error
     material.opacity = config?.transparency || 0.3;
     material.emissive.set(config?.emissive?.r || 0.2, config?.emissive?.g || 0.6, config?.emissive?.b || 1.0);
-    // @ts-ignore
+    // @ts-expect-error
     material.emissiveIntensity = config?.emissiveIntensity || 1.5;
-    // @ts-ignore
+    // @ts-expect-error
     material.cull = pc.CULLFACE_NONE;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }
@@ -144,7 +144,7 @@ export class PBRMaterialSystem {
   public removeMaterial(name: string): void {
     const material = this.materials.get(name);
     if (material) {
-      // @ts-ignore - dispose 方法可能在类型定义中未声明
+      // @ts-expect-error - dispose 方法可能在类型定义中未声明
       material.dispose();
       this.materials.delete(name);
     }
@@ -237,7 +237,7 @@ export class PBRMaterialSystem {
   }
   
   public dispose(): void {
-    // @ts-ignore - dispose 方法可能在类型定义中未声明
+    // @ts-expect-error - dispose 方法可能在类型定义中未声明
     this.materials.forEach(material => material.dispose());
     this.materials.clear();
   }

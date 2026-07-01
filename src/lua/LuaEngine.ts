@@ -1,5 +1,5 @@
 import { LuaState, factory } from 'wasmoon';
-import type { LuaEngineOptions, LuaFunction, LuaScriptModule } from './types';
+import type { LuaEngineOptions, LuaScriptModule } from './types';
 
 /**
  * LuaEngine - Lua 脚本引擎封装

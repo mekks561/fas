@@ -1,14 +1,14 @@
 import '@testing-library/jest-dom';
 
 vi.mock('wasmoon', () => {
-  const learnedSkills: Record<string, any> = {};
+  const learnedSkills: Record<string, unknown> = {};
   const activeCombo: { currentSequence: string[]; startTime: number; lastSkillTime: number } = {
     currentSequence: [],
     startTime: 0,
     lastSkillTime: 0
   };
 
-  const luaGlobals: Record<string, any> = {
+  const luaGlobals: Record<string, unknown> = {
     SkillSystem: {
       SkillState: {
         READY: 'ready',
@@ -25,7 +25,7 @@ vi.mock('wasmoon', () => {
         return { id: skillId, state: 'locked', currentCooldown: 0, level: 1, maxLevel: 10, cooldown: 0 };
       },
 
-      learnSkill: (skillId: string, playerLevel: number, learnedSkillIds: string[]) => {
+      learnSkill: (skillId: string, playerLevel: number, _learnedSkillIds: string[]) => {
         if (!skillId || typeof skillId !== 'string') return false;
         if (playerLevel < 0) return false;
         learnedSkills[skillId] = { 
@@ -48,14 +48,14 @@ vi.mock('wasmoon', () => {
         return [false, 0];
       },
 
-      canCastSkill: (skillId: string, resources: Record<string, number>) => {
+      canCastSkill: (skillId: string, _resources: Record<string, number>) => {
         const skill = learnedSkills[skillId];
         if (!skill) return [false, 'skill_not_learned'];
         if (skill.state !== 'ready') return [false, 'skill_not_ready'];
         return [true, 'ready'];
       },
 
-      castSkill: (skillId: string, caster: any, target: any, resources: Record<string, number>) => {
+      castSkill: (skillId: string, _caster: unknown, _target: unknown, _resources: Record<string, number>) => {
         const skill = learnedSkills[skillId];
         if (!skill || skill.state !== 'ready') {
           return { success: false, error: 'skill_not_ready' };
@@ -325,8 +325,8 @@ class MockAudioContext {
   close = vi.fn();
 }
 
-(window as any).AudioContext = MockAudioContext;
-(window as any).webkitAudioContext = MockAudioContext;
+(window as unknown as { AudioContext: typeof MockAudioContext }).AudioContext = MockAudioContext;
+(window as unknown as { webkitAudioContext: typeof MockAudioContext }).webkitAudioContext = MockAudioContext;
 
 global.fetch = vi.fn().mockResolvedValue({
   ok: true,

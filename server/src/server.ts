@@ -87,14 +87,15 @@ io.on('connection', (socket) => {
 });
 
 // 错误处理中间件
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[Error]', err);
-  res.status(err.status || 500).json({
+  const e = (err ?? {}) as { status?: number; code?: string; message?: string; details?: unknown };
+  res.status(e.status || 500).json({
     success: false,
     error: {
-      code: err.code || 'SERVER_ERROR',
-      message: err.message || '服务器内部错误',
-      details: err.details || {}
+      code: e.code || 'SERVER_ERROR',
+      message: e.message || '服务器内部错误',
+      details: e.details || {}
     }
   });
 });

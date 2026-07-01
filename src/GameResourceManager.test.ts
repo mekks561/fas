@@ -72,7 +72,7 @@ describe('GameResourceManager', () => {
         it('should notify on status change', () => {
             let notificationReceived = false;
 
-            manager.onStatusChange((status: any) => {
+            manager.onStatusChange((_status: unknown) => {
                 notificationReceived = true;
             });
 

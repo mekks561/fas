@@ -71,7 +71,7 @@ export abstract class EnemyAI {
   protected abstract executeBehavior(dt: number): void;
   
   protected updateStatusEffects(dt: number): void {
-    const now = Date.now();
+    const _now = Date.now();
     
     this.statusEffects = this.statusEffects.filter(effect => {
       effect.remainingTime -= dt * 1000;
@@ -398,7 +398,7 @@ export class EliteAI extends EnemyAI {
   }
   
   protected executeBehavior(dt: number): void {
-    const now = Date.now();
+    const _now = Date.now();
     const distance = this.getDistanceToPlayer();
     
     if (distance > this.aiConfig.chaseRadius) {

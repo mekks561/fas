@@ -32,12 +32,6 @@ export const ResourceDownloadUI: React.FC<ResourceDownloadUIProps> = ({
 
     if (!isVisible) return null;
 
-    const formatSize = (bytes: number): string => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    };
-
     const getProgressColor = (): string => {
         if (progress.errors.length > 0) return 'bg-red-500';
         if (progress.progress < 30) return 'bg-blue-500';

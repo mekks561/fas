@@ -40,8 +40,11 @@ export class DownloadManager {
             const mergedOptions = { ...defaultOptions, ...options };
 
             if (mergedOptions.cache && this.cache.has(url)) {
-                resolve(this.cache.get(url)!);
-                return;
+                const cached = this.cache.get(url);
+                if (cached) {
+                    resolve(cached);
+                    return;
+                }
             }
 
             if (this.activeDownloads.size >= this.maxConcurrentDownloads) {

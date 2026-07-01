@@ -36,7 +36,7 @@ class CacheService {
   }
 
   // 设置缓存
-  async set(key: string, value: any, ttlSeconds: number = 3600): Promise<void> {
+  async set(key: string, value: unknown, ttlSeconds: number = 3600): Promise<void> {
     const serialized = JSON.stringify(value);
 
     if (this.isConnected && this.client) {
@@ -56,7 +56,7 @@ class CacheService {
   }
 
   // 获取缓存
-  async get<T = any>(key: string): Promise<T | null> {
+  async get<T = unknown>(key: string): Promise<T | null> {
     if (this.isConnected && this.client) {
       try {
         const value = await this.client.get(key);
@@ -115,7 +115,7 @@ class CacheService {
   }
 
   // 排行榜缓存
-  async getLeaderboard(page: number, difficulty?: string): Promise<any | null> {
+  async getLeaderboard(page: number, difficulty?: string): Promise<unknown> {
     const key = difficulty
       ? `leaderboard:${difficulty}:page:${page}`
       : `leaderboard:all:page:${page}`;
@@ -124,7 +124,7 @@ class CacheService {
 
   async setLeaderboard(
     page: number,
-    data: any,
+    data: unknown,
     difficulty?: string,
     ttlSeconds: number = 300
   ): Promise<void> {
@@ -139,11 +139,11 @@ class CacheService {
   }
 
   // 用户缓存
-  async getUser(userId: string): Promise<any | null> {
+  async getUser(userId: string): Promise<unknown> {
     return this.get(`user:${userId}`);
   }
 
-  async setUser(userId: string, data: any, ttlSeconds: number = 600): Promise<void> {
+  async setUser(userId: string, data: unknown, ttlSeconds: number = 600): Promise<void> {
     await this.set(`user:${userId}`, data, ttlSeconds);
   }
 
@@ -154,7 +154,7 @@ class CacheService {
   // 设置带锁（防止缓存击穿）
   async setWithLock(
     key: string,
-    value: any,
+    value: unknown,
     ttlSeconds: number = 3600,
     lockTtlSeconds: number = 10
   ): Promise<void> {

@@ -94,7 +94,8 @@ export class EnhancedWeaponSystem {
     const weapon = this.player.getWeapons().get(weaponType);
     if (!weapon) return;
     
-    const upgrade = this.weaponUpgrades.get(weaponType)!;
+    const upgrade = this.weaponUpgrades.get(weaponType);
+    if (!upgrade) return;
     
     const now = Date.now();
     const cooldown = this.player.getWeaponCooldowns?.()[weaponType] || 0;
@@ -112,10 +113,10 @@ export class EnhancedWeaponSystem {
     
     projectile.setPosition(playerPos.clone().add(playerForward.clone().scale(2)));
     projectile.enabled = true;
-    projectile.rigidbody!.linearVelocity = playerForward.clone().scale(adjustedSpeed);
+    if (projectile.rigidbody) projectile.rigidbody.linearVelocity = playerForward.clone().scale(adjustedSpeed);
     
     const material = this.getProjectileMaterial(weaponType);
-    projectile.model!.material = material;
+    if (projectile.model) projectile.model.material = material;
     
     this.projectiles.push({
       entity: projectile,

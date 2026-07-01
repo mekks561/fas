@@ -183,12 +183,13 @@ export class GameEngineCore {
         const now = performance.now();
         if (now - this.performanceMonitor.lastUpdate >= 1000) {
             // 内存使用情况（如果支持）
-            if ((performance as any).memory) {
+            const perfMemory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+            if (perfMemory) {
                 this.performanceMonitor.memoryUsage = Math.round(
-                    ((performance as any).memory.usedJSHeapSize / 1048576) * 100
+                    (perfMemory.usedJSHeapSize / 1048576) * 100
                 ) / 100;
             }
-            
+
             this.performanceMonitor.lastUpdate = now;
         }
     }

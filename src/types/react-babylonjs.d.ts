@@ -4,29 +4,29 @@ declare module 'react-babylonjs' {
   export interface EngineProps {
     antialias?: boolean;
     adaptToDeviceRatio?: boolean;
-    onSceneReady?: (engine: any) => void;
+    onSceneReady?: (engine: unknown) => void;
     children?: React.ReactNode;
   }
   
   export interface SceneMountProps {
-    onSceneMount?: (params: { scene: any; engine: any }) => void;
+    onSceneMount?: (params: { scene: unknown; engine: unknown }) => void;
     children?: React.ReactNode;
   }
   
   export const Engine: React.FC<EngineProps>;
   export const Scene: React.FC<SceneMountProps>;
   
-  export default function useScene(): any;
+  export default function useScene(): unknown;
 }
 
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      mesh: any;
-      arcRotateCamera: any;
-      hemisphericLight: any;
-      directionalLight: any;
-      transformNode: any;
+      mesh: unknown;
+      arcRotateCamera: unknown;
+      hemisphericLight: unknown;
+      directionalLight: unknown;
+      transformNode: unknown;
     }
   }
 }

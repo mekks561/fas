@@ -30,12 +30,12 @@ export type LoadingPriority = 'immediate' | 'high' | 'medium' | 'low';
 export interface LoadingOptions {
   priority?: LoadingPriority;
   onProgress?: (progress: number) => void;
-  onComplete?: (assets: Map<string, any>) => void;
+  onComplete?: (assets: Map<string, unknown>) => void;
   onError?: (error: Error) => void;
 }
 
 interface CachedAsset {
-  data: any;
+  data: unknown;
   timestamp: number;
   usageCount: number;
   size: number;
@@ -44,7 +44,7 @@ interface CachedAsset {
 export class AssetBundleSystem {
   private manifest: BundleManifest | null = null;
   private cache: Map<string, CachedAsset> = new Map();
-  private loadingQueue: Map<string, Promise<any>> = new Map();
+  private loadingQueue: Map<string, Promise<Map<string, unknown>>> = new Map();
   private memoryBudget: number = 500 * 1024 * 1024;
   private currentMemoryUsage: number = 0;
   private loadedBundles: Set<string> = new Set();
@@ -68,7 +68,7 @@ export class AssetBundleSystem {
     return this.manifest?.bundles.find(b => b.id === id);
   }
 
-  async loadBundle(bundleId: string, options: LoadingOptions = {}): Promise<Map<string, any>> {
+  async loadBundle(bundleId: string, options: LoadingOptions = {}): Promise<Map<string, unknown>> {
     if (this.loadedBundles.has(bundleId)) {
       return this.getBundleAssets(bundleId);
     }
@@ -85,8 +85,9 @@ export class AssetBundleSystem {
       }
     }
 
-    if (this.loadingQueue.has(bundleId)) {
-      return this.loadingQueue.get(bundleId)!;
+    const queued = this.loadingQueue.get(bundleId);
+    if (queued) {
+      return queued;
     }
 
     const promise = this.loadBundleAssets(bundle, options);
@@ -104,8 +105,8 @@ export class AssetBundleSystem {
     }
   }
 
-  private async loadBundleAssets(bundle: BundleInfo, options: LoadingOptions): Promise<Map<string, any>> {
-    const assets = new Map<string, any>();
+  private async loadBundleAssets(bundle: BundleInfo, options: LoadingOptions): Promise<Map<string, unknown>> {
+    const assets = new Map<string, unknown>();
     const totalSize = bundle.assets.reduce((sum, a) => sum + a.size, 0);
     let loadedSize = 0;
 
@@ -124,7 +125,7 @@ export class AssetBundleSystem {
     return assets;
   }
 
-  private async loadAsset(asset: AssetInfo): Promise<any> {
+  private async loadAsset(asset: AssetInfo): Promise<unknown> {
     const cached = this.cache.get(asset.id);
     if (cached) {
       cached.usageCount++;
@@ -137,7 +138,7 @@ export class AssetBundleSystem {
       throw new Error(`Failed to load asset ${asset.id}: ${response.status}`);
     }
 
-    let data: any;
+    let data: unknown;
     switch (asset.type) {
       case 'texture':
         data = await this.loadTexture(response);
@@ -175,7 +176,7 @@ export class AssetBundleSystem {
 
   private async loadAudio(response: Response): Promise<AudioBuffer> {
     const arrayBuffer = await response.arrayBuffer();
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     return audioContext.decodeAudioData(arrayBuffer);
   }
 
@@ -183,7 +184,7 @@ export class AssetBundleSystem {
     return response.arrayBuffer();
   }
 
-  private cacheAsset(id: string, data: any, size: number): void {
+  private cacheAsset(id: string, data: unknown, size: number): void {
     while (this.currentMemoryUsage + size > this.memoryBudget && this.cache.size > 0) {
       this.evictLeastUsed();
     }
@@ -210,9 +211,11 @@ export class AssetBundleSystem {
     }
 
     if (leastUsed) {
-      const asset = this.cache.get(leastUsed)!;
-      this.currentMemoryUsage -= asset.size;
-      this.cache.delete(leastUsed);
+      const asset = this.cache.get(leastUsed);
+      if (asset) {
+        this.currentMemoryUsage -= asset.size;
+        this.cache.delete(leastUsed);
+      }
     }
   }
 
@@ -234,8 +237,8 @@ export class AssetBundleSystem {
     this.bundleAssets.delete(bundleId);
   }
 
-  private getBundleAssets(bundleId: string): Map<string, any> {
-    const assets = new Map<string, any>();
+  private getBundleAssets(bundleId: string): Map<string, unknown> {
+    const assets = new Map<string, unknown>();
     const bundle = this.getBundle(bundleId);
     if (bundle) {
       for (const asset of bundle.assets) {
@@ -248,7 +251,7 @@ export class AssetBundleSystem {
     return assets;
   }
 
-  getAsset(assetId: string): any | undefined {
+  getAsset(assetId: string): unknown {
     const cached = this.cache.get(assetId);
     if (cached) {
       cached.usageCount++;

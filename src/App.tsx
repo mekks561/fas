@@ -7,7 +7,6 @@ import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react
 import { MainMenu } from './components/MainMenu';
 import { useGameStore } from './store/useGameStore';
 import { GameState } from './game/GameStateMachine';
-import { Progress } from './components/ui/shadcn';
 import './App.css';
 
 const GameScene = lazy(() => import('./components/GameScene').then(m => ({ default: m.GameScene })));
@@ -98,11 +97,6 @@ function App() {
     setSceneReady(false);
     setIsPaused(false);
   }, [setSceneReady]);
-
-  // 返回关卡选择
-  const handleBackToLevelSelect = useCallback(() => {
-    setGameState(GameState.LEVEL_SELECT);
-  }, []);
 
   // 暂停继续
   const handleResume = useCallback(() => {

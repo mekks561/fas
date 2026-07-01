@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/shadcn';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/shadcn';

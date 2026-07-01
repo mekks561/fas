@@ -1,5 +1,3 @@
-import { LuaState } from 'wasmoon';
-
 /**
  * Lua 引擎类型定义
  */

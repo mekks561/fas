@@ -21,14 +21,11 @@ export const GameContainer: React.FC<GameContainerProps> = ({
     const totalWaves = 5; // 默认总波数
     const enemyCount = useGameStore((state) => state.enemyCount);
     const fps = useGameStore((state) => state.fps);
-    const skills = useGameStore((state) => state.skills);
-    const isGamePaused = useGameStore((state) => state.isGamePaused);
-    const isLoading = useGameStore((state) => state.isLoading);
-    
+
     // 暂时使用空数组，后续可以从 store 扩展
-    const kills: any[] = [];
-    const damageIndicators: any[] = [];
-    const activeEffects: any[] = [];
+    const kills: unknown[] = [];
+    const damageIndicators: unknown[] = [];
+    const activeEffects: unknown[] = [];
     
     useEffect(() => {
         const uiManager = getUIManager();

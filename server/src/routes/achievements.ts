@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate, unlockAchievementSchema } from '../middleware/validation';
 import { logger } from '../middleware/logger';
@@ -16,7 +16,16 @@ router.get(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
 
       logger.info('获取用户成就', { userId });
 
@@ -48,7 +57,16 @@ router.post(
   validate(unlockAchievementSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
       const { achievementId } = req.body;
 
       logger.info('解锁成就', { userId, achievementId });
@@ -103,7 +121,16 @@ router.get(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
 
       logger.info('获取成就统计', { userId });
 

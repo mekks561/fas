@@ -31,7 +31,7 @@ export interface NetworkMessage {
   type: NetworkMessageType;
   senderId: string;
   timestamp: number;
-  payload: any;
+  payload: unknown;
   sequenceNumber?: number;
 }
 
@@ -83,7 +83,7 @@ export interface SyncResponsePayload {
 
 export interface EventPayload {
   eventType: string;
-  eventData: any;
+  eventData: unknown;
   sourcePlayerId: string;
 }
 
@@ -351,15 +351,15 @@ export class MultiplayerSystem {
     });
   }
 
-  private handleSignalingMessage(message: any): void {
+  private handleSignalingMessage(message: Record<string, unknown>): void {
     switch (message.type) {
       case 'room_created':
         break;
 
       case 'room_joined':
-        this.hostId = message.hostId;
-        this.roomId = message.roomId;
-        message.players?.forEach((p: Player) => {
+        this.hostId = message.hostId as string;
+        this.roomId = message.roomId as string;
+        (message.players as Player[] | undefined)?.forEach((p: Player) => {
           this.players.set(p.id, p);
           if (p.id !== this.localPlayerId) {
             this.notifyPlayerJoin(p);
@@ -371,34 +371,35 @@ export class MultiplayerSystem {
         break;
 
       case 'player_joined':
+        const player = message.player as { id: string; name: string };
         const newPlayer: Player = {
-          id: message.player.id,
-          name: message.player.name,
+          id: player.id,
+          name: player.name,
           role: 'client',
           color: this.generatePlayerColor()
         };
         this.players.set(newPlayer.id, newPlayer);
         this.notifyPlayerJoin(newPlayer);
-        
+
         if (this.playerRole === 'host') {
           this.createPeerConnection(newPlayer.id);
         }
         break;
 
       case 'player_left':
-        this.handlePlayerLeave(message.playerId, message.reason);
+        this.handlePlayerLeave(message.playerId as string, message.reason as string);
         break;
 
       case 'offer':
-        this.handleOffer(message.senderId, message.offer);
+        this.handleOffer(message.senderId as string, message.offer as RTCSessionDescriptionInit);
         break;
 
       case 'answer':
-        this.handleAnswer(message.senderId, message.answer);
+        this.handleAnswer(message.senderId as string, message.answer as RTCSessionDescriptionInit);
         break;
 
       case 'ice_candidate':
-        this.handleIceCandidate(message.senderId, message.candidate);
+        this.handleIceCandidate(message.senderId as string, message.candidate as RTCIceCandidateInit);
         break;
 
       case 'error':
@@ -522,13 +523,14 @@ export class MultiplayerSystem {
     }
   }
 
-  private handleDataMessage(senderId: string, data: any): void {
+  private handleDataMessage(senderId: string, data: unknown): void {
     this.stats.packetsReceived++;
-    this.stats.bytesReceived += data.byteLength || data.length;
+    const dataObj = data as { byteLength?: number; length?: number };
+    this.stats.bytesReceived += dataObj.byteLength || dataObj.length;
 
     let message: NetworkMessage;
     try {
-      message = typeof data === 'string' ? JSON.parse(data) : data;
+      message = typeof data === 'string' ? JSON.parse(data) : data as NetworkMessage;
     } catch {
       console.error('Failed to parse message');
       return;
@@ -606,7 +608,7 @@ export class MultiplayerSystem {
     this.notifyChatReceived(payload);
   }
 
-  private handleSyncRequest(payload: SyncRequestPayload): void {
+  private handleSyncRequest(_payload: SyncRequestPayload): void {
     if (this.playerRole !== 'host') return;
   }
 
@@ -619,10 +621,10 @@ export class MultiplayerSystem {
     }
   }
 
-  private handleEvent(payload: EventPayload): void {
+  private handleEvent(_payload: EventPayload): void {
   }
 
-  private handlePlayerLeave(playerId: string, reason: string): void {
+  private handlePlayerLeave(playerId: string, _reason: string): void {
     const player = this.players.get(playerId);
     if (player) {
       this.players.delete(playerId);
@@ -762,7 +764,7 @@ export class MultiplayerSystem {
     });
   }
 
-  public broadcastEvent(eventType: string, eventData: any): void {
+  public broadcastEvent(eventType: string, eventData: unknown): void {
     this.sendMessage({
       type: 'event',
       senderId: this.localPlayerId,
@@ -801,7 +803,7 @@ export class MultiplayerSystem {
     }, this.config.heartbeatInterval);
   }
 
-  private sendSignalingMessage(message: any): void {
+  private sendSignalingMessage(message: unknown): void {
     if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
       this.webSocket.send(JSON.stringify(message));
     }

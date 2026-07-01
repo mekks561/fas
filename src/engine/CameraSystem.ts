@@ -197,7 +197,7 @@ export class CameraSystem {
     const decayFactor = 1 - Math.pow(progress, this.currentShake.decay || 1);
     const intensity = this.currentShake.intensity * decayFactor;
 
-    const time = this.shakeTime * this.currentShake.frequency || 20;
+    const _time = this.shakeTime * this.currentShake.frequency || 20;
 
     this.shakeOffset.x = (Math.random() * 2 - 1) * intensity;
     this.shakeOffset.y = (Math.random() * 2 - 1) * intensity;
@@ -240,7 +240,7 @@ export class CameraSystem {
     if (!this.target || !this.camera || this.isCinematic) return;
 
     const targetPos = this.target.getPosition();
-    const targetRot = this.target.getEulerAngles();
+    const _targetRot = this.target.getEulerAngles();
 
     let desiredPos = new pc.Vec3();
 

@@ -242,7 +242,7 @@ export class AnimationSystem {
 
     if (animated.currentState === state) return true;
 
-    const transition = this.findTransition(animated.currentState, state);
+    const _transition = this.findTransition(animated.currentState, state);
     const targetClip = this.findClipForState(state);
 
     if (!targetClip) return false;

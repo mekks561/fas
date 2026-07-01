@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ResourceDownloadTester } from '../ResourceDownloadTester';
-import { runResourceTests } from '../ResourceDownloadTester';
 import { Button } from './ui/shadcn';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/shadcn';
 import { Play, Loader2 } from 'lucide-react';

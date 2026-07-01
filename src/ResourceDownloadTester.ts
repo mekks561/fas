@@ -1,6 +1,6 @@
 import { GameResourceManager } from './GameResourceManager';
 import { GAME_RESOURCES } from './GameResources';
-import { ResourceInfo, DownloadTestResult } from './types/resource-types';
+import { DownloadTestResult } from './types/resource-types';
 
 export class ResourceDownloadTester {
     private resourceManager: GameResourceManager;
@@ -117,7 +117,7 @@ export class ResourceDownloadTester {
             return success;
         });
 
-        const results = await Promise.all(downloadPromises);
+        const _results = await Promise.all(downloadPromises);
 
         totalTime = Date.now() - startTime;
 
@@ -161,7 +161,10 @@ export class ResourceDownloadTester {
         if (!this.testResults.has(scenario)) {
             this.testResults.set(scenario, []);
         }
-        this.testResults.get(scenario)!.push(result);
+        const results = this.testResults.get(scenario);
+        if (results) {
+            results.push(result);
+        }
     }
 
     private printTestSummary(): void {

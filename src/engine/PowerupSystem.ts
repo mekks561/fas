@@ -51,18 +51,18 @@ export class Powerup {
     
     const material = this.createMaterial();
     entity.addComponent('model', { type: 'sphere' });
-    entity.model!.material = material;
-    
+    if (entity.model) entity.model.material = material;
+
     const outerGlow = new pc.Entity('outerGlow');
     outerGlow.addComponent('model', { type: 'sphere' });
     const glowMaterial = this.createGlowMaterial();
-    outerGlow.model!.material = glowMaterial;
+    if (outerGlow.model) outerGlow.model.material = glowMaterial;
     outerGlow.setLocalScale(1.5, 1.5, 1.5);
     entity.addChild(outerGlow);
-    
+
     const ring = new pc.Entity('ring');
     ring.addComponent('model', { type: 'torus' });
-    ring.model!.material = glowMaterial;
+    if (ring.model) ring.model.material = glowMaterial;
     ring.setLocalScale(2, 2, 0.2);
     ring.setLocalEulerAngles(90, 0, 0);
     entity.addChild(ring);

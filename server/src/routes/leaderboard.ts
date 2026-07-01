@@ -1,5 +1,4 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { Leaderboard } from '../models/Leaderboard';
 import { User } from '../models/User';
 import { authenticate, AuthRequest } from '../middleware/auth';
@@ -33,7 +32,7 @@ router.get(
       }
 
       // 构建查询条件
-      const query: any = {};
+      const query: { difficulty?: string } = {};
       if (difficulty) {
         query.difficulty = difficulty;
       }
@@ -104,7 +103,16 @@ router.get(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
 
       logger.info('获取用户排名', { userId });
 
@@ -170,7 +178,16 @@ router.post(
   validate(submitScoreSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
       const { score, level, wave, kills, gameDuration, difficulty } = req.body;
 
       logger.info('提交分数', { userId, score, level, wave });

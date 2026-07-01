@@ -1,5 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { User } from '../models/User';
+import { Router, Response, NextFunction } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate, updateSettingsSchema } from '../middleware/validation';
 import { logger } from '../middleware/logger';
@@ -27,7 +26,16 @@ router.get(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
 
       logger.info('获取用户设置', { userId });
 
@@ -72,7 +80,16 @@ router.put(
   validate(updateSettingsSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
       const updates = req.body;
 
       logger.info('更新用户设置', { userId, updates });
@@ -113,7 +130,16 @@ router.post(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
 
       logger.info('重置用户设置', { userId });
 

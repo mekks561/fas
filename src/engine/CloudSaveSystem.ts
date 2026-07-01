@@ -405,7 +405,7 @@ export class CloudSaveSystem {
         await this.saveToCloud(item.data);
         this.saveQueue.shift();
         this.lastSyncTime = Date.now();
-      } catch (error) {
+      } catch (_error) {
         item.retries++;
         if (item.retries >= this.cloudConfig.retryAttempts) {
           this.saveQueue.shift();

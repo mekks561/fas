@@ -7,6 +7,7 @@ import { WeaponSystem } from '../engine/WeaponSystem';
 import { SkillSystem, SkillType } from '../engine/SkillSystem';
 import { StoryMissionManager } from '../engine/StoryMissionManager';
 import type { Dialogue } from '../engine/StoryMissionManager';
+import { AudioManager } from '../engine/AudioSystem';
 import { useGameStore } from '../store/useGameStore';
 import { GameHUD } from './GameHUD';
 import { LoadingOverlay } from './LoadingOverlay';
@@ -147,6 +148,11 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       engineRef.current = engine;
       console.log('[GameScene] PlayCanvas engine created');
 
+      // 初始化音频系统
+      AudioManager.initialize(engine.getApp());
+      AudioManager.playMusic('gameMusic');
+      console.log('[GameScene] Audio system initialized');
+
       engine.setCameraPosition(0, 10, 15);
       engine.lookAt(new pc.Vec3(0, 0, 0));
       console.log('[GameScene] Camera position set to (0, 10, 15)');
@@ -211,6 +217,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
 
           if (controlsRef.current.fire && weaponSystemRef.current) {
             weaponSystemRef.current.shoot();
+            AudioManager.playSound('playerShoot', player.getPosition());
           }
 
           if (weaponSystemRef.current) {
@@ -230,10 +237,11 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             const hits = weaponSystemRef.current.checkCollisions(enemies);
             if (hits > 0) {
               useGameStore.getState().addScore(hits * 100);
+              AudioManager.playSound('enemyHit');
               // 更新任务目标进度
               if (storyManagerRef.current) {
                 storyManagerRef.current.getActiveMissions().forEach(state => {
-                  storyManagerRef.current!.incrementObjective(state.mission.id, 'destroy', hits);
+                  storyManagerRef.current?.incrementObjective(state.mission.id, 'destroy', hits);
                 });
               }
             }
@@ -261,6 +269,8 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           }
 
           if (player.getHealth() <= 0) {
+            AudioManager.playSound('playerExplosion', player.getPosition());
+            AudioManager.stopMusic();
             onGameOver();
           }
 
@@ -270,6 +280,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             const enemies = enemySystemRef.current.getEnemies();
             
             if (currentWave > totalWaves && enemies.length === 0) {
+              AudioManager.playSound('levelComplete');
               onLevelComplete();
             }
           }
@@ -307,12 +318,14 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             if (skillSystemRef.current) {
               skillSystemRef.current.activateSkill(SkillType.MISSILE_STRIKE);
               useGameStore.getState().setSkillCooldown('skill1', 8);
+              AudioManager.playSound('weaponUpgrade');
             }
             break;
           case 'KeyE':
             if (skillSystemRef.current) {
               skillSystemRef.current.activateSkill(SkillType.SHIELD_BURST);
               useGameStore.getState().setSkillCooldown('skill2', 10);
+              AudioManager.playSound('shieldActivate');
             }
             break;
           case 'KeyT':
@@ -380,6 +393,9 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       return () => {
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
+
+        AudioManager.stopMusic();
+        AudioManager.destroy();
 
         if (engineRef.current) {
           engineRef.current.destroy();

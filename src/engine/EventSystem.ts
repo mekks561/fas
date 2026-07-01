@@ -133,7 +133,7 @@ export class EventSystem {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, []);
     }
-    this.listeners.get(type)!.push(callback);
+    this.listeners.get(type)?.push(callback);
 
     return () => this.off(type, callback);
   }
@@ -142,7 +142,7 @@ export class EventSystem {
     if (!this.onceListeners.has(type)) {
       this.onceListeners.set(type, []);
     }
-    this.onceListeners.get(type)!.push(callback);
+    this.onceListeners.get(type)?.push(callback);
 
     return () => {
       const callbacks = this.onceListeners.get(type);
@@ -198,7 +198,8 @@ export class EventSystem {
     this.isProcessing = true;
 
     while (this.eventQueue.length > 0) {
-      const event = this.eventQueue.shift()!;
+      const event = this.eventQueue.shift();
+      if (!event) continue;
 
       const listeners = this.listeners.get(event.type) || [];
       const onceListeners = this.onceListeners.get(event.type) || [];

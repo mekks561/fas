@@ -16,19 +16,19 @@ const logs: LogEntry[] = [];
 const MAX_LOGS = 1000;
 
 export const logger = {
-  info: (message: string, ...args: any[]) => {
+  info: (message: string, ...args: unknown[]) => {
     console.log(`[INFO] ${new Date().toISOString()} - ${message}`, ...args);
   },
 
-  error: (message: string, ...args: any[]) => {
+  error: (message: string, ...args: unknown[]) => {
     console.error(`[ERROR] ${new Date().toISOString()} - ${message}`, ...args);
   },
 
-  warn: (message: string, ...args: any[]) => {
+  warn: (message: string, ...args: unknown[]) => {
     console.warn(`[WARN] ${new Date().toISOString()} - ${message}`, ...args);
   },
 
-  debug: (message: string, ...args: any[]) => {
+  debug: (message: string, ...args: unknown[]) => {
     if (process.env.NODE_ENV === 'development') {
       console.log(`[DEBUG] ${new Date().toISOString()} - ${message}`, ...args);
     }
@@ -86,7 +86,7 @@ export const requestLogger = (
   const startTime = Date.now();
 
   // 获取用户ID（如果有）
-  const userId = (req as any).user?.userId;
+  const userId = (req as Request & { user?: { userId?: string } }).user?.userId;
 
   // 响应拦截
   const originalSend = res.send;
@@ -132,16 +132,17 @@ export const requestLogger = (
 
 // 错误日志
 export const errorLogger = (
-  error: any,
+  error: unknown,
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
+  const err = error instanceof Error ? error : new Error(String(error));
   logger.error('Request error:', {
     method: req.method,
     path: req.path,
-    error: error.message,
-    stack: error.stack,
+    error: err.message,
+    stack: err.stack,
     body: req.body
   });
 

@@ -3,16 +3,16 @@ import { ScoreSystem } from './ScoreSystem';
 // 模拟localStorage抛出错误
 const mockLocalStorageError = (() => {
   return {
-    getItem: (key: string) => {
+    getItem: (_key: string) => {
       throw new Error('localStorage is not available');
     },
-    setItem: (key: string, value: string) => {
+    setItem: (_key: string, _value: string) => {
       throw new Error('localStorage is not available');
     },
     clear: () => {
       throw new Error('localStorage is not available');
     },
-    removeItem: (key: string) => {
+    removeItem: (_key: string) => {
       throw new Error('localStorage is not available');
     }
   };

@@ -1,4 +1,4 @@
-import { PowerUpType, POWERUP_CONFIGS } from './PowerUpSystem';
+import { POWERUP_CONFIGS } from './PowerUpSystem';
 
 export enum EffectType {
     WEAPON_UPGRADE = 2,
@@ -14,7 +14,7 @@ export interface ActiveEffect {
     duration: number;
     endTime: number;
     value: number;
-    config: any;
+    config: unknown;
 }
 
 export class EffectSystem {
@@ -87,7 +87,10 @@ export class EffectSystem {
         if (!this.effectCallbacks.has(type)) {
             this.effectCallbacks.set(type, []);
         }
-        this.effectCallbacks.get(type)!.push(callback);
+        const callbacks = this.effectCallbacks.get(type);
+        if (callbacks) {
+            callbacks.push(callback);
+        }
     }
 
     public unsubscribeFromEffect(type: EffectType, callback: (active: boolean, value: number) => void): void {

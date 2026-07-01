@@ -41,7 +41,6 @@ export const TouchControlOverlay: React.FC<TouchControlOverlayProps> = React.mem
   const boostButtonRef = useRef<HTMLButtonElement>(null);
 
   const [joystickActive, setJoystickActive] = useState(false);
-  const [joystickPosition, setJoystickPosition] = useState({ x: 0, y: 0 });
   const [joystickStart, setJoystickStart] = useState({ x: 0, y: 0 });
   const [knobPosition, setKnobPosition] = useState({ x: 0, y: 0 });
 

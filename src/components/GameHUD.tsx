@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Progress } from './ui/shadcn';
-import { Heart, Shield, Trophy, Users, Skull, Zap, Sword, Target, Star, Gem, Flame, ShieldCheck } from 'lucide-react';
+import { Heart, Shield, Skull, Zap, Sword, Target, Star, Gem, Flame, ShieldCheck } from 'lucide-react';
 
 interface HUDProps {
     health: number;
@@ -46,31 +45,6 @@ interface SkillInfo {
     keyBinding: string;
     isActive: boolean;
 }
-
-const StatusBar: React.FC<{
-    value: number;
-    maxValue: number;
-    label: string;
-    color: string;
-    flash?: boolean;
-}> = ({ value, maxValue, label, color, flash }) => {
-    const percentage = Math.max(0, (value / maxValue) * 100);
-    
-    return (
-        <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">{label}</span>
-            <div className="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden">
-                <div
-                    className={`h-full transition-all duration-300 ${flash ? 'animate-pulse' : ''}`}
-                    style={{ width: `${percentage}%`, backgroundColor: color }}
-                />
-            </div>
-            <span className="text-xs font-bold text-slate-300 w-16 text-right">
-                {Math.floor(value)}/{maxValue}
-            </span>
-        </div>
-    );
-};
 
 const BossHealthBar: React.FC<{
     health: number;

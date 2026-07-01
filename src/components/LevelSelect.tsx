@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/shadcn';
 import { Card, CardContent, CardHeader } from './ui/shadcn';
@@ -104,7 +104,7 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
 }) => {
   const { t } = useTranslation();
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
-  const [levels, setLevels] = useState<LevelData[]>(() => {
+  const [levels] = useState<LevelData[]>(() => {
     const saved = localStorage.getItem('levelProgress');
     if (saved) {
       try {

@@ -67,7 +67,7 @@ export interface DebugLogEntry {
   level: 'log' | 'warn' | 'error' | 'info' | 'debug';
   message: string;
   category: DebugCategory;
-  data?: any;
+  data?: unknown;
 }
 
 type StatsCallback = (stats: DebugStats) => void;
@@ -265,7 +265,7 @@ export class DebugSystem {
       this.stats.entities = this.countEntities(this.app.root);
     }
 
-    const performance = window.performance as any;
+    const performance = window.performance as unknown as { memory?: { usedJSHeapSize: number } };
     if (performance && performance.memory) {
       this.stats.memoryUsage = performance.memory.usedJSHeapSize / 1024 / 1024;
     }
@@ -407,17 +407,17 @@ export class DebugSystem {
     this.consoleOriginalWarn = console.warn;
     this.consoleOriginalError = console.error;
 
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
       this.addLog('log', args.map(a => String(a)).join(' '), 'system', args.length > 1 ? args : undefined);
       this.consoleOriginalLog?.apply(console, args);
     };
 
-    console.warn = (...args: any[]) => {
+    console.warn = (...args: unknown[]) => {
       this.addLog('warn', args.map(a => String(a)).join(' '), 'system', args.length > 1 ? args : undefined);
       this.consoleOriginalWarn?.apply(console, args);
     };
 
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       this.addLog('error', args.map(a => String(a)).join(' '), 'system', args.length > 1 ? args : undefined);
       this.consoleOriginalError?.apply(console, args);
     };
@@ -510,7 +510,7 @@ export class DebugSystem {
     return dt * this.timeScale;
   }
 
-  public update(dt: number): void {
+  public update(_dt: number): void {
     if (!this.isEnabled) return;
 
     const now = performance.now();

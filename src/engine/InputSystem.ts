@@ -38,7 +38,7 @@ export class InputSystem {
   private keyboardState: Set<string> = new Set();
   private touchControls: TouchControl[] = [];
   private activeTouchId: number | null = null;
-  private gamepads: Gamepad[] = [];
+  private gamepads: (Gamepad | null)[] = [];
   private lastTouchPosition: pc.Vec2 | null = null;
   private touchStartPosition: pc.Vec2 | null = null;
   private listeners: Map<string, ((action: string, state: InputAction) => void)[]> = new Map();
@@ -216,7 +216,7 @@ export class InputSystem {
   }
 
   private handleGamepadDisconnected(e: GamepadEvent): void {
-    this.gamepads[e.gamepad.index] = null as any;
+    this.gamepads[e.gamepad.index] = null;
   }
 
   private updateGamepads(): void {
@@ -330,7 +330,7 @@ export class InputSystem {
     if (!this.listeners.has(action)) {
       this.listeners.set(action, []);
     }
-    this.listeners.get(action)!.push(callback);
+    this.listeners.get(action)?.push(callback);
 
     return () => {
       const callbacks = this.listeners.get(action);

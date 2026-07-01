@@ -40,9 +40,9 @@ export class GameEventBus {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
-    
-    this.listeners.get(event)!.add(listener);
-    
+
+    this.listeners.get(event)?.add(listener);
+
     const id = Symbol();
     this.subscriptions.set(id, { event, listener });
     

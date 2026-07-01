@@ -333,7 +333,7 @@ class AchievementSystem {
   }
 
   public updateStats(updates: Partial<AchievementStats>): void {
-    const oldStats = { ...this.stats };
+    const _oldStats = { ...this.stats };
     
     Object.keys(updates).forEach(key => {
       const k = key as keyof AchievementStats;
@@ -341,7 +341,7 @@ class AchievementSystem {
       if (typeof value === 'number') {
         (this.stats[k] as number) += value;
       } else if (typeof value === 'object' && value !== null) {
-        this.stats[k] = { ...this.stats[k], ...value } as any;
+        this.stats[k] = { ...this.stats[k], ...value } as AchievementStats[typeof k];
       }
     });
 
@@ -536,7 +536,7 @@ class AchievementSystem {
         const data = JSON.parse(saved);
         this.achievements = new Map(data.achievements);
         this.stats = data.stats;
-      } catch (e) {
+      } catch (_e) {
         console.warn('Failed to load achievement progress');
       }
     }

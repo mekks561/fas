@@ -210,7 +210,7 @@ export class EnhancedEnemySystem {
     }, 3000);
   }
   
-  public checkCollisions(projectiles: any[]): number {
+  public checkCollisions(projectiles: { active: boolean; entity: pc.Entity; damage: number }[]): number {
     let hits = 0;
     
     this.enemies.forEach(enemy => {

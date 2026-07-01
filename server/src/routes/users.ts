@@ -17,7 +17,16 @@ router.get(
   authenticate,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
 
       // 尝试从缓存获取
       const cached = await cacheService.getUser(userId);
@@ -80,7 +89,16 @@ router.put(
   validate(updateUserSchema),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      const userId = req.user!.userId;
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_REQUIRED',
+            message: '未认证'
+          }
+        });
+      }
+      const userId = req.user.userId;
       const updates = req.body;
 
       logger.info('更新用户信息', { userId, updates });

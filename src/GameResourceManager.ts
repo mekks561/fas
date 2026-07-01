@@ -1,7 +1,7 @@
 import { ResourceInfo, ResourceManifest, ResourceDownloadStatus, NetworkQuality, DownloadTestResult } from './types/resource-types';
 import { DownloadManager } from './DownloadManager';
 import { FileStorageManager } from './FileStorageManager';
-import { MD5Validator, DataIntegrityChecker } from './ResourceValidator';
+import { MD5Validator } from './ResourceValidator';
 
 export class GameResourceManager {
     private downloadManager: DownloadManager;

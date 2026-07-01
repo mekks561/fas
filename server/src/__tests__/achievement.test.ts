@@ -5,7 +5,7 @@ import {
 } from '../services/achievement';
 
 vi.mock('mongoose', () => {
-  const mockSchema = vi.fn().mockImplementation((def: any, options?: any) => ({
+  const mockSchema = vi.fn().mockImplementation((_def: unknown, _options?: unknown) => ({
     Types: {
       ObjectId: 'ObjectId'
     }

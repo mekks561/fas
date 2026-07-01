@@ -34,7 +34,7 @@ export class GameStateManager {
     private stateChangeCallbacks: ((state: GameState) => void)[] = [];
     private statusChangeCallbacks: ((status: GameStatus) => void)[] = [];
     
-    constructor(scene?: any) {
+    constructor(_scene?: unknown) {
         this.status.enemiesRemaining = this.getEnemiesForWave(1);
     }
     
@@ -182,7 +182,7 @@ export class GameStateManager {
         }
     }
     
-    public update(deltaTime: number): void {
+    public update(_deltaTime: number): void {
         // 游戏状态更新逻辑可以在这里添加
     }
     

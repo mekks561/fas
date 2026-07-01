@@ -4,30 +4,7 @@
  * 测试 Lua 脚本系统的功能完整性、边界条件和稳定性
  */
 
-import { SkillSystemManager, skillSystemManager } from './SkillSystemManager';
-
-// 测试配置
-const TEST_TIMEOUT = 10000;
-
-// 模拟技能数据
-const mockSkills = {
-  BASIC_ATTACK: {
-    id: 'basic_attack',
-    name: '基础攻击',
-    type: 'active',
-    cooldown: 0.5,
-    cost: { type: 'energy', value: 0 },
-    effects: [{ type: 'damage', value: 10 }]
-  },
-  POWER_SHOT: {
-    id: 'power_shot',
-    name: '强力射击',
-    type: 'active',
-    cooldown: 3.0,
-    cost: { type: 'energy', value: 20 },
-    effects: [{ type: 'damage', value: 50 }]
-  }
-};
+import { SkillSystemManager } from './SkillSystemManager';
 
 // 模拟施放者数据
 const mockCaster = {
