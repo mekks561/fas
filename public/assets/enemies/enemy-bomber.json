@@ -1,0 +1,16 @@
+{
+  "id": "enemy-bomber",
+  "name": "Bomber",
+  "type": "heavy",
+  "stats": {
+    "health": 100,
+    "shield": 40,
+    "speed": 6,
+    "damage": 25,
+    "fireRate": 1.5
+  },
+  "behavior": "dive",
+  "points": 300,
+  "icon": "icon-target",
+  "texture": "tex-metal-01"
+}

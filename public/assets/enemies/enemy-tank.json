@@ -1,0 +1,16 @@
+{
+  "id": "enemy-tank",
+  "name": "Tank",
+  "type": "heavy",
+  "stats": {
+    "health": 200,
+    "shield": 100,
+    "speed": 4,
+    "damage": 20,
+    "fireRate": 0.8
+  },
+  "behavior": "charge",
+  "points": 400,
+  "icon": "icon-target",
+  "texture": "tex-rock-01"
+}

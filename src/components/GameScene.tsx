@@ -1,252 +1,454 @@
-import React, { useRef, useCallback, useEffect } from 'react';
-import { Scene, Vector3, Color3, Color4, MeshBuilder, StandardMaterial, ArcRotateCamera, HemisphericLight, DirectionalLight } from '@babylonjs/core';
-import { Engine, Scene as BabylonScene } from 'react-babylonjs';
-import { PlayerShip } from '../PlayerShip';
-import { EnemySystem } from '../EnemySystem';
-import { WeaponSystem } from '../WeaponSystem';
-import { ParticleManager } from '../ParticleManager';
-import { AudioSystem } from '../AudioSystem';
-import { ScoreSystem } from '../ScoreSystem';
-import { TextureManager } from '../TextureManager';
-import { GameStateManager } from '../GameStateManager';
+import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
+import * as pc from 'playcanvas';
+import { PlayCanvasGameEngine } from '../engine/PlayCanvasEngine';
+import { PlayerShip, PlayerControls } from '../engine/PlayerShip';
+import { EnemySystem } from '../engine/EnemySystem';
+import { WeaponSystem } from '../engine/WeaponSystem';
+import { SkillSystem, SkillType } from '../engine/SkillSystem';
 import { useGameStore } from '../store/useGameStore';
-import { useInputManager } from '../hooks/useInputManager';
 import { GameHUD } from './GameHUD';
 import { LoadingOverlay } from './LoadingOverlay';
-import { ErrorOverlay } from './ErrorOverlay';
 import { PauseOverlay } from './PauseOverlay';
+import { TouchControlOverlay } from './TouchControlOverlay';
 import './GameScene.css';
 
-export const GameScene: React.FC = React.memo(() => {
-  // Store
-  const {
-    isLoading,
-    loadingProgress,
-    error,
-    isGamePaused,
-    setSceneReady,
-    setLoading,
-    setLoadingProgress,
-    setError,
-    setGamePaused,
-    resetGame,
-  } = useGameStore((state) => ({
-    isLoading: state.isLoading,
-    loadingProgress: state.loadingProgress,
-    error: state.error,
-    isGamePaused: state.isGamePaused,
-    setSceneReady: state.setSceneReady,
-    setLoading: state.setLoading,
-    setLoadingProgress: state.setLoadingProgress,
-    setError: state.setError,
-    setGamePaused: state.setGamePaused,
-    resetGame: state.resetGame,
-  }));
-
-  // Refs
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const sceneRef = useRef<Scene | null>(null);
-  const playerShipRef = useRef<PlayerShip | null>(null);
+export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () => void }> = React.memo(({ onGameOver, onLevelComplete }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<PlayCanvasGameEngine | null>(null);
+  const playerRef = useRef<PlayerShip | null>(null);
   const enemySystemRef = useRef<EnemySystem | null>(null);
   const weaponSystemRef = useRef<WeaponSystem | null>(null);
-  const particleManagerRef = useRef<ParticleManager | null>(null);
-  const audioSystemRef = useRef<AudioSystem | null>(null);
-  const scoreSystemRef = useRef<ScoreSystem | null>(null);
-  const gameStateManagerRef = useRef<GameStateManager | null>(null);
-  const textureManagerRef = useRef<TextureManager | null>(null);
-  const animationFrameIdRef = useRef<number>(0);
+  const skillSystemRef = useRef<SkillSystem | null>(null);
 
-  // Hooks
-  const { getControls, getMouseDelta } = useInputManager(canvasRef.current);
+  const isLoading = useGameStore((state) => state.isLoading);
+  const isGamePaused = useGameStore((state) => state.isGamePaused);
+  const isSceneReady = useGameStore((state) => state.isSceneReady);
+  
+  const playerHealth = useGameStore((state) => state.player.health);
+  const playerMaxHealth = useGameStore((state) => state.player.maxHealth);
+  const playerShield = useGameStore((state) => state.player.shield);
+  const playerMaxShield = useGameStore((state) => state.player.maxShield);
+  const playerScore = useGameStore((state) => state.player.score);
+  const playerLevel = useGameStore((state) => state.player.level);
+  
+  const currentWave = useGameStore((state) => state.currentWave);
+  const totalWaves = useGameStore((state) => state.totalWaves);
+  const enemyCount = useGameStore((state) => state.enemyCount);
+  const fps = useGameStore((state) => state.fps);
 
-  // Scene Setup
-  const setupScene = useCallback((scene: Scene) => {
-    scene.clearColor = new Color4(0, 0, 0.05, 1);
-    scene.fogMode = Scene.FOGMODE_EXP;
-    scene.fogDensity = 0.01;
-    scene.fogColor = new Color3(0, 0, 0.1);
+  const skillCooldowns = useGameStore((state) => state.skills.cooldowns);
+  const skillMaxCooldowns = useGameStore((state) => state.skills.maxCooldowns);
+
+  const controlsRef = useRef<PlayerControls>({
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    boost: false,
+    fire: false
+  });
+
+  const [isEngineInitialized, setIsEngineInitialized] = useState(false);
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        console.log('[GameScene] Canvas resized to:', canvas.width, 'x', canvas.height);
+      }
+    };
+
+    resizeCanvas();
+    setIsCanvasReady(true);
+    window.addEventListener('resize', resizeCanvas);
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+    };
   }, []);
 
-  const setupCamera = useCallback((scene: Scene) => {
-    const camera = new ArcRotateCamera('camera', -Math.PI / 2, Math.PI / 2, 20, Vector3.Zero(), scene);
-    const canvas = scene.getEngine().getRenderingCanvas();
-    if (canvas) {
-      camera.attachControl(canvas, true);
+  const handleTouchMove = useCallback((x: number, y: number) => {
+    if (controlsRef.current) {
+      controlsRef.current.left = x < -0.1;
+      controlsRef.current.right = x > 0.1;
+      controlsRef.current.up = y < -0.1;
+      controlsRef.current.down = y > 0.1;
     }
   }, []);
 
-  const setupLighting = useCallback((scene: Scene) => {
-    const ambientLight = new HemisphericLight('ambientLight', new Vector3(0, 1, 0), scene);
-    ambientLight.intensity = 0.8;
-    ambientLight.groundColor = new Color3(0.2, 0.2, 0.4);
-    ambientLight.diffuse = new Color3(0.8, 0.8, 1.0);
-
-    const sunLight = new DirectionalLight('sunLight', new Vector3(-1, -2, -1), scene);
-    sunLight.intensity = 2.0;
-    sunLight.position = new Vector3(20, 40, 20);
-    sunLight.diffuse = new Color3(1, 1, 0.9);
-    sunLight.specular = new Color3(1, 1, 1);
-  }, []);
-
-  const initializeBaseComponents = useCallback((scene: Scene) => {
-    textureManagerRef.current = new TextureManager(scene);
-    audioSystemRef.current = new AudioSystem(scene);
-    particleManagerRef.current = new ParticleManager(scene);
-    scoreSystemRef.current = new ScoreSystem();
-    gameStateManagerRef.current = new GameStateManager(scene);
-  }, []);
-
-  const initializeTextureDependentComponents = useCallback((scene: Scene, textureManager: TextureManager) => {
-    playerShipRef.current = new PlayerShip(scene, textureManager);
-    weaponSystemRef.current = new WeaponSystem(scene);
-    weaponSystemRef.current.setPlayer(playerShipRef.current);
-    enemySystemRef.current = new EnemySystem(scene, playerShipRef.current, textureManager);
-    
-    if (gameStateManagerRef.current) {
-      gameStateManagerRef.current.setPlayingState();
+  const handleTouchFire = useCallback((active: boolean) => {
+    if (controlsRef.current) {
+      controlsRef.current.fire = active;
     }
   }, []);
 
-  const onSceneReady = useCallback((scene: Scene) => {
-    sceneRef.current = scene;
-    
+  const handleTouchBoost = useCallback((active: boolean) => {
+    if (controlsRef.current) {
+      controlsRef.current.boost = active;
+    }
+  }, []);
+
+  const handleTouchSkill1 = useCallback(() => {
+    if (skillSystemRef.current) {
+      skillSystemRef.current.activateSkill(SkillType.MISSILE_STRIKE);
+      useGameStore.getState().setSkillCooldown('skill1', 8);
+    }
+  }, []);
+
+  const handleTouchSkill2 = useCallback(() => {
+    if (skillSystemRef.current) {
+      skillSystemRef.current.activateSkill(SkillType.SHIELD_BURST);
+      useGameStore.getState().setSkillCooldown('skill2', 10);
+    }
+  }, []);
+
+  const handleTouchSkill3 = useCallback(() => {
+    if (skillSystemRef.current) {
+      skillSystemRef.current.activateSkill(SkillType.TIME_SLOW);
+      useGameStore.getState().setSkillCooldown('skill3', 15);
+    }
+  }, []);
+
+  const handleTouchSkill4 = useCallback(() => {
+    if (skillSystemRef.current) {
+      skillSystemRef.current.activateSkill(SkillType.OVERDRIVE);
+      useGameStore.getState().setSkillCooldown('skill4', 20);
+    }
+  }, []);
+
+  const initializeEngine = useCallback(() => {
+    if (!canvasRef.current) {
+      console.error('[GameScene] Canvas ref is null');
+      return;
+    }
+
+    console.log('[GameScene] Initializing game engine...');
+
     try {
-      setLoading(true);
-      setLoadingProgress(0);
-      setError(null);
+      const engine = new PlayCanvasGameEngine({
+        canvas: canvasRef.current,
+        antialias: true,
+        enablePhysics: false
+      });
+      engineRef.current = engine;
+      console.log('[GameScene] PlayCanvas engine created');
 
-      setupScene(scene);
-      setupCamera(scene);
-      setupLighting(scene);
+      engine.setCameraPosition(0, 10, 15);
+      engine.lookAt(new pc.Vec3(0, 0, 0));
+      console.log('[GameScene] Camera position set to (0, 10, 15)');
 
-      const ground = MeshBuilder.CreateBox('ground', {
-        width: 100,
-        height: 1,
-        depth: 100
-      }, scene);
-      ground.position.y = -5;
-      const groundMaterial = new StandardMaterial('groundMat', scene);
-      groundMaterial.diffuseColor = new Color3(0.2, 0.2, 0.4);
-      ground.material = groundMaterial;
+      engine.addDirectionalLight('sun', new pc.Vec3(-5, 10, 5), new pc.Color(1, 0.95, 0.9), 1.5);
+      engine.addLight('fill', new pc.Vec3(10, 5, -10), new pc.Color(0.4, 0.5, 0.8), 0.5);
+      console.log('[GameScene] Lights added');
 
-      setLoadingProgress(50);
-      initializeBaseComponents(scene);
+      engine.createStarField(300, 20, 60);
+      engine.createNebula(new pc.Vec3(30, 10, -30), 25);
+      engine.createNebula(new pc.Vec3(-30, -5, 25), 20);
+      engine.createPlanet('planet1', new pc.Vec3(40, 15, 35), 5, new pc.Color(0.4, 0.6, 0.8));
+      engine.createPlanet('planet2', new pc.Vec3(-35, -10, -25), 4, new pc.Color(0.8, 0.5, 0.3));
+      console.log('[GameScene] Environment created');
 
-      const tempTextureManager = textureManagerRef.current || new TextureManager(scene);
-      initializeTextureDependentComponents(scene, tempTextureManager);
+      const gameState = useGameStore.getState();
+      const player = new PlayerShip({
+        engine,
+        initialPosition: new pc.Vec3(0, 0, 0),
+        health: gameState.player.health,
+        shield: gameState.player.shield
+      });
+      playerRef.current = player;
+      console.log('[GameScene] Player created at position (0, 0, 0)');
 
-      setLoadingProgress(100);
-      setLoading(false);
-      setSceneReady(true);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Error initializing game scene:', err);
-      setError(`Error initializing game scene: ${errorMessage}`);
-      setLoading(false);
+      const enemySystem = new EnemySystem(engine, player);
+      enemySystemRef.current = enemySystem;
+      console.log('[GameScene] Enemy system created');
+
+      const weaponSystem = new WeaponSystem(engine);
+      weaponSystem.setPlayer(player);
+      weaponSystemRef.current = weaponSystem;
+      console.log('[GameScene] Weapon system created');
+
+      const skillSystem = new SkillSystem(player, engine);
+      skillSystemRef.current = skillSystem;
+      console.log('[GameScene] Skill system created');
+
+      let frameCount = 0;
+      let lastFpsUpdate = Date.now();
+
+      engine.setUpdateCallback((dt: number) => {
+        const gameState = useGameStore.getState();
+        
+        if (!gameState.isGamePaused && gameState.isSceneReady && playerRef.current) {
+          player.update(dt, controlsRef.current);
+
+          if (controlsRef.current.fire && weaponSystemRef.current) {
+            weaponSystemRef.current.shoot();
+          }
+
+          if (weaponSystemRef.current) {
+            weaponSystemRef.current.update(dt);
+          }
+
+          if (enemySystemRef.current) {
+            enemySystemRef.current.update(dt);
+          }
+
+          if (skillSystemRef.current) {
+            skillSystemRef.current.update(dt);
+          }
+
+          if (weaponSystemRef.current && enemySystemRef.current) {
+            const enemies = enemySystemRef.current.getEnemies();
+            const hits = weaponSystemRef.current.checkCollisions(enemies);
+            if (hits > 0) {
+              useGameStore.getState().addScore(hits * 100);
+            }
+          }
+
+          useGameStore.getState().updatePlayerHealth(player.getHealth());
+          useGameStore.getState().updatePlayerShield(player.getShield());
+          useGameStore.getState().setSpeed(player.getSpeed());
+          useGameStore.getState().setBoostActive(controlsRef.current.boost);
+
+          if (enemySystemRef.current) {
+            useGameStore.getState().setEnemyCount(enemySystemRef.current.getEnemies().length);
+            useGameStore.getState().setWave(enemySystemRef.current.getCurrentWave());
+          }
+
+          useGameStore.getState().updateSkillCooldowns(dt);
+
+          frameCount++;
+          const now = Date.now();
+          if (now - lastFpsUpdate >= 1000) {
+            const currentFps = Math.round(frameCount * 1000 / (now - lastFpsUpdate));
+            useGameStore.getState().setFps(currentFps);
+            frameCount = 0;
+            lastFpsUpdate = now;
+          }
+
+          if (player.getHealth() <= 0) {
+            onGameOver();
+          }
+
+          if (enemySystemRef.current && onLevelComplete) {
+            const totalWaves = enemySystemRef.current.getTotalWaves();
+            const currentWave = enemySystemRef.current.getCurrentWave();
+            const enemies = enemySystemRef.current.getEnemies();
+            
+            if (currentWave > totalWaves && enemies.length === 0) {
+              onLevelComplete();
+            }
+          }
+        }
+      });
+
+      engine.start();
+      console.log('[GameScene] Engine started');
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        switch (e.code) {
+          case 'KeyW':
+          case 'ArrowUp':
+            controlsRef.current.up = true;
+            break;
+          case 'KeyS':
+          case 'ArrowDown':
+            controlsRef.current.down = true;
+            break;
+          case 'KeyA':
+          case 'ArrowLeft':
+            controlsRef.current.left = true;
+            break;
+          case 'KeyD':
+          case 'ArrowRight':
+            controlsRef.current.right = true;
+            break;
+          case 'Space':
+            controlsRef.current.boost = true;
+            break;
+          case 'KeyJ':
+            controlsRef.current.fire = true;
+            break;
+          case 'KeyQ':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.MISSILE_STRIKE);
+              useGameStore.getState().setSkillCooldown('skill1', 8);
+            }
+            break;
+          case 'KeyE':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.SHIELD_BURST);
+              useGameStore.getState().setSkillCooldown('skill2', 10);
+            }
+            break;
+          case 'KeyT':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.TIME_SLOW);
+              useGameStore.getState().setSkillCooldown('skill3', 15);
+            }
+            break;
+          case 'KeyG':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.OVERDRIVE);
+              useGameStore.getState().setSkillCooldown('skill4', 20);
+            }
+            break;
+        }
+      };
+
+      const handleKeyUp = (e: KeyboardEvent) => {
+        switch (e.code) {
+          case 'KeyW':
+          case 'ArrowUp':
+            controlsRef.current.up = false;
+            break;
+          case 'KeyS':
+          case 'ArrowDown':
+            controlsRef.current.down = false;
+            break;
+          case 'KeyA':
+          case 'ArrowLeft':
+            controlsRef.current.left = false;
+            break;
+          case 'KeyD':
+          case 'ArrowRight':
+            controlsRef.current.right = false;
+            break;
+          case 'Space':
+            controlsRef.current.boost = false;
+            break;
+          case 'KeyJ':
+            controlsRef.current.fire = false;
+            break;
+        }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+
+      useGameStore.getState().setTouchHandlers({
+        onMove: handleTouchMove,
+        onFire: handleTouchFire,
+        onBoost: handleTouchBoost,
+        onSkill1: handleTouchSkill1,
+        onSkill2: handleTouchSkill2,
+        onSkill3: handleTouchSkill3,
+        onSkill4: handleTouchSkill4
+      });
+
+      setTimeout(() => {
+        setIsEngineInitialized(true);
+        useGameStore.getState().setSceneReady(true);
+        useGameStore.getState().setLoading(false);
+        console.log('[GameScene] Scene ready - isSceneReady set to true');
+      }, 500);
+
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+
+        if (engineRef.current) {
+          engineRef.current.destroy();
+          engineRef.current = null;
+        }
+      };
+    } catch (error) {
+      console.error('[GameScene] Initialization failed:', error);
+      useGameStore.getState().setError('游戏初始化失败: ' + (error as Error).message);
+      useGameStore.getState().setLoading(false);
+      return () => {};
     }
-  }, [setupScene, setupCamera, setupLighting, initializeBaseComponents, 
-      initializeTextureDependentComponents, setLoading, setLoadingProgress, setError, setSceneReady]);
+  }, [isCanvasReady, onGameOver]);
 
-  // Game Loop
   useEffect(() => {
-    if (!sceneRef.current || !useGameStore.getState().isSceneReady) return;
+    if (isCanvasReady && !isEngineInitialized) {
+      const cleanup = initializeEngine();
+      return cleanup;
+    }
+  }, [isCanvasReady, isEngineInitialized, initializeEngine]);
 
-    let lastTime = performance.now();
-    let fpsUpdateInterval = 0;
-    let frameCount = 0;
-    const {
-      setSpeed,
-      setBoostActive,
-      addScore,
-      setFps,
-      setEnemyCount,
-      setProjectileCount,
-      setParticleCount,
-    } = useGameStore.getState();
+  const enemiesRemaining = useMemo(() => {
+    return enemyCount;
+  }, [enemyCount]);
 
-    const gameLoop = () => {
-      const currentTime = performance.now();
-      const deltaTime = Math.min((currentTime - lastTime) / 1000, 1 / 30);
-      lastTime = currentTime;
+  const skills = useMemo(() => [
+    { name: '导弹打击', icon: 'missile', cooldown: skillCooldowns.skill1, maxCooldown: skillMaxCooldowns.skill1, keyBinding: 'Q', isActive: false },
+    { name: '护盾爆发', icon: 'shield', cooldown: skillCooldowns.skill2, maxCooldown: skillMaxCooldowns.skill2, keyBinding: 'E', isActive: false },
+    { name: '时间减缓', icon: 'clock', cooldown: skillCooldowns.skill3, maxCooldown: skillMaxCooldowns.skill3, keyBinding: 'T', isActive: false },
+    { name: '过载驱动', icon: 'zap', cooldown: skillCooldowns.skill4, maxCooldown: skillMaxCooldowns.skill4, keyBinding: 'G', isActive: false }
+  ], [skillCooldowns, skillMaxCooldowns]);
 
-      fpsUpdateInterval += deltaTime;
-      frameCount++;
-
-      if (fpsUpdateInterval >= 0.5) {
-        setFps(Math.round(frameCount / fpsUpdateInterval));
-        fpsUpdateInterval = 0;
-        frameCount = 0;
-      }
-
-      if (!isGamePaused) {
-        const controls = getControls();
-        const mouseDelta = getMouseDelta();
-
-        gameStateManagerRef.current?.update(deltaTime);
-        playerShipRef.current?.update(deltaTime, controls, mouseDelta);
-        enemySystemRef.current?.update(deltaTime);
-        weaponSystemRef.current?.update(deltaTime);
-
-        if (controls.fire) {
-          weaponSystemRef.current?.fire();
-        }
-
-        const enemies = enemySystemRef.current?.getEnemies() || [];
-        const hits = weaponSystemRef.current?.checkCollisions(enemies) || 0;
-        if (hits > 0) {
-          addScore(hits * 100);
-        }
-
-        particleManagerRef.current?.update(deltaTime);
-        scoreSystemRef.current?.update(deltaTime);
-
-        if (playerShipRef.current) {
-          setSpeed(Math.round(playerShipRef.current.speed));
-          setBoostActive(controls.boost);
-        }
-
-        setEnemyCount(enemies.length);
-        setProjectileCount(weaponSystemRef.current?.getProjectileCount() || 0);
-        setParticleCount(particleManagerRef.current?.getParticleSystemCount() || 0);
-      }
-
-      animationFrameIdRef.current = requestAnimationFrame(gameLoop);
-    };
-
-    animationFrameIdRef.current = requestAnimationFrame(gameLoop);
-
-    return () => {
-      cancelAnimationFrame(animationFrameIdRef.current);
-    };
-  }, [isGamePaused, getControls, getMouseDelta]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      cancelAnimationFrame(animationFrameIdRef.current);
-    };
+  const handleSkillActivate = useCallback((index: number) => {
+    if (!skillSystemRef.current) return;
+    
+    const skillTypes = [SkillType.MISSILE_STRIKE, SkillType.SHIELD_BURST, SkillType.TIME_SLOW, SkillType.OVERDRIVE];
+    const skillKeys = ['skill1', 'skill2', 'skill3', 'skill4'];
+    const cooldowns = [8, 10, 15, 20];
+    
+    skillSystemRef.current.activateSkill(skillTypes[index]);
+    useGameStore.getState().setSkillCooldown(skillKeys[index], cooldowns[index]);
   }, []);
 
-  const handleRestart = useCallback(() => {
-    resetGame();
-  }, [resetGame]);
-
-  const handleResume = useCallback(() => {
-    setGamePaused(false);
-  }, [setGamePaused]);
+  const hudProps = useMemo(() => ({
+    health: playerHealth,
+    maxHealth: playerMaxHealth,
+    shield: playerShield,
+    maxShield: playerMaxShield,
+    score: playerScore,
+    level: playerLevel,
+    wave: currentWave,
+    totalWaves: totalWaves,
+    enemiesRemaining: enemiesRemaining,
+    fps: fps,
+    skills,
+    onSkillActivate: handleSkillActivate
+  }), [
+    playerHealth,
+    playerMaxHealth,
+    playerShield,
+    playerMaxShield,
+    playerScore,
+    playerLevel,
+    currentWave,
+    totalWaves,
+    enemiesRemaining,
+    fps,
+    skills,
+    handleSkillActivate
+  ]);
 
   return (
-    <div className="scene-container" style={{ width: '100%', height: '100%' }}>
-      <Engine antialias adaptToDeviceRatio>
-        <BabylonScene onSceneMount={({ scene }: { scene: Scene }) => onSceneReady(scene)}>
-        </BabylonScene>
-      </Engine>
-
-      <GameHUD />
-
-      {isLoading && <LoadingOverlay progress={loadingProgress} />}
-      {error && <ErrorOverlay message={error} onRetry={handleRestart} />}
-      {isGamePaused && <PauseOverlay onResume={handleResume} />}
+    <div className="game-scene">
+      <canvas ref={canvasRef} className="game-canvas" />
+      
+      {isSceneReady && <GameHUD {...hudProps} />}
+      
+      {isLoading && <LoadingOverlay />}
+      
+      {isSceneReady && isGamePaused && <PauseOverlay />}
+      
+      {isSceneReady && (
+        <TouchControlOverlay
+          onMove={handleTouchMove}
+          onFire={handleTouchFire}
+          onBoost={handleTouchBoost}
+          onSkill1={handleTouchSkill1}
+          onSkill2={handleTouchSkill2}
+          onSkill3={handleTouchSkill3}
+          onSkill4={handleTouchSkill4}
+          skillCooldowns={skillCooldowns}
+          skillMaxCooldowns={skillMaxCooldowns}
+        />
+      )}
     </div>
   );
 });
+
+GameScene.displayName = 'GameScene';
+
+export default GameScene;

@@ -1,0 +1,15 @@
+{
+  "id": "skill-shield",
+  "name": "Energy Shield",
+  "type": "defensive",
+  "cooldown": 15,
+  "duration": 5,
+  "energyCost": 30,
+  "effect": {
+    "type": "shield",
+    "value": 100
+  },
+  "description": "Activates a protective energy shield",
+  "icon": "icon-shield",
+  "tier": 1
+}

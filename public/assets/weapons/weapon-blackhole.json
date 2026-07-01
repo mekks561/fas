@@ -1,0 +1,14 @@
+{
+  "id": "weapon-blackhole",
+  "name": "Black Hole Generator",
+  "type": "special",
+  "damage": 150,
+  "fireRate": 10,
+  "range": 25,
+  "energyCost": 100,
+  "accuracy": 0.75,
+  "projectileSpeed": 5,
+  "effect": "attract",
+  "description": "Creates a temporary black hole",
+  "icon": "icon-zap"
+}

@@ -1,0 +1,56 @@
+{
+  "id": "level-08",
+  "name": "The Maelstrom",
+  "description": "Level 8: The Maelstrom",
+  "difficulty": "hard",
+  "environment": {
+    "skybox": "env-space-01",
+    "nebula": false,
+    "asteroidField": false,
+    "lighting": "normal"
+  },
+  "player": {
+    "health": 170,
+    "shield": 106,
+    "maxHealth": 170,
+    "maxShield": 106,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 11,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 6,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 450,
+    "credits": 2250,
+    "unlocks": []
+  }
+}

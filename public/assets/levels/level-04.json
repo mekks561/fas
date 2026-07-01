@@ -1,0 +1,56 @@
+{
+  "id": "level-04",
+  "name": "Deep Space",
+  "description": "Level 4: Deep Space",
+  "difficulty": "medium",
+  "environment": {
+    "skybox": "env-space-01",
+    "nebula": false,
+    "asteroidField": false,
+    "lighting": "normal"
+  },
+  "player": {
+    "health": 130,
+    "shield": 74,
+    "maxHealth": 130,
+    "maxShield": 74,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 7,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 4,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 250,
+    "credits": 1250,
+    "unlocks": []
+  }
+}

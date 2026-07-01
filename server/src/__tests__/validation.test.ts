@@ -11,10 +11,10 @@ describe('Validation Middleware', () => {
       body: {}
     };
     mockResponse = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis()
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis()
     };
-    nextFunction = jest.fn();
+    nextFunction = vi.fn();
   });
 
   describe('registerSchema', () => {

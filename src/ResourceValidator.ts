@@ -13,9 +13,23 @@ export class MD5Validator {
     }
 
     public static async computeHash(arrayBuffer: ArrayBuffer): Promise<ArrayBuffer> {
-        const crypto = window.crypto;
-        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-        return hashBuffer;
+        const webCrypto = (typeof globalThis !== 'undefined' && (globalThis as any).crypto) ||
+                         (typeof window !== 'undefined' && window.crypto) ||
+                         (typeof global !== 'undefined' && (global as any).crypto);
+
+        if (webCrypto && webCrypto.subtle) {
+            const hashBuffer = await webCrypto.subtle.digest('SHA-256', arrayBuffer);
+            return hashBuffer;
+        }
+
+        try {
+            const crypto = require('crypto');
+            const hash = crypto.createHash('sha256');
+            hash.update(Buffer.from(arrayBuffer));
+            return hash.digest().buffer;
+        } catch (error) {
+            throw new Error('Crypto API is not available');
+        }
     }
 
     public static async computeMD5(arrayBuffer: ArrayBuffer): Promise<string> {

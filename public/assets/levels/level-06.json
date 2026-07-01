@@ -1,0 +1,56 @@
+{
+  "id": "level-06",
+  "name": "Hidden Base",
+  "description": "Level 6: Hidden Base",
+  "difficulty": "medium",
+  "environment": {
+    "skybox": "env-space-01",
+    "nebula": false,
+    "asteroidField": true,
+    "lighting": "normal"
+  },
+  "player": {
+    "health": 150,
+    "shield": 90,
+    "maxHealth": 150,
+    "maxShield": 90,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 9,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 5,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 350,
+    "credits": 1750,
+    "unlocks": []
+  }
+}

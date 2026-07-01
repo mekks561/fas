@@ -1,0 +1,25 @@
+{
+  "id": "ship-fighter",
+  "name": "Fighter",
+  "type": "light",
+  "stats": {
+    "health": 100,
+    "shield": 50,
+    "speed": 15,
+    "acceleration": 5,
+    "rotationSpeed": 3,
+    "energy": 100,
+    "energyRegen": 5
+  },
+  "weapons": [
+    "weapon-laser",
+    "weapon-plasma"
+  ],
+  "skills": [
+    "skill-speed",
+    "skill-reload"
+  ],
+  "description": "Fast and agile light fighter",
+  "icon": "icon-character",
+  "texture": "tex-hull-blue"
+}

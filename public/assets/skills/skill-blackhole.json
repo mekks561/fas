@@ -1,0 +1,16 @@
+{
+  "id": "skill-blackhole",
+  "name": "Gravity Well",
+  "type": "offensive",
+  "cooldown": 90,
+  "duration": 4,
+  "energyCost": 100,
+  "effect": {
+    "type": "attract",
+    "radius": 30,
+    "damage": 50
+  },
+  "description": "Creates a gravity well pulling enemies",
+  "icon": "icon-zap",
+  "tier": 3
+}

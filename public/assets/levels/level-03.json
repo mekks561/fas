@@ -1,0 +1,56 @@
+{
+  "id": "level-03",
+  "name": "Station Defense",
+  "description": "Level 3: Station Defense",
+  "difficulty": "medium",
+  "environment": {
+    "skybox": "env-nebula-01",
+    "nebula": true,
+    "asteroidField": true,
+    "lighting": "normal"
+  },
+  "player": {
+    "health": 120,
+    "shield": 66,
+    "maxHealth": 120,
+    "maxShield": 66,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 6,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 3,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 200,
+    "credits": 1000,
+    "unlocks": []
+  }
+}

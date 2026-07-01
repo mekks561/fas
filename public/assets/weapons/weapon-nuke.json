@@ -1,0 +1,13 @@
+{
+  "id": "weapon-nuke",
+  "name": "Nuclear Missile",
+  "type": "explosive",
+  "damage": 500,
+  "fireRate": 30,
+  "range": 200,
+  "energyCost": 200,
+  "accuracy": 0.6,
+  "projectileSpeed": 40,
+  "description": "Devastating nuclear warhead",
+  "icon": "icon-bomb"
+}

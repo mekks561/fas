@@ -1,0 +1,16 @@
+{
+  "id": "enemy-scout",
+  "name": "Scout",
+  "type": "light",
+  "stats": {
+    "health": 30,
+    "shield": 10,
+    "speed": 12,
+    "damage": 8,
+    "fireRate": 0.5
+  },
+  "behavior": "aggressive",
+  "points": 100,
+  "icon": "icon-target",
+  "texture": "tex-metal-02"
+}

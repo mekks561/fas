@@ -1,0 +1,56 @@
+{
+  "id": "level-09",
+  "name": "Final Approach",
+  "description": "Level 9: Final Approach",
+  "difficulty": "hard",
+  "environment": {
+    "skybox": "env-nebula-01",
+    "nebula": true,
+    "asteroidField": true,
+    "lighting": "normal"
+  },
+  "player": {
+    "health": 180,
+    "shield": 114,
+    "maxHealth": 180,
+    "maxShield": 114,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 12,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 6,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 500,
+    "credits": 2500,
+    "unlocks": []
+  }
+}

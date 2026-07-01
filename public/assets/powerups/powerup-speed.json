@@ -1,0 +1,13 @@
+{
+  "id": "powerup-speed",
+  "name": "Speed Boost",
+  "type": "buff",
+  "effect": {
+    "type": "speed",
+    "multiplier": 1.5
+  },
+  "rarity": "rare",
+  "duration": 20,
+  "icon": "icon-speed",
+  "description": "50% speed increase for 20s"
+}

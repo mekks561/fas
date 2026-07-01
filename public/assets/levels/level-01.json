@@ -1,0 +1,56 @@
+{
+  "id": "level-01",
+  "name": "First Contact",
+  "description": "Level 1: First Contact",
+  "difficulty": "easy",
+  "environment": {
+    "skybox": "env-nebula-01",
+    "nebula": true,
+    "asteroidField": false,
+    "lighting": "normal"
+  },
+  "player": {
+    "health": 100,
+    "shield": 50,
+    "maxHealth": 100,
+    "maxShield": 50,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 4,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 2,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 100,
+    "credits": 500,
+    "unlocks": []
+  }
+}

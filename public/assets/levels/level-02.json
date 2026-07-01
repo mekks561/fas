@@ -1,0 +1,56 @@
+{
+  "id": "level-02",
+  "name": "The Asteroid Field",
+  "description": "Level 2: The Asteroid Field",
+  "difficulty": "easy",
+  "environment": {
+    "skybox": "env-space-01",
+    "nebula": false,
+    "asteroidField": false,
+    "lighting": "normal"
+  },
+  "player": {
+    "health": 110,
+    "shield": 58,
+    "maxHealth": 110,
+    "maxShield": 58,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 5,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 3,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 150,
+    "credits": 750,
+    "unlocks": []
+  }
+}

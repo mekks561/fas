@@ -1,0 +1,13 @@
+{
+  "id": "weapon-missile",
+  "name": "Missile Launcher",
+  "type": "projectile",
+  "damage": 50,
+  "fireRate": 2,
+  "range": 80,
+  "energyCost": 25,
+  "accuracy": 0.85,
+  "projectileSpeed": 30,
+  "description": "Fires guided missiles with splash damage",
+  "icon": "icon-missile"
+}

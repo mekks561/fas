@@ -1,0 +1,185 @@
+/* Text 组件样式 */
+
+/* 基础样式 */
+.ui-text {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #d1d5db;
+  margin: 0;
+  padding: 0;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* 变体样式 */
+.ui-text--h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: white;
+}
+
+.ui-text--h2 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: white;
+}
+
+.ui-text--h3 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: white;
+}
+
+.ui-text--h4 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: white;
+}
+
+.ui-text--h5 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: white;
+}
+
+.ui-text--h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: white;
+}
+
+.ui-text--body {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.ui-text--caption {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.ui-text--overline {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* 颜色变体 */
+.ui-text--default {
+  color: #d1d5db;
+}
+
+.ui-text--primary {
+  color: #3b82f6;
+}
+
+.ui-text--secondary {
+  color: #9ca3af;
+}
+
+.ui-text--danger {
+  color: #ef4444;
+}
+
+.ui-text--success {
+  color: #22c55e;
+}
+
+.ui-text--warning {
+  color: #eab308;
+}
+
+.ui-text--white {
+  color: white;
+}
+
+.ui-text--muted {
+  color: #6b7280;
+}
+
+/* 对齐方式 */
+.ui-text--left {
+  text-align: left;
+}
+
+.ui-text--center {
+  text-align: center;
+}
+
+.ui-text--right {
+  text-align: right;
+}
+
+/* 文本样式 */
+.ui-text--bold {
+  font-weight: 700;
+}
+
+.ui-text--italic {
+  font-style: italic;
+}
+
+.ui-text--underline {
+  text-decoration: underline;
+}
+
+.ui-text--strikethrough {
+  text-decoration: line-through;
+}
+
+/* 最大行数截断 */
+.ui-text--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: var(--text-max-lines, 1);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ui-text--truncate-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-text--truncate-clip {
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+/* 渐变效果 */
+.ui-text--gradient-primary {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ui-text--gradient-fire {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.ui-text--gradient-ice {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 发光效果 */
+.ui-text--glow {
+  text-shadow: 0 0 10px var(--text-glow-color, rgba(255, 255, 255, 0.8)),
+               0 0 20px var(--text-glow-color, rgba(255, 255, 255, 0.5)),
+               0 0 30px var(--text-glow-color, rgba(255, 255, 255, 0.3));
+}

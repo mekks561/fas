@@ -1,0 +1,27 @@
+{
+  "id": "ship-dreadnought",
+  "name": "Dreadnought",
+  "type": "heavy",
+  "stats": {
+    "health": 300,
+    "shield": 150,
+    "speed": 5,
+    "acceleration": 1.5,
+    "rotationSpeed": 1,
+    "energy": 200,
+    "energyRegen": 2
+  },
+  "weapons": [
+    "weapon-missile",
+    "weapon-bomb",
+    "weapon-nuke"
+  ],
+  "skills": [
+    "skill-shield",
+    "skill-damage",
+    "skill-blackhole"
+  ],
+  "description": "Massive warship with ultimate firepower",
+  "icon": "icon-character",
+  "texture": "tex-hull-camo"
+}

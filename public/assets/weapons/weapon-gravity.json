@@ -1,0 +1,14 @@
+{
+  "id": "weapon-gravity",
+  "name": "Gravity Gun",
+  "type": "special",
+  "damage": 0,
+  "fireRate": 3,
+  "range": 45,
+  "energyCost": 20,
+  "accuracy": 0.85,
+  "projectileSpeed": 10,
+  "effect": "pull",
+  "description": "Pulls enemies towards you",
+  "icon": "icon-zap"
+}

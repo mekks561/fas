@@ -1,0 +1,16 @@
+{
+  "id": "enemy-fighter",
+  "name": "Fighter",
+  "type": "light",
+  "stats": {
+    "health": 50,
+    "shield": 20,
+    "speed": 10,
+    "damage": 12,
+    "fireRate": 0.4
+  },
+  "behavior": "tactical",
+  "points": 150,
+  "icon": "icon-target",
+  "texture": "tex-hull-red"
+}

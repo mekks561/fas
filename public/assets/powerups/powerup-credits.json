@@ -1,0 +1,13 @@
+{
+  "id": "powerup-credits",
+  "name": "Credit Cache",
+  "type": "reward",
+  "effect": {
+    "type": "credits",
+    "value": 500
+  },
+  "rarity": "epic",
+  "duration": 0,
+  "icon": "icon-coins",
+  "description": "Grants 500 credits"
+}

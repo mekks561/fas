@@ -1,0 +1,15 @@
+{
+  "id": "skill-speed",
+  "name": "Afterburner",
+  "type": "movement",
+  "cooldown": 20,
+  "duration": 8,
+  "energyCost": 40,
+  "effect": {
+    "type": "speed",
+    "multiplier": 2
+  },
+  "description": "Temporarily doubles movement speed",
+  "icon": "icon-speed",
+  "tier": 1
+}

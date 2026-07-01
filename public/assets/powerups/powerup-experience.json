@@ -1,0 +1,13 @@
+{
+  "id": "powerup-experience",
+  "name": "XP Crystal",
+  "type": "reward",
+  "effect": {
+    "type": "experience",
+    "multiplier": 2
+  },
+  "rarity": "epic",
+  "duration": 30,
+  "icon": "icon-exp",
+  "description": "Double XP for 30s"
+}

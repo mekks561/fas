@@ -1,0 +1,210 @@
+/* PauseMenu 组件样式 */
+
+/* 暂停容器 */
+.pause-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.pause-container--visible {
+  opacity: 1;
+}
+
+/* 半透明背景 */
+.pause-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+}
+
+/* 暂停面板 */
+.pause-panel {
+  position: relative;
+  width: 480px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 20px;
+  border: 2px solid rgba(251, 191, 36, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+              0 0 40px rgba(251, 191, 36, 0.1);
+  overflow: hidden;
+  animation: pausePanelSlideIn 0.4s ease;
+}
+
+@keyframes pausePanelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 暂停头部 */
+.pause-header {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.pause-header h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  animation: pauseHeaderPulse 2s ease-in-out infinite;
+}
+
+@keyframes pauseHeaderPulse {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+}
+
+/* 暂停统计 */
+.pause-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pause-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(55, 65, 81, 0.3);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.pause-stat-item:hover {
+  background: rgba(75, 85, 99, 0.4);
+  transform: translateY(-2px);
+}
+
+.pause-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pause-stat-label {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pause-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 暂停选项 */
+.pause-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+}
+
+.pause-option {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.pause-option--selected {
+  transform: scale(1.02);
+}
+
+.pause-option--danger .pause-option-button {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.pause-option--selected.pause-option--danger .pause-option-button {
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+}
+
+.pause-option-button {
+  pointer-events: none;
+}
+
+.pause-option-indicator {
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: pauseIndicatorBounce 1s ease-in-out infinite;
+}
+
+@keyframes pauseIndicatorBounce {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-50%) translateX(5px);
+  }
+}
+
+/* 暂停提示 */
+.pause-hint {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .pause-panel {
+    width: calc(100% - 32px);
+    margin: 16px;
+  }
+  
+  .pause-stats {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .pause-stat-item {
+    padding: 10px;
+  }
+  
+  .pause-options {
+    padding: 16px;
+    gap: 10px;
+  }
+  
+  .pause-option-indicator {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .pause-header {
+    padding: 20px;
+  }
+  
+  .pause-stats {
+    padding: 16px;
+  }
+}

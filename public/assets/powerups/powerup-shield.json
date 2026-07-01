@@ -1,0 +1,13 @@
+{
+  "id": "powerup-shield",
+  "name": "Shield Battery",
+  "type": "shield",
+  "effect": {
+    "type": "shield",
+    "value": 50
+  },
+  "rarity": "common",
+  "duration": 0,
+  "icon": "icon-shield",
+  "description": "Restores 50 shield"
+}

@@ -1,0 +1,39 @@
+{
+  "id": "boss-sentinel",
+  "name": "Sentinel",
+  "type": "boss",
+  "stats": {
+    "health": 1000,
+    "shield": 500,
+    "speed": 3,
+    "damage": 50,
+    "fireRate": 0.5
+  },
+  "behavior": "boss",
+  "points": 2000,
+  "icon": "icon-target",
+  "texture": "tex-energy-red",
+  "phases": [
+    {
+      "healthThreshold": 100,
+      "abilities": [
+        "laser",
+        "missile"
+      ]
+    },
+    {
+      "healthThreshold": 50,
+      "abilities": [
+        "laser",
+        "missile",
+        "energy"
+      ]
+    },
+    {
+      "healthThreshold": 25,
+      "abilities": [
+        "all"
+      ]
+    }
+  ]
+}

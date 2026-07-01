@@ -1,0 +1,25 @@
+{
+  "id": "ship-stealth",
+  "name": "Stealth",
+  "type": "light",
+  "stats": {
+    "health": 80,
+    "shield": 40,
+    "speed": 20,
+    "acceleration": 6,
+    "rotationSpeed": 4,
+    "energy": 110,
+    "energyRegen": 6
+  },
+  "weapons": [
+    "weapon-sniper",
+    "weapon-shotgun"
+  ],
+  "skills": [
+    "skill-stealth",
+    "skill-speed"
+  ],
+  "description": "Infiltration ship with cloaking capability",
+  "icon": "icon-character",
+  "texture": "tex-hull-black"
+}

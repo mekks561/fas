@@ -1,0 +1,16 @@
+{
+  "id": "enemy-destroyer",
+  "name": "Destroyer",
+  "type": "heavy",
+  "stats": {
+    "health": 150,
+    "shield": 70,
+    "speed": 5,
+    "damage": 28,
+    "fireRate": 1
+  },
+  "behavior": "siege",
+  "points": 500,
+  "icon": "icon-target",
+  "texture": "tex-metal-01"
+}

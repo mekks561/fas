@@ -1,0 +1,13 @@
+{
+  "id": "weapon-laser",
+  "name": "Laser Cannon",
+  "type": "energy",
+  "damage": 15,
+  "fireRate": 0.2,
+  "range": 50,
+  "energyCost": 5,
+  "accuracy": 0.95,
+  "projectileSpeed": 100,
+  "description": "Standard laser cannon with high accuracy",
+  "icon": "icon-gun"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "skill-reload",
+  "name": "Rapid Reload",
+  "type": "support",
+  "cooldown": 10,
+  "duration": 0,
+  "energyCost": 15,
+  "effect": {
+    "type": "reload",
+    "speed": 3
+  },
+  "description": "Instantly reloads all weapons",
+  "icon": "icon-reload",
+  "tier": 1
+}

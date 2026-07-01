@@ -1,0 +1,14 @@
+{
+  "id": "powerup-nuke",
+  "name": "Emergency Nuke",
+  "type": "offensive",
+  "effect": {
+    "type": "nuke",
+    "damage": 1000,
+    "radius": 100
+  },
+  "rarity": "legendary",
+  "duration": 0,
+  "icon": "icon-bomb",
+  "description": "Destroys all enemies on screen"
+}

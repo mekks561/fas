@@ -1,0 +1,13 @@
+{
+  "id": "weapon-turret",
+  "name": "Auto Turret",
+  "type": "energy",
+  "damage": 10,
+  "fireRate": 0.1,
+  "range": 35,
+  "energyCost": 3,
+  "accuracy": 0.8,
+  "projectileSpeed": 80,
+  "description": "Rapid fire auto turret",
+  "icon": "icon-crosshair"
+}

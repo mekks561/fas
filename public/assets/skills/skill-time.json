@@ -1,0 +1,15 @@
+{
+  "id": "skill-time",
+  "name": "Time Warp",
+  "type": "special",
+  "cooldown": 60,
+  "duration": 3,
+  "energyCost": 80,
+  "effect": {
+    "type": "slowTime",
+    "multiplier": 0.3
+  },
+  "description": "Slows down time for enemies",
+  "icon": "icon-clock",
+  "tier": 3
+}

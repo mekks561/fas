@@ -1,0 +1,13 @@
+{
+  "id": "powerup-damage",
+  "name": "Damage Boost",
+  "type": "buff",
+  "effect": {
+    "type": "damage",
+    "multiplier": 1.5
+  },
+  "rarity": "rare",
+  "duration": 15,
+  "icon": "icon-damage",
+  "description": "50% damage increase for 15s"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "ship-corvette",
+  "name": "Corvette",
+  "type": "light",
+  "stats": {
+    "health": 90,
+    "shield": 60,
+    "speed": 18,
+    "acceleration": 5,
+    "rotationSpeed": 3.5,
+    "energy": 90,
+    "energyRegen": 5
+  },
+  "weapons": [
+    "weapon-laser",
+    "weapon-gravity"
+  ],
+  "skills": [
+    "skill-speed",
+    "skill-reload",
+    "skill-energy"
+  ],
+  "description": "Fast interceptor with gravity weapons",
+  "icon": "icon-character",
+  "texture": "tex-hull-green"
+}

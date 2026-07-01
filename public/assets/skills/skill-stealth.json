@@ -1,0 +1,15 @@
+{
+  "id": "skill-stealth",
+  "name": "Cloaking Device",
+  "type": "tactical",
+  "cooldown": 45,
+  "duration": 10,
+  "energyCost": 60,
+  "effect": {
+    "type": "invisibility",
+    "duration": 10
+  },
+  "description": "Renders ship invisible to enemies",
+  "icon": "icon-stealth",
+  "tier": 2
+}

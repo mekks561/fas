@@ -1,0 +1,13 @@
+{
+  "id": "powerup-invincible",
+  "name": "Invincibility",
+  "type": "buff",
+  "effect": {
+    "type": "invincible",
+    "duration": 5
+  },
+  "rarity": "legendary",
+  "duration": 5,
+  "icon": "icon-shield",
+  "description": "Invincible for 5 seconds"
+}

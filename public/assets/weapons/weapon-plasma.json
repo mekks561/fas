@@ -1,0 +1,13 @@
+{
+  "id": "weapon-plasma",
+  "name": "Plasma Rifle",
+  "type": "energy",
+  "damage": 25,
+  "fireRate": 0.4,
+  "range": 40,
+  "energyCost": 10,
+  "accuracy": 0.9,
+  "projectileSpeed": 60,
+  "description": "High damage plasma rounds",
+  "icon": "icon-zap"
+}

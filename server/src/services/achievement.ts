@@ -243,7 +243,7 @@ export class AchievementService {
     const achievements = await this.getUserAchievements(userId);
 
     const total = achievements.length;
-    const unlocked = achievements.filter(a => a.unlocked).length;
+    const unlocked = achievements.filter((a: { unlocked: boolean }) => a.unlocked).length;
 
     return {
       total,

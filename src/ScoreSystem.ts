@@ -68,6 +68,10 @@ export class ScoreSystem {
         return this.currentScore;
     }
 
+    public getScore(): number {
+        return this.currentScore;
+    }
+
     public getScoreMultiplier(): number {
         return this.scoreMultiplier;
     }

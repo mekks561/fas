@@ -1,0 +1,15 @@
+{
+  "id": "skill-rebirth",
+  "name": "Emergency Protocol",
+  "type": "support",
+  "cooldown": 120,
+  "duration": 0,
+  "energyCost": 0,
+  "effect": {
+    "type": "resurrect",
+    "health": 30
+  },
+  "description": "Revives with 30% health when destroyed",
+  "icon": "icon-heart",
+  "tier": 3
+}

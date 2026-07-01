@@ -1,0 +1,1686 @@
+{
+  "version": "2.0.0",
+  "createdAt": "2026-07-01T15:14:00.727Z",
+  "totalSize": 1859647,
+  "assetCount": 137,
+  "categories": [
+    {
+      "id": "textures-environment",
+      "name": "Environment Maps",
+      "description": "环境贴图",
+      "assets": [
+        {
+          "id": "env-nebula-01",
+          "name": "Nebula 01",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-nebula-01.png",
+          "size": 13198,
+          "format": "png",
+          "tags": [
+            "environment",
+            "skybox"
+          ]
+        },
+        {
+          "id": "env-nebula-02",
+          "name": "Nebula 02",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-nebula-02.png",
+          "size": 13503,
+          "format": "png",
+          "tags": [
+            "environment",
+            "skybox"
+          ]
+        },
+        {
+          "id": "env-nebula-03",
+          "name": "Nebula 03",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-nebula-03.png",
+          "size": 12928,
+          "format": "png",
+          "tags": [
+            "environment",
+            "skybox"
+          ]
+        },
+        {
+          "id": "env-space-01",
+          "name": "Space 01",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-space-01.png",
+          "size": 261653,
+          "format": "png",
+          "tags": [
+            "environment",
+            "skybox"
+          ]
+        },
+        {
+          "id": "env-space-02",
+          "name": "Space 02",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-space-02.png",
+          "size": 259379,
+          "format": "png",
+          "tags": [
+            "environment",
+            "skybox"
+          ]
+        },
+        {
+          "id": "env-galaxy-01",
+          "name": "Galaxy 01",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-galaxy-01.png",
+          "size": 11187,
+          "format": "png",
+          "tags": [
+            "environment",
+            "skybox"
+          ]
+        },
+        {
+          "id": "env-planet-01",
+          "name": "Planet 01",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-planet-01.png",
+          "size": 8323,
+          "format": "png",
+          "tags": [
+            "environment",
+            "planet"
+          ]
+        },
+        {
+          "id": "env-planet-02",
+          "name": "Planet 02",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-planet-02.png",
+          "size": 7409,
+          "format": "png",
+          "tags": [
+            "environment",
+            "planet"
+          ]
+        },
+        {
+          "id": "env-station-01",
+          "name": "Station 01",
+          "type": "texture",
+          "url": "/assets/textures/environment/env-station-01.png",
+          "size": 10811,
+          "format": "png",
+          "tags": [
+            "environment",
+            "station"
+          ]
+        }
+      ],
+      "totalSize": 598391
+    },
+    {
+      "id": "textures-pbr",
+      "name": "PBR Textures",
+      "description": "PBR材质贴图",
+      "assets": [
+        {
+          "id": "tex-metal-01",
+          "name": "Metal Plate",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-metal-01.png",
+          "size": 18124,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-metal-02",
+          "name": "Metal Dark",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-metal-02.png",
+          "size": 16211,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-metal-gold",
+          "name": "Gold Metal",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-metal-gold.png",
+          "size": 7432,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-metal-chrome",
+          "name": "Chrome Metal",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-metal-chrome.png",
+          "size": 6880,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-carbon-01",
+          "name": "Carbon Fiber",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-carbon-01.png",
+          "size": 31425,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-glass-01",
+          "name": "Glass",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-glass-01.png",
+          "size": 6591,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-rock-01",
+          "name": "Rock",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-rock-01.png",
+          "size": 22549,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-energy-01",
+          "name": "Energy Field",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-energy-01.png",
+          "size": 8041,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-energy-red",
+          "name": "Energy Red",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-energy-red.png",
+          "size": 7452,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-energy-green",
+          "name": "Energy Green",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-energy-green.png",
+          "size": 7550,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-lava-01",
+          "name": "Lava",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-lava-01.png",
+          "size": 8165,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-ice-01",
+          "name": "Ice",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-ice-01.png",
+          "size": 7246,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-wood-01",
+          "name": "Wood",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-wood-01.png",
+          "size": 6702,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-concrete-01",
+          "name": "Concrete",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-concrete-01.png",
+          "size": 969172,
+          "format": "png",
+          "tags": [
+            "pbr",
+            "material"
+          ]
+        },
+        {
+          "id": "tex-hull-red",
+          "name": "Hull Red",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-red.png",
+          "size": 8148,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        },
+        {
+          "id": "tex-hull-blue",
+          "name": "Hull Blue",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-blue.png",
+          "size": 7921,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        },
+        {
+          "id": "tex-hull-purple",
+          "name": "Hull Purple",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-purple.png",
+          "size": 8326,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        },
+        {
+          "id": "tex-hull-green",
+          "name": "Hull Green",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-green.png",
+          "size": 8134,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        },
+        {
+          "id": "tex-hull-orange",
+          "name": "Hull Orange",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-orange.png",
+          "size": 8530,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        },
+        {
+          "id": "tex-hull-white",
+          "name": "Hull White",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-white.png",
+          "size": 6880,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        },
+        {
+          "id": "tex-hull-black",
+          "name": "Hull Black",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-black.png",
+          "size": 6763,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        },
+        {
+          "id": "tex-hull-camo",
+          "name": "Hull Camo",
+          "type": "texture",
+          "url": "/assets/textures/pbr/tex-hull-camo.png",
+          "size": 22552,
+          "format": "png",
+          "tags": [
+            "hull",
+            "ship"
+          ]
+        }
+      ],
+      "totalSize": 1200794
+    },
+    {
+      "id": "textures-ui",
+      "name": "UI Icons",
+      "description": "UI图标",
+      "assets": [
+        {
+          "id": "icon-missile",
+          "name": "Missile",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-missile.png",
+          "size": 225,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-shield",
+          "name": "Shield",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-shield.png",
+          "size": 225,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-clock",
+          "name": "Clock",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-clock.png",
+          "size": 225,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-zap",
+          "name": "Zap",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-zap.png",
+          "size": 205,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-heart",
+          "name": "Heart",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-heart.png",
+          "size": 205,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-star",
+          "name": "Star",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-star.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-coins",
+          "name": "Coins",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-coins.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-exp",
+          "name": "Experience",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-exp.png",
+          "size": 208,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-gun",
+          "name": "Gun",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-gun.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-bomb",
+          "name": "Bomb",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-bomb.png",
+          "size": 205,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-shoot",
+          "name": "Shoot",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-shoot.png",
+          "size": 224,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-speed",
+          "name": "Speed",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-speed.png",
+          "size": 209,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-damage",
+          "name": "Damage",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-damage.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-defense",
+          "name": "Defense",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-defense.png",
+          "size": 209,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-heal",
+          "name": "Heal",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-heal.png",
+          "size": 226,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-stealth",
+          "name": "Stealth",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-stealth.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-energy",
+          "name": "Energy",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-energy.png",
+          "size": 205,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-reload",
+          "name": "Reload",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-reload.png",
+          "size": 227,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-target",
+          "name": "Target",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-target.png",
+          "size": 205,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-crosshair",
+          "name": "Crosshair",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-crosshair.png",
+          "size": 224,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-map",
+          "name": "Map",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-map.png",
+          "size": 208,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-settings",
+          "name": "Settings",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-settings.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-help",
+          "name": "Help",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-help.png",
+          "size": 227,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-pause",
+          "name": "Pause",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-pause.png",
+          "size": 203,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-play",
+          "name": "Play",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-play.png",
+          "size": 224,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-resume",
+          "name": "Resume",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-resume.png",
+          "size": 224,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-restart",
+          "name": "Restart",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-restart.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-exit",
+          "name": "Exit",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-exit.png",
+          "size": 205,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-next",
+          "name": "Next",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-next.png",
+          "size": 227,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-prev",
+          "name": "Prev",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-prev.png",
+          "size": 227,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-upgrade",
+          "name": "Upgrade",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-upgrade.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-unlock",
+          "name": "Unlock",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-unlock.png",
+          "size": 224,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-achieve",
+          "name": "Achievement",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-achieve.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-challenge",
+          "name": "Challenge",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-challenge.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-event",
+          "name": "Event",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-event.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-shop",
+          "name": "Shop",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-shop.png",
+          "size": 224,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-inventory",
+          "name": "Inventory",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-inventory.png",
+          "size": 209,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-character",
+          "name": "Character",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-character.png",
+          "size": 209,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-skills",
+          "name": "Skills",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-skills.png",
+          "size": 208,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        },
+        {
+          "id": "icon-equipment",
+          "name": "Equipment",
+          "type": "texture",
+          "url": "/assets/textures/ui/icon-equipment.png",
+          "size": 207,
+          "format": "png",
+          "tags": [
+            "ui",
+            "icon"
+          ]
+        }
+      ],
+      "totalSize": 8530
+    },
+    {
+      "id": "textures-effects",
+      "name": "Effect Textures",
+      "description": "特效贴图",
+      "assets": [
+        {
+          "id": "effect-explosion-01",
+          "name": "Explosion 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-explosion-01.png",
+          "size": 3059,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-explosion-02",
+          "name": "Explosion 02",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-explosion-02.png",
+          "size": 3148,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-fire-01",
+          "name": "Fire 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-fire-01.png",
+          "size": 3069,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-smoke-01",
+          "name": "Smoke 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-smoke-01.png",
+          "size": 2950,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-spark-01",
+          "name": "Spark 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-spark-01.png",
+          "size": 1491,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-laser-01",
+          "name": "Laser 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-laser-01.png",
+          "size": 5224,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-energyball-01",
+          "name": "Energy Ball 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-energyball-01.png",
+          "size": 3081,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-shockwave-01",
+          "name": "Shockwave 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-shockwave-01.png",
+          "size": 3370,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-trail-01",
+          "name": "Trail 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-trail-01.png",
+          "size": 839,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        },
+        {
+          "id": "effect-damage-01",
+          "name": "Damage 01",
+          "type": "texture",
+          "url": "/assets/textures/effects/effect-damage-01.png",
+          "size": 1255,
+          "format": "png",
+          "tags": [
+            "effect",
+            "particle"
+          ]
+        }
+      ],
+      "totalSize": 27486
+    },
+    {
+      "id": "levels",
+      "name": "Levels",
+      "description": "关卡配置",
+      "assets": [
+        {
+          "id": "level-01",
+          "name": "First Contact",
+          "type": "config",
+          "url": "/assets/levels/level-01.json",
+          "size": 963,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-02",
+          "name": "The Asteroid Field",
+          "type": "config",
+          "url": "/assets/levels/level-02.json",
+          "size": 973,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-03",
+          "name": "Station Defense",
+          "type": "config",
+          "url": "/assets/levels/level-03.json",
+          "size": 969,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-04",
+          "name": "Deep Space",
+          "type": "config",
+          "url": "/assets/levels/level-04.json",
+          "size": 960,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-05",
+          "name": "Boss: Sentinel",
+          "type": "config",
+          "url": "/assets/levels/level-05.json",
+          "size": 1190,
+          "format": "json",
+          "tags": [
+            "level",
+            "boss"
+          ]
+        },
+        {
+          "id": "level-06",
+          "name": "Hidden Base",
+          "type": "config",
+          "url": "/assets/levels/level-06.json",
+          "size": 961,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-07",
+          "name": "Fleet Battle",
+          "type": "config",
+          "url": "/assets/levels/level-07.json",
+          "size": 963,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-08",
+          "name": "The Maelstrom",
+          "type": "config",
+          "url": "/assets/levels/level-08.json",
+          "size": 967,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-09",
+          "name": "Final Approach",
+          "type": "config",
+          "url": "/assets/levels/level-09.json",
+          "size": 968,
+          "format": "json",
+          "tags": [
+            "level"
+          ]
+        },
+        {
+          "id": "level-10",
+          "name": "Boss: Overlord",
+          "type": "config",
+          "url": "/assets/levels/level-10.json",
+          "size": 1197,
+          "format": "json",
+          "tags": [
+            "level",
+            "boss"
+          ]
+        }
+      ],
+      "totalSize": 10111
+    },
+    {
+      "id": "weapons",
+      "name": "Weapons",
+      "description": "武器配置",
+      "assets": [
+        {
+          "id": "weapon-laser",
+          "name": "Laser Cannon",
+          "type": "config",
+          "url": "/assets/weapons/weapon-laser.json",
+          "size": 270,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-missile",
+          "name": "Missile Launcher",
+          "type": "config",
+          "url": "/assets/weapons/weapon-missile.json",
+          "size": 282,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-plasma",
+          "name": "Plasma Rifle",
+          "type": "config",
+          "url": "/assets/weapons/weapon-plasma.json",
+          "size": 255,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-bomb",
+          "name": "Cluster Bomb",
+          "type": "config",
+          "url": "/assets/weapons/weapon-bomb.json",
+          "size": 273,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-sniper",
+          "name": "Sniper Rifle",
+          "type": "config",
+          "url": "/assets/weapons/weapon-sniper.json",
+          "size": 263,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-shotgun",
+          "name": "Shotgun",
+          "type": "config",
+          "url": "/assets/weapons/weapon-shotgun.json",
+          "size": 272,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-turret",
+          "name": "Auto Turret",
+          "type": "config",
+          "url": "/assets/weapons/weapon-turret.json",
+          "size": 256,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-gravity",
+          "name": "Gravity Gun",
+          "type": "config",
+          "url": "/assets/weapons/weapon-gravity.json",
+          "size": 274,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-blackhole",
+          "name": "Black Hole Generator",
+          "type": "config",
+          "url": "/assets/weapons/weapon-blackhole.json",
+          "size": 296,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        },
+        {
+          "id": "weapon-nuke",
+          "name": "Nuclear Missile",
+          "type": "config",
+          "url": "/assets/weapons/weapon-nuke.json",
+          "size": 264,
+          "format": "json",
+          "tags": [
+            "weapon"
+          ]
+        }
+      ],
+      "totalSize": 2705
+    },
+    {
+      "id": "skills",
+      "name": "Skills",
+      "description": "技能配置",
+      "assets": [
+        {
+          "id": "skill-shield",
+          "name": "Energy Shield",
+          "type": "config",
+          "url": "/assets/skills/skill-shield.json",
+          "size": 284,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-speed",
+          "name": "Afterburner",
+          "type": "config",
+          "url": "/assets/skills/skill-speed.json",
+          "size": 279,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-heal",
+          "name": "Nanobot Repair",
+          "type": "config",
+          "url": "/assets/skills/skill-heal.json",
+          "size": 269,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-stealth",
+          "name": "Cloaking Device",
+          "type": "config",
+          "url": "/assets/skills/skill-stealth.json",
+          "size": 293,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-damage",
+          "name": "Overcharge",
+          "type": "config",
+          "url": "/assets/skills/skill-damage.json",
+          "size": 280,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-reload",
+          "name": "Rapid Reload",
+          "type": "config",
+          "url": "/assets/skills/skill-reload.json",
+          "size": 272,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-energy",
+          "name": "Energy Surge",
+          "type": "config",
+          "url": "/assets/skills/skill-energy.json",
+          "size": 268,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-time",
+          "name": "Time Warp",
+          "type": "config",
+          "url": "/assets/skills/skill-time.json",
+          "size": 273,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-rebirth",
+          "name": "Emergency Protocol",
+          "type": "config",
+          "url": "/assets/skills/skill-rebirth.json",
+          "size": 292,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        },
+        {
+          "id": "skill-blackhole",
+          "name": "Gravity Well",
+          "type": "config",
+          "url": "/assets/skills/skill-blackhole.json",
+          "size": 305,
+          "format": "json",
+          "tags": [
+            "skill"
+          ]
+        }
+      ],
+      "totalSize": 2815
+    },
+    {
+      "id": "powerups",
+      "name": "Powerups",
+      "description": "道具配置",
+      "assets": [
+        {
+          "id": "powerup-health",
+          "name": "Health Pack",
+          "type": "config",
+          "url": "/assets/powerups/powerup-health.json",
+          "size": 229,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-shield",
+          "name": "Shield Battery",
+          "type": "config",
+          "url": "/assets/powerups/powerup-shield.json",
+          "size": 236,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-energy",
+          "name": "Energy Cell",
+          "type": "config",
+          "url": "/assets/powerups/powerup-energy.json",
+          "size": 233,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-damage",
+          "name": "Damage Boost",
+          "type": "config",
+          "url": "/assets/powerups/powerup-damage.json",
+          "size": 246,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-speed",
+          "name": "Speed Boost",
+          "type": "config",
+          "url": "/assets/powerups/powerup-speed.json",
+          "size": 241,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-defense",
+          "name": "Defense Matrix",
+          "type": "config",
+          "url": "/assets/powerups/powerup-defense.json",
+          "size": 252,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-experience",
+          "name": "XP Crystal",
+          "type": "config",
+          "url": "/assets/powerups/powerup-experience.json",
+          "size": 239,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-credits",
+          "name": "Credit Cache",
+          "type": "config",
+          "url": "/assets/powerups/powerup-credits.json",
+          "size": 234,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-invincible",
+          "name": "Invincibility",
+          "type": "config",
+          "url": "/assets/powerups/powerup-invincible.json",
+          "size": 252,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        },
+        {
+          "id": "powerup-nuke",
+          "name": "Emergency Nuke",
+          "type": "config",
+          "url": "/assets/powerups/powerup-nuke.json",
+          "size": 270,
+          "format": "json",
+          "tags": [
+            "powerup"
+          ]
+        }
+      ],
+      "totalSize": 2432
+    },
+    {
+      "id": "ships",
+      "name": "Ships",
+      "description": "飞船配置",
+      "assets": [
+        {
+          "id": "ship-fighter",
+          "name": "Fighter",
+          "type": "config",
+          "url": "/assets/ships/ship-fighter.json",
+          "size": 449,
+          "format": "json",
+          "tags": [
+            "ship",
+            "player"
+          ]
+        },
+        {
+          "id": "ship-bomber",
+          "name": "Bomber",
+          "type": "config",
+          "url": "/assets/ships/ship-bomber.json",
+          "size": 465,
+          "format": "json",
+          "tags": [
+            "ship",
+            "player"
+          ]
+        },
+        {
+          "id": "ship-cruiser",
+          "name": "Cruiser",
+          "type": "config",
+          "url": "/assets/ships/ship-cruiser.json",
+          "size": 492,
+          "format": "json",
+          "tags": [
+            "ship",
+            "player"
+          ]
+        },
+        {
+          "id": "ship-stealth",
+          "name": "Stealth",
+          "type": "config",
+          "url": "/assets/ships/ship-stealth.json",
+          "size": 466,
+          "format": "json",
+          "tags": [
+            "ship",
+            "player"
+          ]
+        },
+        {
+          "id": "ship-corvette",
+          "name": "Corvette",
+          "type": "config",
+          "url": "/assets/ships/ship-corvette.json",
+          "size": 482,
+          "format": "json",
+          "tags": [
+            "ship",
+            "player"
+          ]
+        },
+        {
+          "id": "ship-dreadnought",
+          "name": "Dreadnought",
+          "type": "config",
+          "url": "/assets/ships/ship-dreadnought.json",
+          "size": 513,
+          "format": "json",
+          "tags": [
+            "ship",
+            "player"
+          ]
+        }
+      ],
+      "totalSize": 2867
+    },
+    {
+      "id": "enemies",
+      "name": "Enemies",
+      "description": "敌人配置",
+      "assets": [
+        {
+          "id": "enemy-scout",
+          "name": "Scout",
+          "type": "config",
+          "url": "/assets/enemies/enemy-scout.json",
+          "size": 270,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "enemy-fighter",
+          "name": "Fighter",
+          "type": "config",
+          "url": "/assets/enemies/enemy-fighter.json",
+          "size": 273,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "enemy-bomber",
+          "name": "Bomber",
+          "type": "config",
+          "url": "/assets/enemies/enemy-bomber.json",
+          "size": 267,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "enemy-tank",
+          "name": "Tank",
+          "type": "config",
+          "url": "/assets/enemies/enemy-tank.json",
+          "size": 265,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "enemy-assassin",
+          "name": "Assassin",
+          "type": "config",
+          "url": "/assets/enemies/enemy-assassin.json",
+          "size": 275,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "enemy-drone",
+          "name": "Drone",
+          "type": "config",
+          "url": "/assets/enemies/enemy-drone.json",
+          "size": 262,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "enemy-corvette",
+          "name": "Corvette",
+          "type": "config",
+          "url": "/assets/enemies/enemy-corvette.json",
+          "size": 273,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "enemy-destroyer",
+          "name": "Destroyer",
+          "type": "config",
+          "url": "/assets/enemies/enemy-destroyer.json",
+          "size": 272,
+          "format": "json",
+          "tags": [
+            "enemy"
+          ]
+        },
+        {
+          "id": "boss-sentinel",
+          "name": "Sentinel",
+          "type": "config",
+          "url": "/assets/enemies/boss-sentinel.json",
+          "size": 608,
+          "format": "json",
+          "tags": [
+            "enemy",
+            "boss"
+          ]
+        },
+        {
+          "id": "boss-overlord",
+          "name": "Overlord",
+          "type": "config",
+          "url": "/assets/enemies/boss-overlord.json",
+          "size": 751,
+          "format": "json",
+          "tags": [
+            "enemy",
+            "boss"
+          ]
+        }
+      ],
+      "totalSize": 3516
+    }
+  ]
+}

@@ -1,0 +1,317 @@
+/* GameOver 组件样式 */
+
+/* 结算容器 */
+.gameover-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.gameover-container--visible {
+  opacity: 1;
+}
+
+/* 背景效果 */
+.gameover-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.gameover-backdrop--victory {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(0, 0, 0, 0.9));
+}
+
+.gameover-backdrop--defeat {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(0, 0, 0, 0.9));
+}
+
+/* 结算面板 */
+.gameover-panel {
+  position: relative;
+  width: 560px;
+  max-height: 90vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: gameoverPanelSlideIn 0.6s ease;
+}
+
+@keyframes gameoverPanelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-40px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 结算头部 */
+.gameover-header {
+  padding: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.gameover-title {
+  font-size: 3rem;
+  margin-bottom: 8px;
+  animation: gameoverTitlePulse 2s ease-in-out infinite;
+}
+
+@keyframes gameoverTitlePulse {
+  0%, 100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  50% {
+    filter: brightness(1.2);
+    transform: scale(1.02);
+  }
+}
+
+/* 结算统计 */
+.gameover-stats {
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 主要统计 */
+.gameover-stat-main {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.gameover-stat-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.gameover-score {
+  font-size: 4rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gameoverScoreGlow 2s ease-in-out infinite;
+}
+
+@keyframes gameoverScoreGlow {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.3);
+  }
+}
+
+.gameover-new-record {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 20px;
+  margin-top: 8px;
+  animation: gameoverNewRecordPulse 1s ease-in-out infinite;
+}
+
+@keyframes gameoverNewRecordPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.gameover-score-bar {
+  margin-top: 16px;
+}
+
+/* 统计网格 */
+.gameover-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.gameover-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(55, 65, 81, 0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.gameover-stat-item:hover {
+  background: rgba(75, 85, 99, 0.5);
+  transform: translateY(-2px);
+}
+
+.gameover-stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gameover-stat-label {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gameover-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 解锁成就 */
+.gameover-achievements {
+  padding: 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gameover-achievements h5 {
+  margin-bottom: 12px;
+}
+
+.gameover-achievements-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.gameover-achievement-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 20px;
+  animation: gameoverAchievementSlideIn 0.5s ease forwards;
+  opacity: 0;
+}
+
+@keyframes gameoverAchievementSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 选项 */
+.gameover-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+}
+
+.gameover-option {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.gameover-option--selected {
+  transform: scale(1.02);
+}
+
+.gameover-option-button {
+  pointer-events: none;
+}
+
+.gameover-option-indicator {
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: gameoverIndicatorBounce 1s ease-in-out infinite;
+}
+
+@keyframes gameoverIndicatorBounce {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-50%) translateX(5px);
+  }
+}
+
+/* 提示 */
+.gameover-hint {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .gameover-panel {
+    width: calc(100% - 32px);
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  .gameover-title {
+    font-size: 2rem;
+  }
+  
+  .gameover-score {
+    font-size: 3rem;
+  }
+  
+  .gameover-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .gameover-options {
+    padding: 16px;
+    gap: 10px;
+  }
+  
+  .gameover-option-indicator {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .gameover-header {
+    padding: 24px;
+  }
+  
+  .gameover-stats {
+    padding: 16px;
+  }
+  
+  .gameover-score {
+    font-size: 2.5rem;
+  }
+}

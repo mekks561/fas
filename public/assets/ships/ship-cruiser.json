@@ -1,0 +1,27 @@
+{
+  "id": "ship-cruiser",
+  "name": "Cruiser",
+  "type": "medium",
+  "stats": {
+    "health": 150,
+    "shield": 100,
+    "speed": 10,
+    "acceleration": 3,
+    "rotationSpeed": 2,
+    "energy": 120,
+    "energyRegen": 4
+  },
+  "weapons": [
+    "weapon-laser",
+    "weapon-turret",
+    "weapon-plasma"
+  ],
+  "skills": [
+    "skill-shield",
+    "skill-energy",
+    "skill-heal"
+  ],
+  "description": "Balanced multi-role cruiser",
+  "icon": "icon-character",
+  "texture": "tex-hull-purple"
+}

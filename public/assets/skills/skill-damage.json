@@ -1,0 +1,15 @@
+{
+  "id": "skill-damage",
+  "name": "Overcharge",
+  "type": "offensive",
+  "cooldown": 25,
+  "duration": 6,
+  "energyCost": 45,
+  "effect": {
+    "type": "damage",
+    "multiplier": 1.5
+  },
+  "description": "Increases weapon damage by 50%",
+  "icon": "icon-damage",
+  "tier": 2
+}

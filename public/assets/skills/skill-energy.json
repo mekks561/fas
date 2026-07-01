@@ -1,0 +1,15 @@
+{
+  "id": "skill-energy",
+  "name": "Energy Surge",
+  "type": "support",
+  "cooldown": 40,
+  "duration": 0,
+  "energyCost": 0,
+  "effect": {
+    "type": "energy",
+    "value": 100
+  },
+  "description": "Restores energy reserves",
+  "icon": "icon-energy",
+  "tier": 2
+}

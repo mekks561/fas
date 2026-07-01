@@ -4,24 +4,39 @@ import {
   ACHIEVEMENTS
 } from '../services/achievement';
 
-// Mock Achievement model
-jest.mock('../models/Achievement', () => ({
-  findOne: jest.fn(),
-  create: jest.fn()
-}));
+vi.mock('mongoose', () => {
+  const mockSchema = vi.fn().mockImplementation((def: any, options?: any) => ({
+    Types: {
+      ObjectId: 'ObjectId'
+    }
+  }));
+  
+  return {
+    default: {
+      model: vi.fn().mockReturnValue({
+        findOne: vi.fn(),
+        create: vi.fn()
+      }),
+      Types: {
+        ObjectId: vi.fn((id: string) => id)
+      }
+    },
+    Document: class {},
+    Schema: mockSchema
+  };
+});
 
-// Mock cache service
-jest.mock('../services/cache', () => ({
+vi.mock('../services/cache', () => ({
   cacheService: {
-    get: jest.fn(),
-    set: jest.fn(),
-    del: jest.fn()
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(true),
+    del: vi.fn().mockResolvedValue(true)
   }
 }));
 
 describe('AchievementService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getUserAchievements', () => {
@@ -36,7 +51,7 @@ describe('AchievementService', () => {
         }
       ];
 
-      (Achievement.findOne as jest.Mock).mockResolvedValue({
+      (Achievement.findOne as vi.Mock).mockResolvedValue({
         achievements: mockUnlockedAchievements
       });
 
@@ -45,16 +60,15 @@ describe('AchievementService', () => {
       expect(result).toBeInstanceOf(Array);
       expect(result.length).toBeGreaterThan(0);
 
-      // Check that first_kill is marked as unlocked
-      const firstKill = result.find(a => a.id === 'first_kill');
+      const firstKill = result.find((a: { id: string }) => a.id === 'first_kill');
       expect(firstKill?.unlocked).toBe(true);
     });
 
     it('should create new achievement record if none exists', async () => {
       const mockUserId = '789012';
 
-      (Achievement.findOne as jest.Mock).mockResolvedValue(null);
-      (Achievement.create as jest.Mock).mockResolvedValue({
+      (Achievement.findOne as vi.Mock).mockResolvedValue(null);
+      (Achievement.create as vi.Mock).mockResolvedValue({
         userId: mockUserId,
         achievements: []
       });
@@ -74,10 +88,10 @@ describe('AchievementService', () => {
       const mockUserId = '123456';
       const achievementId = 'first_kill';
 
-      (Achievement.findOne as jest.Mock).mockResolvedValue({
+      (Achievement.findOne as vi.Mock).mockResolvedValue({
         userId: mockUserId,
         achievements: [],
-        save: jest.fn().mockResolvedValue(true)
+        save: vi.fn().mockResolvedValue(true)
       });
 
       const result = await achievementService.unlockAchievement(
@@ -93,7 +107,7 @@ describe('AchievementService', () => {
       const mockUserId = '123456';
       const achievementId = 'first_kill';
 
-      (Achievement.findOne as jest.Mock).mockResolvedValue({
+      (Achievement.findOne as vi.Mock).mockResolvedValue({
         userId: mockUserId,
         achievements: [
           {
@@ -131,7 +145,7 @@ describe('AchievementService', () => {
     it('should return correct statistics', async () => {
       const mockUserId = '123456';
 
-      (Achievement.findOne as jest.Mock).mockResolvedValue({
+      (Achievement.findOne as vi.Mock).mockResolvedValue({
         achievements: [
           { id: 'first_kill', name: '首杀', unlockedAt: new Date() },
           { id: 'kill_10', name: '初露锋芒', unlockedAt: new Date() }

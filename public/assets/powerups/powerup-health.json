@@ -1,0 +1,13 @@
+{
+  "id": "powerup-health",
+  "name": "Health Pack",
+  "type": "heal",
+  "effect": {
+    "type": "heal",
+    "value": 30
+  },
+  "rarity": "common",
+  "duration": 0,
+  "icon": "icon-heart",
+  "description": "Restores 30% health"
+}

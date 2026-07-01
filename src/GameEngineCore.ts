@@ -9,7 +9,7 @@
  * - 场景管理
  */
 
-import { useGameStore } from '../store/useGameStore';
+import { useGameStore } from './store/useGameStore';
 
 export class GameEngineCore {
     private static instance: GameEngineCore;

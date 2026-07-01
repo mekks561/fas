@@ -1,0 +1,16 @@
+{
+  "id": "enemy-assassin",
+  "name": "Assassin",
+  "type": "light",
+  "stats": {
+    "health": 40,
+    "shield": 15,
+    "speed": 18,
+    "damage": 18,
+    "fireRate": 0.3
+  },
+  "behavior": "ambush",
+  "points": 200,
+  "icon": "icon-target",
+  "texture": "tex-hull-black"
+}

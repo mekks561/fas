@@ -1,0 +1,69 @@
+{
+  "id": "level-10",
+  "name": "Boss: Overlord",
+  "description": "Level 10: Boss: Overlord",
+  "difficulty": "extreme",
+  "environment": {
+    "skybox": "env-space-01",
+    "nebula": false,
+    "asteroidField": false,
+    "lighting": "dramatic"
+  },
+  "player": {
+    "health": 190,
+    "shield": 122,
+    "maxHealth": 190,
+    "maxShield": 122,
+    "startingPosition": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "waves": [
+    {
+      "number": 1,
+      "enemies": [
+        {
+          "type": "enemy-scout",
+          "count": 13,
+          "spawnDelay": 1000
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 2,
+      "enemies": [
+        {
+          "type": "enemy-fighter",
+          "count": 7,
+          "spawnDelay": 800
+        }
+      ],
+      "objectives": [
+        "Destroy all enemies"
+      ]
+    },
+    {
+      "number": 3,
+      "enemies": [
+        {
+          "type": "boss-overlord",
+          "count": 1,
+          "spawnDelay": 3000
+        }
+      ],
+      "objectives": [
+        "Defeat the boss"
+      ]
+    }
+  ],
+  "rewards": {
+    "experience": 550,
+    "credits": 2750,
+    "unlocks": []
+  }
+}

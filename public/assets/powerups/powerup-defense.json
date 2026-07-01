@@ -1,0 +1,13 @@
+{
+  "id": "powerup-defense",
+  "name": "Defense Matrix",
+  "type": "buff",
+  "effect": {
+    "type": "defense",
+    "multiplier": 0.5
+  },
+  "rarity": "rare",
+  "duration": 12,
+  "icon": "icon-defense",
+  "description": "50% damage reduction for 12s"
+}

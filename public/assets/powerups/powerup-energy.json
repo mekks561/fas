@@ -1,0 +1,13 @@
+{
+  "id": "powerup-energy",
+  "name": "Energy Cell",
+  "type": "energy",
+  "effect": {
+    "type": "energy",
+    "value": 40
+  },
+  "rarity": "common",
+  "duration": 0,
+  "icon": "icon-energy",
+  "description": "Restores 40 energy"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "weapon-bomb",
+  "name": "Cluster Bomb",
+  "type": "explosive",
+  "damage": 100,
+  "fireRate": 5,
+  "range": 30,
+  "energyCost": 50,
+  "accuracy": 0.7,
+  "projectileSpeed": 20,
+  "description": "Drops cluster bombs that explode on impact",
+  "icon": "icon-bomb"
+}

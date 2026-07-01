@@ -1,0 +1,13 @@
+{
+  "id": "weapon-sniper",
+  "name": "Sniper Rifle",
+  "type": "energy",
+  "damage": 80,
+  "fireRate": 1.5,
+  "range": 150,
+  "energyCost": 30,
+  "accuracy": 0.99,
+  "projectileSpeed": 200,
+  "description": "Long range precision weapon",
+  "icon": "icon-target"
+}

@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 
 // 验证错误格式化
-export const formatValidationError = (error: Joi.ValidationError): any => {
-  return error.details.map(detail => ({
+export const formatValidationError = (error: Joi.ValidationError): Array<{ field: string; message: string; type: string }> => {
+  return error.details.map((detail: Joi.ValidationErrorItem) => ({
     field: detail.path.join('.'),
     message: detail.message,
     type: detail.type

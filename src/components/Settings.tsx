@@ -1,0 +1,236 @@
+import React, { useState, useMemo, useCallback } from 'react';
+import { Button } from './ui/shadcn';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/shadcn';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/shadcn';
+import { Switch } from './ui/shadcn';
+import { Progress } from './ui/shadcn';
+import { X, Volume2, Target, Sparkles, Zap } from 'lucide-react';
+
+interface SettingsProps {
+  onClose: () => void;
+}
+
+interface GameSettings {
+  volume: number;
+  musicVolume: number;
+  sfxVolume: number;
+  difficulty: 'easy' | 'normal' | 'hard';
+  quality: 'low' | 'medium' | 'high';
+  showFPS: boolean;
+  showDamageNumbers: boolean;
+  screenShake: boolean;
+  particleEffects: boolean;
+}
+
+const defaultSettings: GameSettings = {
+  volume: 80,
+  musicVolume: 70,
+  sfxVolume: 90,
+  difficulty: 'normal',
+  quality: 'high',
+  showFPS: true,
+  showDamageNumbers: true,
+  screenShake: true,
+  particleEffects: true
+};
+
+export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
+  const [settings, setSettings] = useState<GameSettings>(() => {
+    const saved = localStorage.getItem('gameSettings');
+    if (saved) {
+      try {
+        return { ...defaultSettings, ...JSON.parse(saved) };
+      } catch {
+        return defaultSettings;
+      }
+    }
+    return defaultSettings;
+  });
+
+  const saveSettings = useCallback(() => {
+    localStorage.setItem('gameSettings', JSON.stringify(settings));
+  }, [settings]);
+
+  const updateSetting = useCallback(<K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+    saveSettings();
+  }, [saveSettings]);
+
+  const renderAudioSettings = useMemo(() => (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-300 font-medium">主音量</span>
+          <span className="text-slate-500 text-sm">{settings.volume}%</span>
+        </div>
+        <Progress value={settings.volume} className="h-2" />
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={settings.volume}
+          onChange={(e) => updateSetting('volume', parseInt(e.target.value))}
+          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-300 font-medium">音乐音量</span>
+          <span className="text-slate-500 text-sm">{settings.musicVolume}%</span>
+        </div>
+        <Progress value={settings.musicVolume} className="h-2 bg-blue-500" />
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={settings.musicVolume}
+          onChange={(e) => updateSetting('musicVolume', parseInt(e.target.value))}
+          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-300 font-medium">音效音量</span>
+          <span className="text-slate-500 text-sm">{settings.sfxVolume}%</span>
+        </div>
+        <Progress value={settings.sfxVolume} className="h-2 bg-yellow-500" />
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={settings.sfxVolume}
+          onChange={(e) => updateSetting('sfxVolume', parseInt(e.target.value))}
+          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+        />
+      </div>
+    </div>
+  ), [settings, updateSetting]);
+
+  const renderGameSettings = useMemo(() => (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <span className="text-slate-300 font-medium">难度</span>
+        <div className="flex gap-2">
+          {(['easy', 'normal', 'hard'] as const).map(diff => (
+            <button
+              key={diff}
+              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                settings.difficulty === diff
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+              onClick={() => updateSetting('difficulty', diff)}
+            >
+              {diff === 'easy' ? '简单' : diff === 'normal' ? '普通' : '困难'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between py-3 border-b border-slate-800">
+        <span className="text-slate-300 font-medium">显示FPS</span>
+        <Switch
+          checked={settings.showFPS}
+          onCheckedChange={(checked) => updateSetting('showFPS', checked)}
+        />
+      </div>
+
+      <div className="flex items-center justify-between py-3 border-b border-slate-800">
+        <span className="text-slate-300 font-medium">显示伤害数字</span>
+        <Switch
+          checked={settings.showDamageNumbers}
+          onCheckedChange={(checked) => updateSetting('showDamageNumbers', checked)}
+        />
+      </div>
+
+      <div className="flex items-center justify-between py-3">
+        <span className="text-slate-300 font-medium">屏幕震动</span>
+        <Switch
+          checked={settings.screenShake}
+          onCheckedChange={(checked) => updateSetting('screenShake', checked)}
+        />
+      </div>
+    </div>
+  ), [settings, updateSetting]);
+
+  const renderVisualSettings = useMemo(() => (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <span className="text-slate-300 font-medium">画质</span>
+        <div className="flex gap-2">
+          {(['low', 'medium', 'high'] as const).map(quality => (
+            <button
+              key={quality}
+              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                settings.quality === quality
+                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+              onClick={() => updateSetting('quality', quality)}
+            >
+              {quality === 'low' ? '低' : quality === 'medium' ? '中' : '高'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between py-3">
+        <span className="text-slate-300 font-medium">粒子效果</span>
+        <Switch
+          checked={settings.particleEffects}
+          onCheckedChange={(checked) => updateSetting('particleEffects', checked)}
+        />
+      </div>
+    </div>
+  ), [settings, updateSetting]);
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+      <Card className="w-full max-w-lg bg-slate-900/95 border-slate-700 shadow-2xl">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-blue-400" />
+            设置
+          </CardTitle>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+
+        <CardContent className="pt-4">
+          <Tabs defaultValue="audio" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="audio" className="gap-2">
+                <Volume2 className="w-4 h-4" />
+                音频
+              </TabsTrigger>
+              <TabsTrigger value="game" className="gap-2">
+                <Target className="w-4 h-4" />
+                游戏
+              </TabsTrigger>
+              <TabsTrigger value="visual" className="gap-2">
+                <Zap className="w-4 h-4" />
+                视觉
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="audio" className="mt-0">
+              {renderAudioSettings}
+            </TabsContent>
+            <TabsContent value="game" className="mt-0">
+              {renderGameSettings}
+            </TabsContent>
+            <TabsContent value="visual" className="mt-0">
+              {renderVisualSettings}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+
+        <CardFooter className="flex justify-end gap-3 pt-2">
+          <Button variant="outline" onClick={onClose}>
+            关闭
+          </Button>
+          <Button onClick={() => {
+            saveSettings();

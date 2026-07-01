@@ -1,0 +1,48 @@
+{
+  "id": "boss-overlord",
+  "name": "Overlord",
+  "type": "boss",
+  "stats": {
+    "health": 2000,
+    "shield": 1000,
+    "speed": 2,
+    "damage": 80,
+    "fireRate": 0.4
+  },
+  "behavior": "boss",
+  "points": 5000,
+  "icon": "icon-target",
+  "texture": "tex-energy-green",
+  "phases": [
+    {
+      "healthThreshold": 100,
+      "abilities": [
+        "missile",
+        "bomb"
+      ]
+    },
+    {
+      "healthThreshold": 70,
+      "abilities": [
+        "missile",
+        "bomb",
+        "laser"
+      ]
+    },
+    {
+      "healthThreshold": 40,
+      "abilities": [
+        "missile",
+        "bomb",
+        "laser",
+        "blackhole"
+      ]
+    },
+    {
+      "healthThreshold": 15,
+      "abilities": [
+        "all"
+      ]
+    }
+  ]
+}

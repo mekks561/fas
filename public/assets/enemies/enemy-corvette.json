@@ -1,0 +1,16 @@
+{
+  "id": "enemy-corvette",
+  "name": "Corvette",
+  "type": "medium",
+  "stats": {
+    "health": 80,
+    "shield": 35,
+    "speed": 11,
+    "damage": 15,
+    "fireRate": 0.6
+  },
+  "behavior": "flank",
+  "points": 250,
+  "icon": "icon-target",
+  "texture": "tex-metal-01"
+}

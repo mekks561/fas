@@ -1,0 +1,14 @@
+{
+  "id": "weapon-shotgun",
+  "name": "Shotgun",
+  "type": "projectile",
+  "damage": 40,
+  "fireRate": 1,
+  "range": 20,
+  "energyCost": 15,
+  "accuracy": 0.6,
+  "projectileSpeed": 50,
+  "spread": 0.3,
+  "description": "Wide spread shotgun blast",
+  "icon": "icon-shoot"
+}

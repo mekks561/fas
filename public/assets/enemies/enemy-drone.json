@@ -1,0 +1,16 @@
+{
+  "id": "enemy-drone",
+  "name": "Drone",
+  "type": "light",
+  "stats": {
+    "health": 20,
+    "shield": 5,
+    "speed": 8,
+    "damage": 5,
+    "fireRate": 0.2
+  },
+  "behavior": "swarm",
+  "points": 50,
+  "icon": "icon-target",
+  "texture": "tex-metal-02"
+}

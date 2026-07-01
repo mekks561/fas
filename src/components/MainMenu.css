@@ -1,0 +1,245 @@
+/* MainMenu 组件样式 */
+
+/* 菜单容器 */
+.menu-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0a0a1a 100%);
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.menu-container--visible {
+  opacity: 1;
+}
+
+/* 星星背景 */
+.menu-stars {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.menu-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: menuStarTwinkle 2s ease-in-out infinite;
+}
+
+@keyframes menuStarTwinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+/* 菜单头部 */
+.menu-header {
+  text-align: center;
+  margin-bottom: 60px;
+  animation: menuHeaderFadeIn 1s ease-out;
+}
+
+@keyframes menuHeaderFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-title {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  animation: menuTitleGlow 3s ease-in-out infinite;
+}
+
+@keyframes menuTitleGlow {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.2);
+  }
+}
+
+.menu-subtitle {
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 2px;
+  margin-top: 16px;
+  animation: menuSubtitleFadeIn 1.5s ease-out;
+}
+
+@keyframes menuSubtitleFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.menu-game-info {
+  margin-top: 24px;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 菜单选项 */
+.menu-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 320px;
+  animation: menuOptionsSlideIn 0.8s ease-out;
+}
+
+@keyframes menuOptionsSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.menu-option {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.menu-option--selected {
+  transform: scale(1.02);
+}
+
+.menu-option--primary .menu-option-button {
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+}
+
+.menu-option--selected.menu-option--primary .menu-option-button {
+  box-shadow: 0 6px 30px rgba(59, 130, 246, 0.5);
+}
+
+.menu-option-button {
+  cursor: pointer;
+}
+
+.menu-option-indicator {
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: menuIndicatorPulse 1s ease-in-out infinite;
+}
+
+@keyframes menuIndicatorPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateY(-50%) translateX(5px);
+  }
+}
+
+/* 菜单底部 */
+.menu-footer {
+  margin-top: 60px;
+  text-align: center;
+  animation: menuFooterFadeIn 2s ease-out;
+}
+
+@keyframes menuFooterFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.menu-footer-stats {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.menu-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* 版本信息 */
+.menu-version {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .menu-title {
+    font-size: 2.5rem;
+  }
+  
+  .menu-subtitle {
+    font-size: 1rem;
+  }
+  
+  .menu-options {
+    width: 280px;
+    gap: 12px;
+  }
+  
+  .menu-header {
+    margin-bottom: 40px;
+  }
+  
+  .menu-footer {
+    margin-top: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .menu-title {
+    font-size: 2rem;
+  }
+  
+  .menu-options {
+    width: 240px;
+  }
+  
+  .menu-option-indicator {
+    display: none;
+  }
+}

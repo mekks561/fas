@@ -1,0 +1,25 @@
+{
+  "id": "ship-bomber",
+  "name": "Bomber",
+  "type": "heavy",
+  "stats": {
+    "health": 200,
+    "shield": 80,
+    "speed": 8,
+    "acceleration": 2,
+    "rotationSpeed": 1.5,
+    "energy": 150,
+    "energyRegen": 3
+  },
+  "weapons": [
+    "weapon-missile",
+    "weapon-bomb"
+  ],
+  "skills": [
+    "skill-shield",
+    "skill-damage"
+  ],
+  "description": "Heavy assault ship with devastating firepower",
+  "icon": "icon-character",
+  "texture": "tex-hull-red"
+}
