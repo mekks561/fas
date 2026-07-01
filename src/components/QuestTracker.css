@@ -1,0 +1,284 @@
+.quest-tracker {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  width: 320px;
+  max-height: 70vh;
+  z-index: 500;
+  background: rgba(10, 15, 30, 0.92);
+  border: 1px solid rgba(100, 150, 200, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.quest-tracker-collapsed {
+  width: auto;
+  max-height: 40px;
+}
+
+.quest-tracker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: rgba(30, 40, 60, 0.8);
+  border-bottom: 1px solid rgba(100, 150, 200, 0.2);
+  user-select: none;
+}
+
+.quest-tracker-header:hover {
+  background: rgba(40, 55, 80, 0.9);
+}
+
+.quest-tracker-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #4a9eff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.quest-tracker-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e0e8f0;
+  white-space: nowrap;
+}
+
+.quest-tracker-stats {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.quest-tracker-stat {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.quest-tracker-stat-active {
+  background: rgba(74, 158, 255, 0.2);
+  color: #4a9eff;
+}
+
+.quest-tracker-stat-available {
+  background: rgba(255, 170, 74, 0.2);
+  color: #ffaa4a;
+  animation: pulse-glow 2s ease infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.quest-tracker-stat-completed {
+  background: rgba(74, 255, 138, 0.15);
+  color: #4aff8a;
+}
+
+.quest-tracker-badge {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.quest-tracker-badge-available {
+  background: #ffaa4a;
+  color: #1a1a2e;
+  animation: pulse-glow 1.5s ease infinite;
+}
+
+.quest-tracker-toggle {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.quest-tracker-body {
+  overflow-y: auto;
+  max-height: 60vh;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quest-tracker-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.quest-tracker-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.quest-tracker-body::-webkit-scrollbar-thumb {
+  background: rgba(100, 150, 200, 0.4);
+  border-radius: 2px;
+}
+
+.quest-mission {
+  background: rgba(20, 30, 50, 0.8);
+  border-left: 3px solid #4a9eff;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quest-mission-available {
+  border-left-color: #ffaa4a;
+  background: rgba(50, 40, 20, 0.6);
+}
+
+.quest-mission-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quest-mission-type-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #fff;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.quest-mission-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e8f0;
+  flex: 1;
+}
+
+.quest-mission-accept-btn {
+  background: #4aff8a;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quest-mission-accept-btn:hover {
+  background: #6aff9a;
+  transform: scale(1.05);
+}
+
+.quest-mission-desc {
+  font-size: 12px;
+  color: rgba(200, 210, 220, 0.7);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.quest-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quest-objective {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #b0c0d0;
+  flex-wrap: wrap;
+}
+
+.quest-objective-done {
+  color: #4aff8a;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.quest-objective-checkbox {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.quest-objective-text {
+  flex: 1;
+}
+
+.quest-objective-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.quest-objective-bar-fill {
+  height: 100%;
+  background: #4a9eff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.quest-objective-done .quest-objective-bar-fill {
+  background: #4aff8a;
+}
+
+.quest-mission-rewards {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.quest-reward {
+  color: #ffdd44;
+}
+
+.quest-tracker-toggle-view {
+  background: transparent;
+  border: 1px solid rgba(100, 150, 200, 0.3);
+  color: rgba(200, 210, 220, 0.7);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quest-tracker-toggle-view:hover {
+  background: rgba(30, 40, 60, 0.8);
+  color: #e0e8f0;
+}
+
+@media (max-width: 600px) {
+  .quest-tracker {
+    width: calc(100vw - 32px);
+    max-width: 320px;
+    top: 50px;
+    right: 16px;
+    max-height: 50vh;
+  }
+  .quest-tracker-body {
+    max-height: 40vh;
+  }
+}

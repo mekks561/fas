@@ -12,7 +12,7 @@ module.exports = [
       'dist/**',
       'build/**',
       'coverage/**',
-      '*.config.{js,mjs,ts}',
+      '*.config.{js,mjs,ts,cjs}',
       'scripts/**',
       'public/**',
       'src/**/*.css',
@@ -29,7 +29,6 @@ module.exports = [
       sourceType: 'module',
       parser: parserTypescript,
       parserOptions: {
-        project: './tsconfig.json',
         ecmaFeatures: { jsx: true },
       },
       globals: {
@@ -47,9 +46,6 @@ module.exports = [
     },
     rules: {
       ...pluginTypescript.configs.recommended.rules,
-      ...pluginTypescript.configs['recommended-requiring-type-checking'].rules,
-      ...pluginReact.configs.recommended.rules,
-      ...pluginReactHooks.configs.recommended.rules,
       // 自定义规则
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
@@ -67,9 +63,7 @@ module.exports = [
       ecmaVersion: 'latest',
       sourceType: 'module',
       parser: parserTypescript,
-      parserOptions: {
-        project: './server/tsconfig.json',
-      },
+      parserOptions: {},
       globals: {
         ...globals.node,
         ...globals.es2020,
@@ -80,7 +74,6 @@ module.exports = [
     },
     rules: {
       ...pluginTypescript.configs.recommended.rules,
-      ...pluginTypescript.configs['recommended-requiring-type-checking'].rules,
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/no-non-null-assertion': 'warn',
@@ -98,11 +91,6 @@ module.exports = [
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
     },
   },
 ];

@@ -5,11 +5,15 @@ import { PlayerShip, PlayerControls } from '../engine/PlayerShip';
 import { EnemySystem } from '../engine/EnemySystem';
 import { WeaponSystem } from '../engine/WeaponSystem';
 import { SkillSystem, SkillType } from '../engine/SkillSystem';
+import { StoryMissionManager } from '../engine/StoryMissionManager';
+import type { Dialogue } from '../engine/StoryMissionManager';
 import { useGameStore } from '../store/useGameStore';
 import { GameHUD } from './GameHUD';
 import { LoadingOverlay } from './LoadingOverlay';
 import { PauseOverlay } from './PauseOverlay';
 import { TouchControlOverlay } from './TouchControlOverlay';
+import { DialogueSystem } from './DialogueSystem';
+import { QuestTracker } from './QuestTracker';
 import './GameScene.css';
 
 export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () => void }> = React.memo(({ onGameOver, onLevelComplete }) => {
@@ -19,6 +23,10 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
   const enemySystemRef = useRef<EnemySystem | null>(null);
   const weaponSystemRef = useRef<WeaponSystem | null>(null);
   const skillSystemRef = useRef<SkillSystem | null>(null);
+  const storyManagerRef = useRef<StoryMissionManager | null>(null);
+
+  const [storyManager, setStoryManager] = useState<StoryMissionManager | null>(null);
+  const [currentDialogue, setCurrentDialogue] = useState<Dialogue | null>(null);
 
   const isLoading = useGameStore((state) => state.isLoading);
   const isGamePaused = useGameStore((state) => state.isGamePaused);
@@ -177,6 +185,21 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       skillSystemRef.current = skillSystem;
       console.log('[GameScene] Skill system created');
 
+      // 初始化剧情任务管理器
+      const storyMgr = new StoryMissionManager();
+      storyManagerRef.current = storyMgr;
+      storyMgr.loadAll().then(() => {
+        setStoryManager(storyMgr);
+        // 自动开始第一章剧情对话
+        const startDialogue = storyMgr.getDialogueByTrigger('story', 'story-chapter-01', 'start');
+        if (startDialogue) {
+          setCurrentDialogue(startDialogue);
+        }
+        // 自动开始第一个任务
+        storyMgr.startMission('mission-01');
+        console.log('[GameScene] Story mission manager initialized');
+      });
+
       let frameCount = 0;
       let lastFpsUpdate = Date.now();
 
@@ -207,6 +230,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             const hits = weaponSystemRef.current.checkCollisions(enemies);
             if (hits > 0) {
               useGameStore.getState().addScore(hits * 100);
+              // 更新任务目标进度
+              if (storyManagerRef.current) {
+                storyManagerRef.current.getActiveMissions().forEach(state => {
+                  storyManagerRef.current!.incrementObjective(state.mission.id, 'destroy', hits);
+                });
+              }
             }
           }
 
@@ -427,6 +456,15 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       <canvas ref={canvasRef} className="game-canvas" />
       
       {isSceneReady && <GameHUD {...hudProps} />}
+      
+      {isSceneReady && storyManager && <QuestTracker manager={storyManager} />}
+      
+      {isSceneReady && currentDialogue && (
+        <DialogueSystem
+          dialogue={currentDialogue}
+          onComplete={() => setCurrentDialogue(null)}
+        />
+      )}
       
       {isLoading && <LoadingOverlay />}
       
