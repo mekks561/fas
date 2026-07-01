@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/shadcn';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/shadcn';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/shadcn';
 import { Switch } from './ui/shadcn';
 import { Progress } from './ui/shadcn';
-import { X, Volume2, Target, Sparkles, Zap } from 'lucide-react';
+import { X, Volume2, Target, Sparkles, Zap, Languages } from 'lucide-react';
 
 interface SettingsProps {
   onClose: () => void;
@@ -36,7 +36,11 @@ const defaultSettings: GameSettings = {
 };
 
 export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [language, setLanguage] = useState<'zh' | 'en'>(() => 
+    (localStorage.getItem('language') as 'zh' | 'en') || 'zh'
+  );
+  
   const [settings, setSettings] = useState<GameSettings>(() => {
     const saved = localStorage.getItem('gameSettings');
     if (saved) {
@@ -57,6 +61,12 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     saveSettings();
   }, [saveSettings]);
+
+  const changeLanguage = useCallback((lang: 'zh' | 'en') => {
+    setLanguage(lang);
+    i18n.changeLanguage(lang);
+    localStorage.setItem('language', lang);
+  }, [i18n]);
 
   const renderAudioSettings = useMemo(() => (
     <div className="space-y-6">
@@ -147,15 +157,37 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         />
       </div>
 
-      <div className="flex items-center justify-between py-3">
+      <div className="flex items-center justify-between py-3 border-b border-slate-800">
         <span className="text-slate-300 font-medium">{t('settings.screenShake')}</span>
         <Switch
           checked={settings.screenShake}
           onCheckedChange={(checked) => updateSetting('screenShake', checked)}
         />
       </div>
+
+      <div className="space-y-3 pt-3">
+        <div className="flex items-center gap-2">
+          <Languages className="w-4 h-4 text-slate-400" />
+          <span className="text-slate-300 font-medium">{t('settings.language')}</span>
+        </div>
+        <div className="flex gap-2">
+          {(['zh', 'en'] as const).map(lang => (
+            <button
+              key={lang}
+              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                language === lang
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+              onClick={() => changeLanguage(lang)}
+            >
+              {lang === 'zh' ? t('settings.languageZh') : t('settings.languageEn')}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
-  ), [settings, updateSetting, t]);
+  ), [settings, updateSetting, t, language, changeLanguage]);
 
   const renderVisualSettings = useMemo(() => (
     <div className="space-y-6">

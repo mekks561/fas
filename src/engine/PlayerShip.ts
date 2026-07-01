@@ -1,11 +1,13 @@
 import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
+import { ProceduralModelGenerator, ShipModelType } from './ProceduralModelGenerator';
 
 export interface PlayerConfig {
   engine: PlayCanvasGameEngine;
   initialPosition?: pc.Vec3;
   health?: number;
   shield?: number;
+  shipModel?: ShipModelType;
 }
 
 export interface PlayerControls {
@@ -20,6 +22,8 @@ export interface PlayerControls {
 export class PlayerShip {
   private engine: PlayCanvasGameEngine;
   private entity: pc.Entity;
+  private modelGenerator: ProceduralModelGenerator;
+  private shipModelType: ShipModelType;
   
   private health: number;
   private maxHealth: number;
@@ -48,90 +52,28 @@ export class PlayerShip {
     this.maxHealth = this.health;
     this.shield = config.shield || 50;
     this.maxShield = this.shield;
+    this.shipModelType = config.shipModel || 'fighter';
     
+    this.modelGenerator = new ProceduralModelGenerator(this.engine.getApp());
     this.entity = this.createPlayerShip(config.initialPosition || new pc.Vec3(0, 0, 0));
   }
   
   private createPlayerShip(position: pc.Vec3): pc.Entity {
-    const app = this.engine.getApp();
-    
-    const shipMaterial = new pc.StandardMaterial();
-    shipMaterial.diffuse.set(0.2, 0.5, 0.8);
-    shipMaterial.specular.set(0.8, 0.8, 0.8);
-    (shipMaterial as any).shininess = 80;
-    shipMaterial.emissive.set(0.1, 0.2, 0.4);
-    shipMaterial.update();
-    
     const player = new pc.Entity('player');
     player.setPosition(position);
-    
-    const body = new pc.Entity('body');
-    body.addComponent('model', { type: 'box' });
-    body.model!.material = shipMaterial;
-    body.setLocalScale(0.8, 0.4, 2);
-    player.addChild(body);
-    
-    const cockpit = new pc.Entity('cockpit');
-    cockpit.addComponent('model', { type: 'sphere' });
-    const cockpitMaterial = new pc.StandardMaterial();
-    cockpitMaterial.diffuse.set(0.1, 0.4, 0.7);
-    cockpitMaterial.specular.set(0.9, 0.9, 0.9);
-    (cockpitMaterial as any).shininess = 100;
-    cockpitMaterial.transparency = 0.3;
-    cockpitMaterial.update();
-    cockpit.model!.material = cockpitMaterial;
-    cockpit.setLocalPosition(0, 0.3, 0.5);
-    cockpit.setLocalScale(0.3, 0.3, 0.3);
-    player.addChild(cockpit);
-    
-    const wingLeft = new pc.Entity('wingLeft');
-    wingLeft.addComponent('model', { type: 'box' });
-    wingLeft.model!.material = shipMaterial;
-    wingLeft.setLocalPosition(-0.8, -0.15, 0);
-    wingLeft.setLocalScale(1.2, 0.08, 1.5);
-    player.addChild(wingLeft);
-    
-    const wingRight = new pc.Entity('wingRight');
-    wingRight.addComponent('model', { type: 'box' });
-    wingRight.model!.material = shipMaterial;
-    wingRight.setLocalPosition(0.8, -0.15, 0);
-    wingRight.setLocalScale(1.2, 0.08, 1.5);
-    player.addChild(wingRight);
-    
-    const leftWeapon = new pc.Entity('leftWeapon');
-    leftWeapon.addComponent('model', { type: 'cylinder' });
-    const weaponMaterial = new pc.StandardMaterial();
-    weaponMaterial.diffuse.set(0.3, 0.3, 0.3);
-    weaponMaterial.specular.set(0.6, 0.6, 0.6);
-    weaponMaterial.update();
-    leftWeapon.model!.material = weaponMaterial;
-    leftWeapon.setLocalPosition(-0.6, 0, -0.8);
-    leftWeapon.setLocalScale(0.08, 0.8, 0.08);
-    leftWeapon.setLocalEulerAngles(90, 0, 0);
-    player.addChild(leftWeapon);
-    
-    const rightWeapon = new pc.Entity('rightWeapon');
-    rightWeapon.addComponent('model', { type: 'cylinder' });
-    rightWeapon.model!.material = weaponMaterial;
-    rightWeapon.setLocalPosition(0.6, 0, -0.8);
-    rightWeapon.setLocalScale(0.08, 0.8, 0.08);
-    rightWeapon.setLocalEulerAngles(90, 0, 0);
-    player.addChild(rightWeapon);
-    
-    const engineNozzle = new pc.Entity('engineNozzle');
-    engineNozzle.addComponent('model', { type: 'cylinder' });
-    const engineMaterial = new pc.StandardMaterial();
-    engineMaterial.diffuse.set(0.2, 0.2, 0.3);
-    engineMaterial.emissive.set(0.3, 0.2, 0.1);
-    engineMaterial.update();
-    engineNozzle.model!.material = engineMaterial;
-    engineNozzle.setLocalPosition(0, 0, -1.8);
-    engineNozzle.setLocalScale(0.3, 0.25, 0.3);
-    player.addChild(engineNozzle);
-    
+
+    const modelRoot = this.modelGenerator.createShipModel(this.shipModelType, {
+      primaryColor: [0.2, 0.5, 0.8],
+      secondaryColor: [0.1, 0.3, 0.6],
+      emissiveColor: [0.1, 0.2, 0.4],
+      scale: 0.8
+    });
+
+    player.addChild(modelRoot);
+
     this.engine.addToScene(player);
-    console.log('[PlayerShip] Player entity added to scene');
-    
+    console.log('[PlayerShip] Player entity added to scene with model:', this.shipModelType);
+
     return player;
   }
   

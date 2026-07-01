@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.15",
@@ -47,7 +49,14 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
+    "@typescript-eslint/parser": "^8.62.1",
     "@vitejs/plugin-react": "^6.0.3",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",

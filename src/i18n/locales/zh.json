@@ -50,7 +50,9 @@
     "screenShake": "屏幕震动",
     "particleEffects": "粒子效果",
     "saveSettings": "保存设置",
-    "language": "语言"
+    "language": "语言",
+    "languageZh": "简体中文",
+    "languageEn": "English"
   },
   "levelSelect": {
     "title": "选择关卡",

@@ -2,12 +2,20 @@ import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { EnemyAI, EnemyAIFactory, AIState, StatusEffect } from './EnemyAI';
+import { ProceduralModelGenerator, EnemyModelType } from './ProceduralModelGenerator';
 
 export enum EnemyType {
   SCOUT = 'scout',
   FIGHTER = 'fighter',
+  BOMBER = 'bomber',
   TANK = 'tank',
+  ASSASSIN = 'assassin',
+  DRONE = 'drone',
   ELITE = 'elite',
+  CORVETTE = 'corvette',
+  DESTROYER = 'destroyer',
+  BOSS_SENTINEL = 'boss_sentinel',
+  BOSS_OVERLORD = 'boss_overlord',
   BOSS = 'boss'
 }
 
@@ -35,6 +43,7 @@ export class Enemy {
   protected stats: EnemyStats;
   protected player: PlayerShip;
   protected ai: EnemyAI;
+  protected modelGenerator: ProceduralModelGenerator;
   protected lastAttackTime: number = 0;
   protected statusEffects: StatusEffect[] = [];
   protected isDying: boolean = false;
@@ -60,6 +69,7 @@ export class Enemy {
     this.attackCooldown = stats.attackCooldown;
     this.lastAttackTime = 0;
     
+    this.modelGenerator = new ProceduralModelGenerator(this.engine.getApp());
     this.entity = this.createEnemy(config.position);
     this.ai = EnemyAIFactory.createAI(config.type, this.entity, config.player, config.position);
   }
@@ -70,10 +80,24 @@ export class Enemy {
         return { health: 20, maxHealth: 20, speed: 8, damage: 10, attackCooldown: 2000, attackRange: 2, armor: 0 };
       case EnemyType.FIGHTER:
         return { health: 40, maxHealth: 40, speed: 5, damage: 15, attackCooldown: 1500, attackRange: 3, armor: 5 };
+      case EnemyType.BOMBER:
+        return { health: 60, maxHealth: 60, speed: 3, damage: 30, attackCooldown: 2500, attackRange: 4, armor: 10 };
       case EnemyType.TANK:
         return { health: 100, maxHealth: 100, speed: 2, damage: 25, attackCooldown: 3000, attackRange: 4, armor: 20 };
+      case EnemyType.ASSASSIN:
+        return { health: 35, maxHealth: 35, speed: 10, damage: 35, attackCooldown: 1800, attackRange: 2, armor: 3 };
+      case EnemyType.DRONE:
+        return { health: 15, maxHealth: 15, speed: 7, damage: 8, attackCooldown: 1200, attackRange: 2.5, armor: 0 };
       case EnemyType.ELITE:
         return { health: 60, maxHealth: 60, speed: 6, damage: 20, attackCooldown: 1200, attackRange: 5, armor: 10 };
+      case EnemyType.CORVETTE:
+        return { health: 80, maxHealth: 80, speed: 4, damage: 22, attackCooldown: 2000, attackRange: 5, armor: 15 };
+      case EnemyType.DESTROYER:
+        return { health: 150, maxHealth: 150, speed: 2.5, damage: 35, attackCooldown: 2800, attackRange: 6, armor: 25 };
+      case EnemyType.BOSS_SENTINEL:
+        return { health: 300, maxHealth: 300, speed: 2, damage: 40, attackCooldown: 1500, attackRange: 7, armor: 25 };
+      case EnemyType.BOSS_OVERLORD:
+        return { health: 500, maxHealth: 500, speed: 1.5, damage: 50, attackCooldown: 1200, attackRange: 8, armor: 35 };
       case EnemyType.BOSS:
         return { health: 300, maxHealth: 300, speed: 3, damage: 40, attackCooldown: 2000, attackRange: 6, armor: 30 };
       default:
@@ -82,140 +106,66 @@ export class Enemy {
   }
   
   private createEnemy(position: pc.Vec3): pc.Entity {
-    const material = this.createEnemyMaterial();
-    
     const enemy = new pc.Entity('enemy');
     enemy.setPosition(position);
-    
-    switch (this.type) {
-      case EnemyType.SCOUT:
-        this.createScoutModel(enemy, material);
-        break;
-      case EnemyType.FIGHTER:
-        this.createFighterModel(enemy, material);
-        break;
-      case EnemyType.TANK:
-        this.createTankModel(enemy, material);
-        break;
-      case EnemyType.ELITE:
-        this.createEliteModel(enemy, material);
-        break;
-      case EnemyType.BOSS:
-        this.createBossModel(enemy, material);
-        break;
-      default:
-        this.createFighterModel(enemy, material);
-    }
-    
+
+    const modelType = this.getModelTypeForEnemy();
+    const modelOptions = this.getModelOptionsForEnemy();
+    const modelRoot = this.modelGenerator.createEnemyModel(modelType, modelOptions);
+    enemy.addChild(modelRoot);
+
     this.engine.addToScene(enemy);
-    
+
     return enemy;
   }
-  
-  private createEnemyMaterial(): pc.StandardMaterial {
-    const material = new pc.StandardMaterial();
-    
+
+  private getModelTypeForEnemy(): EnemyModelType {
+    switch (this.type) {
+      case EnemyType.SCOUT: return 'scout';
+      case EnemyType.FIGHTER: return 'fighter';
+      case EnemyType.BOMBER: return 'bomber';
+      case EnemyType.TANK: return 'tank';
+      case EnemyType.ASSASSIN: return 'assassin';
+      case EnemyType.DRONE: return 'drone';
+      case EnemyType.ELITE: return 'fighter';
+      case EnemyType.CORVETTE: return 'corvette';
+      case EnemyType.DESTROYER: return 'destroyer';
+      case EnemyType.BOSS_SENTINEL: return 'boss_sentinel';
+      case EnemyType.BOSS_OVERLORD: return 'boss_overlord';
+      case EnemyType.BOSS: return 'boss_sentinel';
+      default: return 'fighter';
+    }
+  }
+
+  private getModelOptionsForEnemy(): { primaryColor?: [number, number, number]; emissiveColor?: [number, number, number]; scale?: number } {
     switch (this.type) {
       case EnemyType.SCOUT:
-        material.diffuse.set(0.4, 0.8, 0.4);
-        material.emissive.set(0.1, 0.3, 0.1);
-        break;
+        return { primaryColor: [0.4, 0.8, 0.4], emissiveColor: [0.1, 0.3, 0.1], scale: 0.8 };
       case EnemyType.FIGHTER:
-        material.diffuse.set(0.8, 0.5, 0.2);
-        material.emissive.set(0.2, 0.1, 0);
-        break;
+        return { primaryColor: [0.8, 0.5, 0.2], emissiveColor: [0.2, 0.1, 0], scale: 1 };
+      case EnemyType.BOMBER:
+        return { primaryColor: [0.5, 0.3, 0.1], emissiveColor: [0.1, 0.05, 0], scale: 1.2 };
       case EnemyType.TANK:
-        material.diffuse.set(0.5, 0.5, 0.5);
-        material.emissive.set(0.1, 0.1, 0.1);
-        break;
+        return { primaryColor: [0.4, 0.4, 0.45], emissiveColor: [0.05, 0.05, 0.05], scale: 1.5 };
+      case EnemyType.ASSASSIN:
+        return { primaryColor: [0.6, 0.3, 1.0], emissiveColor: [0.3, 0.1, 0.5], scale: 0.9 };
+      case EnemyType.DRONE:
+        return { primaryColor: [0.3, 0.3, 0.35], emissiveColor: [0.1, 0.1, 0.15], scale: 0.6 };
       case EnemyType.ELITE:
-        material.diffuse.set(0.6, 0.3, 1.0);
-        material.emissive.set(0.3, 0.1, 0.5);
-        break;
+        return { primaryColor: [0.6, 0.3, 1.0], emissiveColor: [0.3, 0.1, 0.5], scale: 1.1 };
+      case EnemyType.CORVETTE:
+        return { primaryColor: [0.3, 0.4, 0.5], emissiveColor: [0.05, 0.1, 0.15], scale: 1.3 };
+      case EnemyType.DESTROYER:
+        return { primaryColor: [0.25, 0.25, 0.3], emissiveColor: [0.05, 0.05, 0.1], scale: 1.8 };
+      case EnemyType.BOSS_SENTINEL:
+        return { primaryColor: [0.5, 0.2, 0.2], emissiveColor: [0.3, 0.1, 0.1], scale: 3 };
+      case EnemyType.BOSS_OVERLORD:
+        return { primaryColor: [0.3, 0.0, 0.3], emissiveColor: [0.4, 0.1, 0.5], scale: 4 };
       case EnemyType.BOSS:
-        material.diffuse.set(1.0, 0.2, 0.2);
-        material.emissive.set(0.5, 0.1, 0.1);
-        break;
+        return { primaryColor: [0.5, 0.2, 0.2], emissiveColor: [0.3, 0.1, 0.1], scale: 2.5 };
       default:
-        material.diffuse.set(0.8, 0.2, 0.2);
+        return { primaryColor: [0.8, 0.2, 0.2], emissiveColor: [0.2, 0.05, 0.05], scale: 1 };
     }
-    
-    material.specular.set(0.5, 0.5, 0.5);
-    (material as any).shininess = 30;
-    material.update();
-    
-    return material;
-  }
-  
-  private createScoutModel(enemy: pc.Entity, material: pc.StandardMaterial): void {
-    const body = new pc.Entity('body');
-    body.addComponent('model', { type: 'cone' });
-    body.model!.material = material;
-    body.setLocalScale(0.5, 1, 0.5);
-    body.setLocalEulerAngles(90, 0, 0);
-    enemy.addChild(body);
-  }
-  
-  private createFighterModel(enemy: pc.Entity, material: pc.StandardMaterial): void {
-    const body = new pc.Entity('body');
-    body.addComponent('model', { type: 'cylinder' });
-    body.model!.material = material;
-    body.setLocalScale(0.6, 0.8, 0.6);
-    body.setLocalEulerAngles(90, 0, 0);
-    enemy.addChild(body);
-    
-    const cockpit = new pc.Entity('cockpit');
-    cockpit.addComponent('model', { type: 'sphere' });
-    const cockpitMaterial = new pc.StandardMaterial();
-    cockpitMaterial.diffuse.set(0.3, 0.1, 0.1);
-    cockpitMaterial.update();
-    cockpit.model!.material = cockpitMaterial;
-    cockpit.setLocalPosition(0, 0.3, 0);
-    cockpit.setLocalScale(0.3, 0.3, 0.3);
-    enemy.addChild(cockpit);
-  }
-  
-  private createTankModel(enemy: pc.Entity, material: pc.StandardMaterial): void {
-    const body = new pc.Entity('body');
-    body.addComponent('model', { type: 'box' });
-    body.model!.material = material;
-    body.setLocalScale(1.2, 0.6, 1.2);
-    enemy.addChild(body);
-    
-    const turret = new pc.Entity('turret');
-    turret.addComponent('model', { type: 'cylinder' });
-    turret.model!.material = material;
-    turret.setLocalPosition(0, 0.5, 0);
-    turret.setLocalScale(0.5, 0.4, 0.5);
-    turret.setLocalEulerAngles(90, 0, 0);
-    enemy.addChild(turret);
-  }
-  
-  private createEliteModel(enemy: pc.Entity, material: pc.StandardMaterial): void {
-    const body = new pc.Entity('body');
-    body.addComponent('model', { type: 'diamond' });
-    body.model!.material = material;
-    body.setLocalScale(0.8, 1, 0.8);
-    enemy.addChild(body);
-  }
-  
-  private createBossModel(enemy: pc.Entity, material: pc.StandardMaterial): void {
-    const body = new pc.Entity('body');
-    body.addComponent('model', { type: 'box' });
-    body.model!.material = material;
-    body.setLocalScale(2, 1, 2);
-    enemy.addChild(body);
-    
-    const core = new pc.Entity('core');
-    core.addComponent('model', { type: 'sphere' });
-    const coreMaterial = new pc.StandardMaterial();
-    coreMaterial.diffuse.set(1, 0.5, 0);
-    coreMaterial.emissive.set(1, 0.5, 0);
-    coreMaterial.update();
-    core.model!.material = coreMaterial;
-    core.setLocalPosition(0, 0, 0);
-    core.setLocalScale(0.6, 0.6, 0.6);
-    enemy.addChild(core);
   }
   
   public update(dt: number): void {
