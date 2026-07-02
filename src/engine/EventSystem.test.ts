@@ -1,4 +1,4 @@
-import { EventSystem, GameEventType, EventData } from './EventSystem';
+import { EventSystem } from './EventSystem';
 import * as pc from 'playcanvas';
 
 describe('EventSystem', () => {

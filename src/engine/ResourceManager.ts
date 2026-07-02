@@ -221,9 +221,9 @@ export class ResourceManager {
         url: descriptor.url
       });
 
-      this.app!.assets.add(asset);
+      this.app?.assets.add(asset);
 
-      this.app!.assets.load(asset);
+      this.app?.assets.load(asset);
 
       asset.once('load', () => resolve(asset));
       asset.once('error', (err: string) => reject(new Error(err)));
@@ -297,7 +297,7 @@ export class ResourceManager {
     return typeMap[type] || 'json';
   }
 
-  private estimateSize(asset: any): number {
+  private estimateSize(asset: unknown): number {
     if (!asset) return 0;
     if (asset instanceof HTMLImageElement) {
       return asset.width * asset.height * 4;
@@ -315,7 +315,7 @@ export class ResourceManager {
     return 1024;
   }
 
-  private addToCache(id: string, asset: any, size: number): void {
+  private addToCache(id: string, asset: unknown, size: number): void {
     if (this.currentCacheSize + size > this.maxCacheSize) {
       this.evictCache();
     }
@@ -330,13 +330,13 @@ export class ResourceManager {
       .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
 
     while (this.currentCacheSize > this.maxCacheSize * 0.8 && entries.length > 0) {
-      const [id, entry] = entries.shift()!;
+      const [id, entry] = entries.shift() as [string, ResourceEntry];
       this.cache.delete(id);
       this.currentCacheSize -= entry.size;
     }
   }
 
-  public getResource<T = any>(id: string): T | null {
+  public getResource<T = unknown>(id: string): T | null {
     const entry = this.resources.get(id);
     if (!entry || !entry.isLoaded) return null;
 

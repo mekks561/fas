@@ -12,7 +12,9 @@ export enum GameState {
   GAME_OVER = 'game_over',
   LEVEL_COMPLETE = 'level_complete',
   SETTINGS = 'settings',
-  CREDITS = 'credits'
+  CREDITS = 'credits',
+  ACHIEVEMENTS = 'achievements',
+  SHOP = 'shop'
 }
 
 export interface GameStateTransition {
@@ -35,7 +37,9 @@ export class GameStateMachine {
       GameState.LEVEL_SELECT,
       GameState.LOADING,
       GameState.SETTINGS,
-      GameState.CREDITS
+      GameState.CREDITS,
+      GameState.ACHIEVEMENTS,
+      GameState.SHOP
     ]);
     
     this.transitions.set(GameState.LEVEL_SELECT, [

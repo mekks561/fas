@@ -69,7 +69,7 @@ export class Skill {
     }
   }
   
-  protected executeSkillEffect(dt: number): void {
+  protected executeSkillEffect(_dt: number): void {
   }
   
   public activate(): boolean {
@@ -167,7 +167,7 @@ export class MissileStrikeSkill extends Skill {
     });
   }
   
-  protected executeSkillEffect(dt: number): void {
+  protected executeSkillEffect(_dt: number): void {
     if (this.missiles.length > 0) return;
     
     const missileCount = 5 + this.state.level * 2;
@@ -205,7 +205,7 @@ export class MissileStrikeSkill extends Skill {
     material.update();
     
     missile.addComponent('model', { type: 'cone' });
-    missile.model!.material = material;
+    if (missile.model) missile.model.material = material;
     missile.setLocalEulerAngles(-90, 0, 0);
     
     const startPos = playerPos.clone().add(new pc.Vec3(
@@ -290,7 +290,7 @@ export class ShieldBurstSkill extends Skill {
     });
   }
   
-  protected executeSkillEffect(dt: number): void {
+  protected executeSkillEffect(_dt: number): void {
     if (!this.shieldPulse) {
       this.player.addShield(50 + this.state.level * 25);
       this.createShieldPulse();
@@ -312,7 +312,7 @@ export class ShieldBurstSkill extends Skill {
     material.update();
     
     this.shieldPulse.addComponent('model', { type: 'sphere' });
-    this.shieldPulse.model!.material = material;
+    if (this.shieldPulse.model) this.shieldPulse.model.material = material;
     
     this.engine.addToScene(this.shieldPulse);
   }
@@ -339,7 +339,7 @@ export class TimeSlowSkill extends Skill {
     });
   }
   
-  protected executeSkillEffect(dt: number): void {
+  protected executeSkillEffect(_dt: number): void {
     // Time slow effect is handled by the game speed modifier
   }
   
@@ -364,7 +364,7 @@ export class OverdriveSkill extends Skill {
     });
   }
   
-  protected executeSkillEffect(dt: number): void {
+  protected executeSkillEffect(_dt: number): void {
     // Speed boost is handled by the player
   }
   

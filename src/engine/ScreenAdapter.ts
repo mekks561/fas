@@ -131,7 +131,7 @@ export class ScreenAdapter {
   }
 
   private applyConfig(): void {
-    const resolution = RESOLUTION_PRESETS[this.config.resolution];
+    const _resolution = RESOLUTION_PRESETS[this.config.resolution];
     
     if (this.config.resolution === 'auto') {
       this.app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
@@ -145,7 +145,7 @@ export class ScreenAdapter {
 
     this.app.graphicsDevice.requestion = this.config.vsync ? 'FILL_MANUAL' : 'FILL_RACE';
 
-    const qualityPreset = QUALITY_PRESETS[this.config.quality];
+    const _qualityPreset = QUALITY_PRESETS[this.config.quality];
     
     if (this.metrics.deviceType === 'mobile') {
       this.app.graphicsDevice.maxPixelRatio = Math.min(this.metrics.devicePixelRatio, 2);
@@ -267,7 +267,7 @@ export class ScreenAdapter {
     const gpu = this.app.graphicsDevice;
     
     const renderer = gpu?.renderer || '';
-    const vendor = gpu?.vendor || '';
+    const _vendor = gpu?.vendor || '';
     
     const isLowEndDevice = 
       this.metrics.deviceType === 'mobile' ||

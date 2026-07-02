@@ -14,6 +14,8 @@ const LevelSelect = lazy(() => import('./components/LevelSelect').then(m => ({ d
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const PauseMenu = lazy(() => import('./components/PauseMenu').then(m => ({ default: m.PauseMenu })));
 const GameOver = lazy(() => import('./components/GameOver').then(m => ({ default: m.GameOver })));
+const AchievementPanel = lazy(() => import('./components/AchievementPanel').then(m => ({ default: m.AchievementPanel })));
+const ShopPanel = lazy(() => import('./components/ShopPanel').then(m => ({ default: m.ShopPanel })));
 
 const PageLoader = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
@@ -82,6 +84,16 @@ function App() {
   // 打开设置
   const handleSettings = useCallback(() => {
     setGameState(GameState.SETTINGS);
+  }, []);
+
+  // 打开成就
+  const handleAchievements = useCallback(() => {
+    setGameState(GameState.ACHIEVEMENTS);
+  }, []);
+
+  // 打开商店
+  const handleShop = useCallback(() => {
+    setGameState(GameState.SHOP);
   }, []);
 
   // 关闭设置
@@ -160,6 +172,8 @@ function App() {
           onStartGame={handleStartGame}
           onContinueGame={hasSavedGame ? handleContinueGame : undefined}
           onSettings={handleSettings}
+          onAchievements={handleAchievements}
+          onShop={handleShop}
           hasSavedGame={hasSavedGame}
         />
       )}
@@ -179,6 +193,20 @@ function App() {
       {gameState === GameState.SETTINGS && (
         <Suspense fallback={<PageLoader />}>
           <Settings onClose={handleCloseSettings} />
+        </Suspense>
+      )}
+
+      {/* 成就面板 */}
+      {gameState === GameState.ACHIEVEMENTS && (
+        <Suspense fallback={<PageLoader />}>
+          <AchievementPanel onBack={handleBackToMenu} />
+        </Suspense>
+      )}
+
+      {/* 商店面板 */}
+      {gameState === GameState.SHOP && (
+        <Suspense fallback={<PageLoader />}>
+          <ShopPanel onBack={handleBackToMenu} />
         </Suspense>
       )}
 

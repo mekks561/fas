@@ -81,7 +81,7 @@ export class Game {
   private lastFpsUpdate: number = 0;
   
   private systems: Map<string, {
-    instance: any;
+    instance: unknown;
     enabled: boolean;
     initialized: boolean;
     update?: (dt: number) => void;
@@ -478,7 +478,7 @@ export class Game {
       AudioManager.playSound('powerup');
     });
 
-    this.eventSystem.on('wave_complete', (e) => {
+    this.eventSystem.on('wave_complete', (_e) => {
       AudioManager.playSound('waveComplete');
     });
 
@@ -586,7 +586,7 @@ export class Game {
       entities: this.engine ? this.countEntities(this.engine.getScene()) : 0,
       drawCalls: this.engine?.getApp()?.stats?.drawCalls?.count || 0,
       triangles: this.engine?.getApp()?.stats?.triangles?.count || 0,
-      memoryUsage: (window.performance as any)?.memory?.usedJSHeapSize / 1024 / 1024 || 0,
+      memoryUsage: (window.performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory?.usedJSHeapSize / 1024 / 1024 || 0,
       players: this.multiplayerSystem ? this.multiplayerSystem.getPlayers().length : 1,
       enemies: this.enemySystem ? this.enemySystem.getEnemies().length : 0,
       projectiles: this.weaponSystem ? this.weaponSystem.getProjectileCount() : 0

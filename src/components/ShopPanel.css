@@ -1,0 +1,204 @@
+.shop-panel {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0e1a 0%, #111827 50%, #0a0e1a 100%);
+  color: #e0e8f0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shop-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.shop-back-btn {
+  background: rgba(30, 40, 60, 0.8);
+  border: 1px solid rgba(100, 150, 200, 0.3);
+  color: #e0e8f0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.shop-back-btn:hover { background: rgba(50, 70, 100, 0.9); }
+
+.shop-title {
+  font-size: 28px;
+  font-weight: bold;
+  flex: 1;
+  background: linear-gradient(135deg, #ffaa4a, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.shop-credits {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 40, 60, 0.8);
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 221, 68, 0.3);
+}
+.shop-credits-icon { font-size: 18px; }
+.shop-credits-value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ffdd44;
+}
+
+.shop-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.shop-filter-btn {
+  background: rgba(20, 30, 50, 0.8);
+  border: 1px solid rgba(100, 150, 200, 0.2);
+  color: #b0c0d0;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.shop-filter-btn:hover { background: rgba(30, 50, 80, 0.9); }
+.shop-filter-btn.active {
+  background: #ffaa4a;
+  color: #1a1a2e;
+  border-color: #ffaa4a;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 12px;
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+
+.shop-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(15, 20, 35, 0.9);
+  border: 2px solid;
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: transform 0.2s;
+}
+.shop-card:hover { transform: translateY(-2px); }
+.shop-card.purchased { opacity: 0.7; }
+
+.shop-card-icon {
+  font-size: 28px;
+  width: 48px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.shop-card-info { flex: 1; min-width: 0; }
+
+.shop-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.shop-card-name { font-size: 15px; font-weight: bold; }
+.shop-card-rarity {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.shop-card-desc {
+  font-size: 13px;
+  color: rgba(200, 210, 220, 0.7);
+  margin: 0 0 6px 0;
+}
+
+.shop-card-attrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.shop-attr {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(74, 158, 255, 0.15);
+  border-radius: 3px;
+  color: #4a9eff;
+}
+
+.shop-card-level {
+  font-size: 11px;
+  color: rgba(255, 170, 74, 0.8);
+}
+
+.shop-card-action { flex-shrink: 0; }
+
+.shop-buy-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #ffaa4a, #f59e0b);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.shop-buy-btn:hover { transform: scale(1.05); }
+.shop-buy-btn.disabled {
+  background: rgba(100, 100, 100, 0.5);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.shop-price { font-size: 14px; font-weight: bold; color: #1a1a2e; }
+.shop-currency { font-size: 10px; color: rgba(26, 26, 46, 0.7); }
+
+.shop-purchased-label {
+  font-size: 13px;
+  color: #4aff8a;
+  font-weight: 600;
+}
+
+.shop-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 15, 30, 0.95);
+  border: 1px solid rgba(74, 255, 138, 0.4);
+  color: #4aff8a;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 1000;
+  animation: toast-slide 0.3s ease;
+}
+
+@keyframes toast-slide {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.shop-loading {
+  text-align: center;
+  padding: 40px;
+  color: rgba(200, 210, 220, 0.5);
+  font-size: 16px;
+}
+
+@media (max-width: 600px) {
+  .shop-grid { grid-template-columns: 1fr; }
+  .shop-title { font-size: 22px; }
+}

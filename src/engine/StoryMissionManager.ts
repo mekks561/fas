@@ -264,7 +264,7 @@ export class StoryMissionManager {
   }
 
   private updateMissionAvailability(): void {
-    this.missionStates.forEach((state, missionId) => {
+    this.missionStates.forEach((state, _missionId) => {
       if (state.status !== 'locked') return;
 
       const prereqs = state.mission.prerequisites;

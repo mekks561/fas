@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from './ui/shadcn';
 import { Card, CardContent, CardFooter } from './ui/shadcn';
 import { Badge } from './ui/shadcn';
-import { Play, ArrowRight, Settings, Star, Trophy, Medal } from 'lucide-react';
+import { Play, ArrowRight, Settings, Star, Trophy, Medal, ShoppingBag, Award } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { useTranslation } from 'react-i18next';
 
@@ -11,6 +11,8 @@ interface MainMenuProps {
   onContinueGame?: () => void;
   onSettings: () => void;
   onCredits?: () => void;
+  onAchievements?: () => void;
+  onShop?: () => void;
   hasSavedGame?: boolean;
 }
 
@@ -19,6 +21,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onContinueGame,
   onSettings,
   onCredits,
+  onAchievements,
+  onShop,
   hasSavedGame = false
 }) => {
   const [selectedOption, setSelectedOption] = useState(0);
@@ -31,9 +35,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const menuOptions = useMemo(() => [
     { id: 'start', label: t('menu.startGame'), icon: Play, action: onStartGame, primary: true },
     ...(hasSavedGame ? [{ id: 'continue', label: t('menu.continueGame'), icon: ArrowRight, action: onContinueGame }] : []),
+    ...(onShop ? [{ id: 'shop', label: '商店', icon: ShoppingBag, action: onShop }] : []),
+    ...(onAchievements ? [{ id: 'achievements', label: '成就', icon: Award, action: onAchievements }] : []),
     { id: 'settings', label: t('menu.settings'), icon: Settings, action: onSettings },
     ...(onCredits ? [{ id: 'credits', label: t('menu.credits'), icon: Star, action: onCredits }] : []),
-  ], [hasSavedGame, onStartGame, onContinueGame, onSettings, onCredits, t]);
+  ], [hasSavedGame, onStartGame, onContinueGame, onSettings, onCredits, onAchievements, onShop, t]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
