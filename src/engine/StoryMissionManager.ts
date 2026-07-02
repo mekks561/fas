@@ -91,11 +91,7 @@ export class StoryMissionManager {
 
   /** 加载所有剧情资源 */
   async loadAll(): Promise<void> {
-    await Promise.all([
-      this.loadChapters(),
-      this.loadMissions(),
-      this.loadDialogues(),
-    ]);
+    await Promise.all([this.loadChapters(), this.loadMissions(), this.loadDialogues()]);
     this.updateMissionAvailability();
     console.log('[StoryMissionManager] Loaded:', {
       chapters: this.chapters.size,
@@ -130,7 +126,7 @@ export class StoryMissionManager {
           this.missionStates.set(mission.id, {
             mission,
             status: 'locked',
-            objectives: mission.objectives.map(o => ({ ...o, completed: false })),
+            objectives: mission.objectives.map((o) => ({ ...o, completed: false })),
           });
         }
       } catch (e) {
@@ -188,11 +184,11 @@ export class StoryMissionManager {
   }
 
   getActiveMissions(): MissionState[] {
-    return Array.from(this.missionStates.values()).filter(s => s.status === 'active');
+    return Array.from(this.missionStates.values()).filter((s) => s.status === 'active');
   }
 
   getAvailableMissions(): MissionState[] {
-    return Array.from(this.missionStates.values()).filter(s => s.status === 'available');
+    return Array.from(this.missionStates.values()).filter((s) => s.status === 'available');
   }
 
   startMission(missionId: string): boolean {
@@ -235,7 +231,7 @@ export class StoryMissionManager {
     const state = this.missionStates.get(missionId);
     if (!state || state.status !== 'active') return;
 
-    const obj = state.objectives.find(o => o.type === objectiveType && !o.completed);
+    const obj = state.objectives.find((o) => o.type === objectiveType && !o.completed);
     if (!obj) return;
 
     obj.current += amount;
@@ -253,7 +249,7 @@ export class StoryMissionManager {
     const state = this.missionStates.get(missionId);
     if (!state || state.status !== 'active') return;
 
-    const allComplete = state.objectives.every(o => o.completed);
+    const allComplete = state.objectives.every((o) => o.completed);
     if (allComplete) {
       state.status = 'completed';
       this.activeMissionIds.delete(missionId);
@@ -273,7 +269,7 @@ export class StoryMissionManager {
         return;
       }
 
-      const allPrereqsMet = prereqs.every(p => this.completedMissionIds.has(p));
+      const allPrereqsMet = prereqs.every((p) => this.completedMissionIds.has(p));
       if (allPrereqsMet) {
         state.status = 'available';
       }
@@ -286,8 +282,12 @@ export class StoryMissionManager {
     return this.dialogues.get(dialogueId);
   }
 
-  getDialogueByTrigger(triggerType: string, chapter?: string, stage?: string): Dialogue | undefined {
-    return Array.from(this.dialogues.values()).find(d => {
+  getDialogueByTrigger(
+    triggerType: string,
+    chapter?: string,
+    stage?: string,
+  ): Dialogue | undefined {
+    return Array.from(this.dialogues.values()).find((d) => {
       if (d.trigger.type !== triggerType) return false;
       if (chapter && d.trigger.chapter !== chapter) return false;
       if (stage && d.trigger.stage !== stage) return false;
@@ -307,7 +307,7 @@ export class StoryMissionManager {
   }
 
   private notify(): void {
-    this.listeners.forEach(cb => cb());
+    this.listeners.forEach((cb) => cb());
   }
 
   // ============ 统计信息 ============

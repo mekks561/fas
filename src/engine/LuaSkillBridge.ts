@@ -75,7 +75,7 @@ export class LuaSkillBridge {
     skillId: string,
     player: { x: number; y: number; stats: Record<string, number> },
     target: { x: number; y: number } | null,
-    resources: Record<string, number>
+    resources: Record<string, number>,
   ): CastResult {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
@@ -87,7 +87,10 @@ export class LuaSkillBridge {
   /**
    * 检查技能是否可用
    */
-  canCastSkill(skillId: string, resources: Record<string, number>): { canCast: boolean; reason: string } {
+  canCastSkill(
+    skillId: string,
+    resources: Record<string, number>,
+  ): { canCast: boolean; reason: string } {
     if (!this.initialized) {
       return { canCast: false, reason: 'not_initialized' };
     }

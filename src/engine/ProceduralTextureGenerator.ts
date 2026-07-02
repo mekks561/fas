@@ -5,7 +5,7 @@ export interface TextureConfig {
   height: number;
   type: 'nebula' | 'planet' | 'hull' | 'explosion' | 'starfield' | 'grid';
   seed?: number;
-  options?: any;
+  options?: unknown;
 }
 
 export interface NebulaOptions {
@@ -216,7 +216,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
 // The StorageBuffer.read() supports an optional 'immediate' 4th parameter that
 // forces immediate command buffer submission. This is not in the type definitions.
 interface StorageBufferWithImmediate {
-  read(offset?: number, size?: number, data?: ArrayBufferView | null, immediate?: boolean): Promise<ArrayBufferView>;
+  read(
+    offset?: number,
+    size?: number,
+    data?: ArrayBufferView | null,
+    immediate?: boolean,
+  ): Promise<ArrayBufferView>;
 }
 
 // Texture types that have GPU compute shaders
@@ -299,7 +304,7 @@ export class ProceduralTextureGenerator {
     const buffer = new pc.StorageBuffer(
       this.device,
       byteSize,
-      pc.BUFFERUSAGE_COPY_SRC | pc.BUFFERUSAGE_COPY_DST
+      pc.BUFFERUSAGE_COPY_SRC | pc.BUFFERUSAGE_COPY_DST,
     );
 
     try {
@@ -362,7 +367,10 @@ export class ProceduralTextureGenerator {
   /**
    * Set nebula-specific compute shader parameters (colors, turbulence, brightness).
    */
-  private setNebulaComputeParameters(compute: pc.Compute, options: NebulaOptions | undefined): void {
+  private setNebulaComputeParameters(
+    compute: pc.Compute,
+    options: NebulaOptions | undefined,
+  ): void {
     const colors = options?.colors ?? ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'];
     const turbulence = options?.turbulence ?? 0.5;
     const brightness = options?.brightness ?? 0.8;
@@ -475,9 +483,13 @@ export class ProceduralTextureGenerator {
     return this.canvas;
   }
 
-  private generateNebula(options: NebulaOptions, seed?: number): void {
-    const { colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'], 
-            layers = 5, turbulence = 0.5, brightness = 0.8 } = options || {};
+  private generateNebula(options: NebulaOptions, _seed?: number): void {
+    const {
+      colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'],
+      layers = 5,
+      turbulence = 0.5,
+      brightness = 0.8,
+    } = options || {};
 
     const width = this.canvas.width;
     const height = this.canvas.height;
@@ -505,9 +517,13 @@ export class ProceduralTextureGenerator {
     this.addNoise(turbulence);
   }
 
-  private generatePlanet(options: PlanetOptions, seed?: number): void {
-    const { baseColor = '#8b4513', continentCount = 5, 
-            oceanColor = '#1e90ff', iceCapColor = '#ffffff', hasAtmosphere = true } = options || {};
+  private generatePlanet(options: PlanetOptions, _seed?: number): void {
+    const {
+      baseColor = '#8b4513',
+      continentCount = 5,
+      oceanColor = '#1e90ff',
+      hasAtmosphere = true,
+    } = options || {};
 
     const width = this.canvas.width;
     const height = this.canvas.height;
@@ -538,7 +554,14 @@ export class ProceduralTextureGenerator {
     }
 
     if (hasAtmosphere) {
-      const atmosphereGradient = this.ctx.createRadialGradient(centerX, centerY, radius * 0.9, centerX, centerY, radius * 1.2);
+      const atmosphereGradient = this.ctx.createRadialGradient(
+        centerX,
+        centerY,
+        radius * 0.9,
+        centerX,
+        centerY,
+        radius * 1.2,
+      );
       atmosphereGradient.addColorStop(0, 'rgba(100, 150, 255, 0.1)');
       atmosphereGradient.addColorStop(0.7, 'rgba(100, 150, 255, 0.2)');
       atmosphereGradient.addColorStop(1, 'rgba(100, 150, 255, 0)');
@@ -549,9 +572,13 @@ export class ProceduralTextureGenerator {
     }
   }
 
-  private generateHull(options: HullOptions, seed?: number): void {
-    const { baseColor = '#333333', stripeColor = '#ff6b6b', 
-            stripeCount = 3, damageLevel = 0.2 } = options || {};
+  private generateHull(options: HullOptions, _seed?: number): void {
+    const {
+      baseColor = '#333333',
+      stripeColor = '#ff6b6b',
+      stripeCount = 3,
+      damageLevel = 0.2,
+    } = options || {};
 
     const width = this.canvas.width;
     const height = this.canvas.height;
@@ -577,7 +604,7 @@ export class ProceduralTextureGenerator {
     this.ctx.fillStyle = metalGradient;
     this.ctx.fillRect(0, 0, width, height);
 
-    const damageCount = Math.floor(width * height * damageLevel / 1000);
+    const damageCount = Math.floor((width * height * damageLevel) / 1000);
     for (let i = 0; i < damageCount; i++) {
       const x = Math.random() * width;
       const y = Math.random() * height;
@@ -589,7 +616,7 @@ export class ProceduralTextureGenerator {
     }
   }
 
-  private generateExplosion(options: any, seed?: number): void {
+  private generateExplosion(_options: unknown, _seed?: number): void {
     const width = this.canvas.width;
     const height = this.canvas.height;
     const centerX = width / 2;
@@ -599,7 +626,7 @@ export class ProceduralTextureGenerator {
     this.ctx.fillRect(0, 0, width, height);
 
     const colors = ['#ffffff', '#ffff00', '#ff8800', '#ff4400', '#ff0000'];
-    
+
     for (let i = 0; i < 5; i++) {
       const radius = (width / 2) * (1 - i * 0.15);
       const gradient = this.ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
@@ -620,7 +647,7 @@ export class ProceduralTextureGenerator {
       const x = centerX + Math.cos(angle) * distance;
       const y = centerY + Math.sin(angle) * distance;
       const size = Math.random() * 4 + 2;
-      const alpha = 1 - (distance / (width / 2));
+      const alpha = 1 - distance / (width / 2);
 
       this.ctx.beginPath();
       this.ctx.arc(x, y, size, 0, Math.PI * 2);
@@ -629,10 +656,87 @@ export class ProceduralTextureGenerator {
     }
   }
 
-  private generateStarfield(options: any, seed?: number): void {
+  private generateStarfield(options: Record<string, unknown>, _seed?: number): void {
     const width = this.canvas.width;
     const height = this.canvas.height;
     const starCount = options?.starCount || 200;
 
     this.ctx.fillStyle = '#000000';
-    this.ctx.fillRect(0,
+    this.ctx.fillRect(0, 0, width, height);
+
+    for (let i = 0; i < starCount; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const size = Math.random() * 2 + 0.5;
+      const alpha = Math.random() * 0.8 + 0.2;
+
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, size, 0, Math.PI * 2);
+      this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      this.ctx.fill();
+    }
+  }
+
+  private generateGrid(options: Record<string, unknown>, _seed?: number): void {
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    const gridSize = options?.gridSize || 50;
+
+    this.ctx.fillStyle = '#1a1a2e';
+    this.ctx.fillRect(0, 0, width, height);
+
+    this.ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
+    this.ctx.lineWidth = 1;
+
+    for (let x = 0; x <= width; x += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, height);
+      this.ctx.stroke();
+    }
+
+    for (let y = 0; y <= height; y += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(width, y);
+      this.ctx.stroke();
+    }
+  }
+
+  private addNoise(intensity: number): void {
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    const imageData = this.ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const noise = (Math.random() - 0.5) * 255 * intensity;
+      data[i] = Math.min(255, Math.max(0, data[i] + noise));
+      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+    }
+
+    this.ctx.putImageData(imageData, 0, 0);
+  }
+
+  private hexToRgba(hex: string, alpha: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  toImage(): HTMLImageElement {
+    const img = new Image();
+    img.src = this.canvas.toDataURL('image/png');
+    return img;
+  }
+
+  toBlob(): Promise<Blob> {
+    return new Promise((resolve) => {
+      this.canvas.toBlob((blob: Blob | null) => {
+        if (blob) resolve(blob);
+      }, 'image/png');
+    });
+  }
+}

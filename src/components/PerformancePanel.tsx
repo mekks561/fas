@@ -29,7 +29,7 @@ export const PerformancePanel: React.FC = () => {
     frameTime: 0,
     memoryUsed: 0,
     memoryTotal: 0,
-    entityCount: 0
+    entityCount: 0,
   });
 
   const fps = useGameStore((state) => state.fps);
@@ -39,7 +39,7 @@ export const PerformancePanel: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'F3') {
         e.preventDefault();
-        setIsVisible(prev => !prev);
+        setIsVisible((prev) => !prev);
       }
     };
 
@@ -54,21 +54,25 @@ export const PerformancePanel: React.FC = () => {
     const intervalId = setInterval(() => {
       let memoryUsed = 0;
       let memoryTotal = 0;
-      
+
       if ('memory' in performance) {
-        const memory = (performance as Performance & { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+        const memory = (
+          performance as Performance & {
+            memory: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+          }
+        ).memory;
         memoryUsed = Math.round(memory.usedJSHeapSize / (1024 * 1024));
         memoryTotal = Math.round(memory.jsHeapSizeLimit / (1024 * 1024));
       }
 
-      setMetrics(prev => ({
+      setMetrics((prev) => ({
         ...prev,
         fps,
         fpsMin: prev.fpsMin > fps ? fps : prev.fpsMin,
         fpsMax: prev.fpsMax < fps ? fps : prev.fpsMax,
         memoryUsed,
         memoryTotal,
-        entityCount: prev.entityCount
+        entityCount: prev.entityCount,
       }));
     }, 500);
 
@@ -89,10 +93,10 @@ export const PerformancePanel: React.FC = () => {
   }, [fps, t]);
 
   const resetStats = useCallback(() => {
-    setMetrics(prev => ({
+    setMetrics((prev) => ({
       ...prev,
       fpsMin: fps,
-      fpsMax: fps
+      fpsMax: fps,
     }));
   }, [fps]);
 
@@ -101,26 +105,20 @@ export const PerformancePanel: React.FC = () => {
   return (
     <div className="fixed top-2.5 right-2.5 w-[280px] bg-gradient-to-br from-[rgba(0,0,0,0.9)] to-[rgba(20,20,40,0.95)] border border-white/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md z-[10000] font-mono overflow-hidden">
       <div className="flex justify-between items-center px-4 py-3 bg-white/[0.05] border-b border-white/10">
-        <p className="text-xs font-bold text-white">
-          {t('performance.title')}
-        </p>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="h-6 w-6"
-          onClick={() => setIsVisible(false)}
-        >
+        <p className="text-xs font-bold text-white">{t('performance.title')}</p>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsVisible(false)}>
           <X className="w-3.5 h-3.5" />
         </Button>
       </div>
 
       <div className="p-4">
         <div className="mb-4 pb-3 border-b border-white/[0.05]">
-          <p className="text-xs font-bold text-yellow-400">
-            {t('performance.fps')}
-          </p>
+          <p className="text-xs font-bold text-yellow-400">{t('performance.fps')}</p>
           <div className="flex items-baseline my-2">
-            <span className="text-[48px] font-bold leading-none" style={{ color: fpsColor, textShadow: '0 0 20px currentColor' }}>
+            <span
+              className="text-[48px] font-bold leading-none"
+              style={{ color: fpsColor, textShadow: '0 0 20px currentColor' }}
+            >
               {Math.round(fps)}
             </span>
             <span className="text-sm text-white/50 ml-1.5">{t('performance.fps')}</span>
@@ -130,33 +128,31 @@ export const PerformancePanel: React.FC = () => {
               Min: {metrics.fpsMin} | Max: {metrics.fpsMax}
             </span>
           </div>
-          <div 
+          <div
             className="inline-block px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-white"
-            style={{ backgroundColor: performanceLevel.color, textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}
+            style={{
+              backgroundColor: performanceLevel.color,
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+            }}
           >
             {performanceLevel.level}
           </div>
         </div>
 
         <div className="mb-4 pb-3 border-b border-white/[0.05]">
-          <p className="text-xs font-bold text-blue-400">
-            {t('performance.frameTime')}
-          </p>
-          <div className="text-xl text-white mt-1">
-            {metrics.frameTime.toFixed(2)} ms
-          </div>
+          <p className="text-xs font-bold text-blue-400">{t('performance.frameTime')}</p>
+          <div className="text-xl text-white mt-1">{metrics.frameTime.toFixed(2)} ms</div>
         </div>
 
         <div className="mb-4 pb-3 border-b border-white/[0.05]">
-          <p className="text-xs font-bold text-purple-400">
-            {t('performance.memory')}
-          </p>
+          <p className="text-xs font-bold text-purple-400">{t('performance.memory')}</p>
           <div className="h-1.5 bg-white/10 rounded-sm my-2 overflow-hidden">
-            <div 
+            <div
               className="h-full transition-all duration-300 rounded-sm"
-              style={{ 
+              style={{
                 width: `${(metrics.memoryUsed / metrics.memoryTotal) * 100}%`,
-                backgroundColor: metrics.memoryUsed > metrics.memoryTotal * 0.8 ? '#ef4444' : '#22c55e'
+                backgroundColor:
+                  metrics.memoryUsed > metrics.memoryTotal * 0.8 ? '#ef4444' : '#22c55e',
               }}
             />
           </div>
@@ -166,20 +162,13 @@ export const PerformancePanel: React.FC = () => {
         </div>
 
         <div className="mb-3">
-          <p className="text-xs font-bold text-green-400">
-            {t('performance.scene')}
-          </p>
+          <p className="text-xs font-bold text-green-400">{t('performance.scene')}</p>
           <div className="text-xl text-white mt-1">
             {metrics.entityCount} {t('performance.entities')}
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={resetStats}
-        >
+        <Button variant="outline" size="sm" className="w-full" onClick={resetStats}>
           <RotateCcw className="w-3 h-3" />
           {t('performance.resetStats')}
         </Button>

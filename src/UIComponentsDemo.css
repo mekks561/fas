@@ -77,12 +77,12 @@
     padding: 20px;
     margin-bottom: 40px;
   }
-  
+
   .icon-grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 12px;
   }
-  
+
   .icon-item {
     padding: 12px;
   }

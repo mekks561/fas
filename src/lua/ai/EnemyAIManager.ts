@@ -36,7 +36,7 @@ export class EnemyAIManager {
     const aiScript = await this.loadAIScript();
     luaEngine.registerModule({
       name: 'enemy_ai',
-      script: aiScript
+      script: aiScript,
     });
 
     this.initialized = true;
@@ -218,7 +218,7 @@ end
     enemy: AIConfig,
     playerX: number,
     playerY: number,
-    deltaTime: number
+    deltaTime: number,
   ): { action: string; x?: number; y?: number; damage?: number } | null {
     if (!this.initialized) {
       console.warn('[EnemyAIManager] Not initialized');
@@ -226,13 +226,12 @@ end
     }
 
     try {
-      const action = luaEngine.call<{ action: string; x?: number; y?: number; damage?: number } | null>(
-        'updateAI',
-        enemy,
-        playerX,
-        playerY,
-        deltaTime
-      );
+      const action = luaEngine.call<{
+        action: string;
+        x?: number;
+        y?: number;
+        damage?: number;
+      } | null>('updateAI', enemy, playerX, playerY, deltaTime);
 
       // 更新敌人位置
       if (enemy.x !== undefined && enemy.y !== undefined) {
@@ -254,7 +253,7 @@ end
     const newScript = await this.loadAIScript();
     luaEngine.registerModule({
       name: 'enemy_ai',
-      script: newScript
+      script: newScript,
     });
     console.log('[EnemyAIManager] AI script reloaded');
   }

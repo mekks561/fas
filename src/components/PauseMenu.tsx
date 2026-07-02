@@ -51,8 +51,8 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
     wave: 1,
     level: 1,
     enemiesDefeated: 0,
-    timeElapsed: 0
-  }
+    timeElapsed: 0,
+  },
 }) => {
   const { t } = useTranslation();
   const [selectedOption, setSelectedOption] = useState(0);
@@ -66,12 +66,21 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
   };
 
   // 菜单选项
-  const menuOptions = useMemo(() => [
-    { id: 'resume', label: t('pause.resume'), icon: 'play', action: onResume, primary: true },
-    { id: 'restart', label: t('pause.restart'), icon: 'stop', action: onRestart },
-    { id: 'settings', label: t('pause.settings'), icon: 'settings', action: onSettings },
-    { id: 'mainMenu', label: t('pause.mainMenu'), icon: 'arrow-left', action: onMainMenu, danger: true }
-  ], [onResume, onRestart, onSettings, onMainMenu, t]);
+  const menuOptions = useMemo(
+    () => [
+      { id: 'resume', label: t('pause.resume'), icon: 'play', action: onResume, primary: true },
+      { id: 'restart', label: t('pause.restart'), icon: 'stop', action: onRestart },
+      { id: 'settings', label: t('pause.settings'), icon: 'settings', action: onSettings },
+      {
+        id: 'mainMenu',
+        label: t('pause.mainMenu'),
+        icon: 'arrow-left',
+        action: onMainMenu,
+        danger: true,
+      },
+    ],
+    [onResume, onRestart, onSettings, onMainMenu, t],
+  );
 
   // 键盘导航
   useEffect(() => {
@@ -80,12 +89,12 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
         case 'ArrowUp':
         case 'KeyW':
           e.preventDefault();
-          setSelectedOption(prev => Math.max(0, prev - 1));
+          setSelectedOption((prev) => Math.max(0, prev - 1));
           break;
         case 'ArrowDown':
         case 'KeyS':
           e.preventDefault();
-          setSelectedOption(prev => Math.min(menuOptions.length - 1, prev + 1));
+          setSelectedOption((prev) => Math.min(menuOptions.length - 1, prev + 1));
           break;
         case 'Enter':
         case 'Space':
@@ -139,7 +148,9 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
             <Trophy className="h-5 w-5 text-yellow-400" />
             <div className="flex flex-col">
               <span className="text-xs text-slate-400">{t('pause.score')}</span>
-              <span className="text-sm font-semibold text-white">{currentStats.score.toLocaleString()}</span>
+              <span className="text-sm font-semibold text-white">
+                {currentStats.score.toLocaleString()}
+              </span>
             </div>
           </div>
 
@@ -147,7 +158,9 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
             <Target className="h-5 w-5 text-red-500" />
             <div className="flex flex-col">
               <span className="text-xs text-slate-400">{t('pause.enemiesDefeated')}</span>
-              <span className="text-sm font-semibold text-white">{currentStats.enemiesDefeated}</span>
+              <span className="text-sm font-semibold text-white">
+                {currentStats.enemiesDefeated}
+              </span>
             </div>
           </div>
 
@@ -171,7 +184,9 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
             <Medal className="h-5 w-5 text-green-500" />
             <div className="flex flex-col">
               <span className="text-xs text-slate-400">{t('pause.playTime')}</span>
-              <span className="text-sm font-semibold text-white">{formatTime(currentStats.timeElapsed)}</span>
+              <span className="text-sm font-semibold text-white">
+                {formatTime(currentStats.timeElapsed)}
+              </span>
             </div>
           </div>
         </div>
@@ -211,9 +226,7 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
 
         {/* 提示信息 */}
         <div className="mt-4">
-          <p className="text-center text-xs text-slate-500">
-            {t('pause.navigateHint')}
-          </p>
+          <p className="text-center text-xs text-slate-500">{t('pause.navigateHint')}</p>
         </div>
       </div>
     </div>

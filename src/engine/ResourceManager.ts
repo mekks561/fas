@@ -1,6 +1,7 @@
 import * as pc from 'playcanvas';
 
-export type ResourceType = 'model' | 'texture' | 'audio' | 'material' | 'json' | 'font' | 'shader' | 'prefab';
+export type ResourceType =
+  'model' | 'texture' | 'audio' | 'material' | 'json' | 'font' | 'shader' | 'prefab';
 
 export interface ResourceDescriptor {
   id: string;
@@ -10,7 +11,7 @@ export interface ResourceDescriptor {
   preload?: boolean;
   cacheable?: boolean;
   dependencies?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface LoadingProgress {
@@ -24,7 +25,7 @@ export interface LoadingProgress {
 
 export interface ResourceEntry {
   descriptor: ResourceDescriptor;
-  asset: pc.Asset | any;
+  asset: pc.Asset | unknown;
   loadedAt: number;
   lastAccessed: number;
   accessCount: number;
@@ -51,7 +52,7 @@ export class ResourceManager {
   private progressCallbacks: ProgressCallback[] = [];
   private errorCallbacks: ErrorCallback[] = [];
   private loadPromises: Map<string, Promise<ResourceEntry>> = new Map();
-  private cache: Map<string, any> = new Map();
+  private cache: Map<string, unknown> = new Map();
   private maxCacheSize: number = 100 * 1024 * 1024;
   private currentCacheSize: number = 0;
   private isEnabled: boolean = true;
@@ -77,14 +78,14 @@ export class ResourceManager {
       lastAccessed: 0,
       accessCount: 0,
       size: 0,
-      isLoaded: false
+      isLoaded: false,
     };
 
     this.resources.set(descriptor.id, entry);
   }
 
   public registerResources(descriptors: ResourceDescriptor[]): void {
-    descriptors.forEach(d => this.registerResource(d));
+    descriptors.forEach((d) => this.registerResource(d));
   }
 
   public async loadResource(id: string): Promise<ResourceEntry> {
@@ -104,7 +105,7 @@ export class ResourceManager {
     }
 
     if (this.loadPromises.has(id)) {
-      return this.loadPromises.get(id)!;
+      return this.loadPromises.get(id) as Promise<ResourceEntry>;
     }
 
     if (entry.descriptor.dependencies) {
@@ -123,20 +124,21 @@ export class ResourceManager {
   }
 
   public async loadResources(ids: string[]): Promise<ResourceEntry[]> {
-    const promises = ids.map(id => this.loadResource(id));
+    const promises = ids.map((id) => this.loadResource(id));
     return Promise.all(promises);
   }
 
   public async preloadLevel(levelId: string): Promise<void> {
-    const levelResources = Array.from(this.resources.values())
-      .filter(r => r.descriptor.preload && r.descriptor.metadata?.level === levelId);
-    
-    const ids = levelResources.map(r => r.descriptor.id);
+    const levelResources = Array.from(this.resources.values()).filter(
+      (r) => r.descriptor.preload && r.descriptor.metadata?.level === levelId,
+    );
+
+    const ids = levelResources.map((r) => r.descriptor.id);
     await this.loadResources(ids);
   }
 
   private async loadDependencies(dependencies: string[]): Promise<void> {
-    const unloaded = dependencies.filter(id => {
+    const unloaded = dependencies.filter((id) => {
       const entry = this.resources.get(id);
       return entry && !entry.isLoaded;
     });
@@ -151,7 +153,7 @@ export class ResourceManager {
       this.loadQueue.push({
         descriptor: entry.descriptor,
         resolve,
-        reject
+        reject,
       });
       this.processQueue();
     });
@@ -159,7 +161,7 @@ export class ResourceManager {
 
   private processQueue(): void {
     while (this.activeLoads.size < this.maxConcurrentLoads && this.loadQueue.length > 0) {
-      const item = this.loadQueue.shift()!;
+      const item = this.loadQueue.shift() as LoadQueueItem;
       this.activeLoads.add(item.descriptor.id);
       this.performLoad(item);
     }
@@ -181,7 +183,7 @@ export class ResourceManager {
 
     try {
       const asset = await this.loadAsset(descriptor);
-      
+
       entry.asset = asset;
       entry.isLoaded = true;
       entry.loadedAt = Date.now();
@@ -204,7 +206,7 @@ export class ResourceManager {
     }
   }
 
-  private async loadAsset(descriptor: ResourceDescriptor): Promise<pc.Asset | any> {
+  private async loadAsset(descriptor: ResourceDescriptor): Promise<pc.Asset | unknown> {
     if (this.app) {
       return this.loadPlayCanvasAsset(descriptor);
     }
@@ -218,7 +220,7 @@ export class ResourceManager {
 
     return new Promise((resolve, reject) => {
       const asset = new pc.Asset(descriptor.id, this.mapResourceType(descriptor.type), {
-        url: descriptor.url
+        url: descriptor.url,
       });
 
       this.app?.assets.add(asset);
@@ -230,7 +232,7 @@ export class ResourceManager {
     });
   }
 
-  private async loadGenericAsset(descriptor: ResourceDescriptor): Promise<any> {
+  private async loadGenericAsset(descriptor: ResourceDescriptor): Promise<unknown> {
     switch (descriptor.type) {
       case 'json':
         return this.loadJson(descriptor.url);
@@ -245,7 +247,7 @@ export class ResourceManager {
     }
   }
 
-  private async loadJson(url: string): Promise<any> {
+  private async loadJson(url: string): Promise<unknown> {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to load JSON: ${url}`);
@@ -285,14 +287,14 @@ export class ResourceManager {
 
   private mapResourceType(type: ResourceType): string {
     const typeMap: Record<ResourceType, string> = {
-      'model': 'model',
-      'texture': 'texture',
-      'audio': 'audio',
-      'material': 'material',
-      'json': 'json',
-      'font': 'font',
-      'shader': 'shader',
-      'prefab': 'model'
+      model: 'model',
+      texture: 'texture',
+      audio: 'audio',
+      material: 'material',
+      json: 'json',
+      font: 'font',
+      shader: 'shader',
+      prefab: 'model',
     };
     return typeMap[type] || 'json';
   }
@@ -384,7 +386,7 @@ export class ResourceManager {
       loaded,
       failed,
       inProgress,
-      percentage: total > 0 ? (loaded / total) * 100 : 0
+      percentage: total > 0 ? (loaded / total) * 100 : 0,
     };
   }
 
@@ -413,11 +415,11 @@ export class ResourceManager {
     if (currentResource) {
       progress.currentResource = currentResource;
     }
-    this.progressCallbacks.forEach(cb => cb(progress));
+    this.progressCallbacks.forEach((cb) => cb(progress));
   }
 
   private notifyError(error: Error, descriptor: ResourceDescriptor): void {
-    this.errorCallbacks.forEach(cb => cb(error, descriptor));
+    this.errorCallbacks.forEach((cb) => cb(error, descriptor));
   }
 
   public clearCache(): void {
@@ -458,7 +460,7 @@ export class ResourceManager {
 
   public getLoadedCount(): number {
     let count = 0;
-    this.resources.forEach(r => {
+    this.resources.forEach((r) => {
       if (r.isLoaded) count++;
     });
     return count;

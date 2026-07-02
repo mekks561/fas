@@ -17,7 +17,9 @@ export const App: React.FC = () => {
     <div className="w-screen h-screen m-0 p-0 overflow-hidden bg-black font-sans">
       {!gameStarted ? (
         <div className="flex flex-col items-center justify-center w-full h-full bg-[radial-gradient(circle,#1a1a2e_0%,#16213e_50%,#0f3460_100%)] text-white text-center">
-          <h1 className="text-5xl mb-8 text-cyan-400 drop-shadow-[0_0_20px_rgba(0,212,255,0.5)]">{t('app.title')}</h1>
+          <h1 className="text-5xl mb-8 text-cyan-400 drop-shadow-[0_0_20px_rgba(0,212,255,0.5)]">
+            {t('app.title')}
+          </h1>
           <Button
             onClick={handleStartGame}
             size="lg"

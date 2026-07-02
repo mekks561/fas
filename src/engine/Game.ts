@@ -19,7 +19,8 @@ import { LevelEditor } from './LevelEditor';
 import { MultiplayerSystem } from './MultiplayerSystem';
 import { LuaSkillBridge } from './LuaSkillBridge';
 
-export type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'game_over' | 'level_complete' | 'settings';
+export type GameState =
+  'menu' | 'loading' | 'playing' | 'paused' | 'game_over' | 'level_complete' | 'settings';
 
 export interface GameConfig {
   canvas: HTMLCanvasElement;
@@ -49,7 +50,7 @@ export interface SystemInfo {
 
 export class Game {
   private static instance: Game | null = null;
-  
+
   private config: GameConfig;
   private state: GameState = 'menu';
   private engine: PlayCanvasGameEngine | null = null;
@@ -58,7 +59,7 @@ export class Game {
   private weaponSystem: WeaponSystem | null = null;
   private skillSystem: SkillSystem | null = null;
   private powerupSpawner: PowerupSpawner | null = null;
-  
+
   private inputSystem: InputSystem | null = null;
   private eventSystem: EventSystem | null = null;
   private cameraSystem: CameraSystem | null = null;
@@ -70,23 +71,26 @@ export class Game {
   private levelEditor: LevelEditor | null = null;
   private multiplayerSystem: MultiplayerSystem | null = null;
   private luaSkillBridge: LuaSkillBridge | null = null;
-  
+
   private isInitialized: boolean = false;
   private isRunning: boolean = false;
   private updateCallback: ((dt: number) => void) | null = null;
-  
+
   private fps: number = 0;
   private frameTime: number = 0;
   private frameCount: number = 0;
   private lastFpsUpdate: number = 0;
-  
-  private systems: Map<string, {
-    instance: unknown;
-    enabled: boolean;
-    initialized: boolean;
-    update?: (dt: number) => void;
-    destroy?: () => void;
-  }> = new Map();
+
+  private systems: Map<
+    string,
+    {
+      instance: unknown;
+      enabled: boolean;
+      initialized: boolean;
+      update?: (dt: number) => void;
+      destroy?: () => void;
+    }
+  > = new Map();
 
   private constructor(config: GameConfig) {
     this.config = config;
@@ -115,7 +119,7 @@ export class Game {
     this.setupSystems();
     await this.initializeSystems();
     this.setupEventListeners();
-    
+
     this.isInitialized = true;
     this.state = 'loading';
   }
@@ -127,7 +131,7 @@ export class Game {
         enabled: true,
         initialized: false,
         update: (dt) => this.debugSystem?.update(dt),
-        destroy: () => this.debugSystem?.destroy()
+        destroy: () => this.debugSystem?.destroy(),
       });
     }
 
@@ -136,25 +140,25 @@ export class Game {
       enabled: true,
       initialized: false,
       update: (dt) => this.inputSystem?.update(dt),
-      destroy: () => this.inputSystem?.destroy()
+      destroy: () => this.inputSystem?.destroy(),
     });
 
     this.systems.set('event', {
       instance: new EventSystem(),
       enabled: true,
       initialized: false,
-      destroy: () => this.eventSystem?.destroy()
+      destroy: () => this.eventSystem?.destroy(),
     });
 
     this.systems.set('engine', {
       instance: new PlayCanvasGameEngine({
         canvas: this.config.canvas,
         antialias: this.config.antialias,
-        enablePostEffects: this.config.enablePostEffects
+        enablePostEffects: this.config.enablePostEffects,
       }),
       enabled: true,
       initialized: false,
-      destroy: () => this.engine?.destroy()
+      destroy: () => this.engine?.destroy(),
     });
 
     this.systems.set('camera', {
@@ -162,7 +166,7 @@ export class Game {
       enabled: true,
       initialized: false,
       update: (dt) => this.cameraSystem?.update(dt),
-      destroy: () => this.cameraSystem?.destroy()
+      destroy: () => this.cameraSystem?.destroy(),
     });
 
     this.systems.set('animation', {
@@ -170,14 +174,14 @@ export class Game {
       enabled: true,
       initialized: false,
       update: (dt) => this.animationSystem?.update(dt),
-      destroy: () => this.animationSystem?.destroy()
+      destroy: () => this.animationSystem?.destroy(),
     });
 
     this.systems.set('resource', {
       instance: new ResourceManager(),
       enabled: true,
       initialized: false,
-      destroy: () => this.resourceManager?.destroy()
+      destroy: () => this.resourceManager?.destroy(),
     });
 
     this.systems.set('instanced', {
@@ -185,14 +189,14 @@ export class Game {
       enabled: true,
       initialized: false,
       update: (dt) => this.instancedRenderer?.update(dt, this.engine?.getCamera()?.getPosition()),
-      destroy: () => this.instancedRenderer?.destroy()
+      destroy: () => this.instancedRenderer?.destroy(),
     });
 
     this.systems.set('cloudSave', {
       instance: new CloudSaveSystem(),
       enabled: true,
       initialized: false,
-      destroy: () => this.cloudSaveSystem?.destroy()
+      destroy: () => this.cloudSaveSystem?.destroy(),
     });
 
     if (this.config.multiplayerEnabled) {
@@ -200,49 +204,49 @@ export class Game {
         instance: new MultiplayerSystem(),
         enabled: true,
         initialized: false,
-        destroy: () => this.multiplayerSystem?.destroy()
+        destroy: () => this.multiplayerSystem?.destroy(),
       });
     }
 
     this.systems.set('player', {
       instance: null,
       enabled: true,
-      initialized: false
+      initialized: false,
     });
 
     this.systems.set('enemy', {
       instance: null,
       enabled: true,
       initialized: false,
-      update: (dt) => this.enemySystem?.update(dt)
+      update: (dt) => this.enemySystem?.update(dt),
     });
 
     this.systems.set('weapon', {
       instance: null,
       enabled: true,
       initialized: false,
-      update: (dt) => this.weaponSystem?.update(dt)
+      update: (dt) => this.weaponSystem?.update(dt),
     });
 
     this.systems.set('skill', {
       instance: null,
       enabled: true,
       initialized: false,
-      update: (dt) => this.skillSystem?.update(dt)
+      update: (dt) => this.skillSystem?.update(dt),
     });
 
     this.systems.set('powerup', {
       instance: null,
       enabled: true,
       initialized: false,
-      update: (dt) => this.powerupSpawner?.update(dt)
+      update: (dt) => this.powerupSpawner?.update(dt),
     });
 
     this.systems.set('levelEditor', {
       instance: new LevelEditor(),
       enabled: false,
       initialized: false,
-      destroy: () => this.levelEditor?.destroy()
+      destroy: () => this.levelEditor?.destroy(),
     });
 
     // Lua 技能系统
@@ -251,7 +255,7 @@ export class Game {
       enabled: true,
       initialized: false,
       update: (dt) => this.luaSkillBridge?.update(dt),
-      destroy: () => this.luaSkillBridge?.destroy()
+      destroy: () => this.luaSkillBridge?.destroy(),
     });
   }
 
@@ -260,14 +264,19 @@ export class Game {
     if (engineSys) {
       this.engine = engineSys.instance as PlayCanvasGameEngine;
       engineSys.initialized = true;
-      
+
       this.engine.setCameraPosition(0, 15, 20);
       this.engine.lookAt(new pc.Vec3(0, 0, 0));
-      
-      this.engine.addDirectionalLight('sun', new pc.Vec3(-5, 10, 5), new pc.Color(1, 0.95, 0.9), 1.5);
+
+      this.engine.addDirectionalLight(
+        'sun',
+        new pc.Vec3(-5, 10, 5),
+        new pc.Color(1, 0.95, 0.9),
+        1.5,
+      );
       this.engine.addLight('fill', new pc.Vec3(10, 5, -10), new pc.Color(0.4, 0.5, 0.8), 0.5);
       this.engine.addLight('ambient', new pc.Vec3(0, 0, 0), new pc.Color(0.3, 0.3, 0.4), 0.3);
-      
+
       this.createEnvironment();
     }
 
@@ -350,7 +359,7 @@ export class Game {
 
   private createEnvironment(): void {
     if (!this.engine) return;
-    
+
     this.engine.createStarField(500, 100, 200);
     this.engine.createNebula(new pc.Vec3(50, 20, -50), 40);
     this.engine.createNebula(new pc.Vec3(-60, -10, 40), 35);
@@ -365,9 +374,9 @@ export class Game {
       engine: this.engine,
       initialPosition: new pc.Vec3(0, 0, 0),
       health,
-      shield
+      shield,
     });
-    
+
     this.player = player;
     const playerSys = this.systems.get('player');
     if (playerSys) {
@@ -392,7 +401,7 @@ export class Game {
 
     const enemySystem = new EnemySystem(this.engine, player);
     this.enemySystem = enemySystem;
-    
+
     const enemySys = this.systems.get('enemy');
     if (enemySys) {
       enemySys.instance = enemySystem;
@@ -407,7 +416,7 @@ export class Game {
 
     const weaponSystem = new WeaponSystem(this.engine);
     weaponSystem.setPlayer(player);
-    
+
     // 集成 Lua 技能系统
     if (this.luaSkillBridge) {
       weaponSystem.setLuaSkillBridge(this.luaSkillBridge);
@@ -429,7 +438,7 @@ export class Game {
 
     const skillSystem = new SkillSystem(this.engine, player);
     this.skillSystem = skillSystem;
-    
+
     const skillSys = this.systems.get('skill');
     if (skillSys) {
       skillSys.instance = skillSystem;
@@ -444,7 +453,7 @@ export class Game {
 
     const powerupSpawner = new PowerupSpawner(this.engine);
     this.powerupSpawner = powerupSpawner;
-    
+
     const powerupSys = this.systems.get('powerup');
     if (powerupSys) {
       powerupSys.instance = powerupSpawner;
@@ -530,7 +539,7 @@ export class Game {
     this.frameCount++;
     const now = Date.now();
     if (now - this.lastFpsUpdate >= 1000) {
-      this.fps = Math.round(this.frameCount * 1000 / (now - this.lastFpsUpdate));
+      this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsUpdate));
       this.frameCount = 0;
       this.lastFpsUpdate = now;
     }
@@ -586,16 +595,20 @@ export class Game {
       entities: this.engine ? this.countEntities(this.engine.getScene()) : 0,
       drawCalls: this.engine?.getApp()?.stats?.drawCalls?.count || 0,
       triangles: this.engine?.getApp()?.stats?.triangles?.count || 0,
-      memoryUsage: (window.performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory?.usedJSHeapSize / 1024 / 1024 || 0,
+      memoryUsage:
+        (window.performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory
+          ?.usedJSHeapSize /
+          1024 /
+          1024 || 0,
       players: this.multiplayerSystem ? this.multiplayerSystem.getPlayers().length : 1,
       enemies: this.enemySystem ? this.enemySystem.getEnemies().length : 0,
-      projectiles: this.weaponSystem ? this.weaponSystem.getProjectileCount() : 0
+      projectiles: this.weaponSystem ? this.weaponSystem.getProjectileCount() : 0,
     };
   }
 
   private countEntities(entity: pc.Entity): number {
     let count = 1;
-    entity.children.forEach(child => {
+    entity.children.forEach((child) => {
       count += this.countEntities(child);
     });
     return count;
@@ -605,7 +618,7 @@ export class Game {
     return Array.from(this.systems.entries()).map(([name, sys]) => ({
       name,
       enabled: sys.enabled,
-      initialized: sys.initialized
+      initialized: sys.initialized,
     }));
   }
 

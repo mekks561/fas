@@ -90,7 +90,7 @@ export const DialogueSystem: React.FC<DialogueSystemProps> = ({ dialogue, onComp
     }
 
     if (lineIndex < dialogue.lines.length - 1) {
-      setLineIndex(prev => prev + 1);
+      setLineIndex((prev) => prev + 1);
     } else {
       onComplete();
     }
@@ -121,10 +121,7 @@ export const DialogueSystem: React.FC<DialogueSystemProps> = ({ dialogue, onComp
       <div className="dialogue-container">
         {/* 角色头像区域 */}
         <div className="dialogue-portrait-area">
-          <div
-            className="dialogue-portrait"
-            style={{ borderColor: speakerColor }}
-          >
+          <div className="dialogue-portrait" style={{ borderColor: speakerColor }}>
             <div className="dialogue-portrait-icon" style={{ color: speakerColor }}>
               {currentLine.speaker.charAt(0).toUpperCase()}
             </div>

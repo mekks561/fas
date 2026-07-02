@@ -123,13 +123,13 @@ const safeLocalStorage = {
     } catch {
       console.warn('Storage remove failed');
     }
-  }
+  },
 };
 
 const storage = createJSONStorage(() => ({
   getItem: safeLocalStorage.getItem,
   setItem: safeLocalStorage.setItem,
-  removeItem: safeLocalStorage.removeItem
+  removeItem: safeLocalStorage.removeItem,
 }));
 
 const defaultPlayerState: PlayerState = {
@@ -140,7 +140,7 @@ const defaultPlayerState: PlayerState = {
   score: 0,
   level: 1,
   speed: 0,
-  isBoostActive: false
+  isBoostActive: false,
 };
 
 const defaultSkillsState: SkillsState = {
@@ -148,14 +148,14 @@ const defaultSkillsState: SkillsState = {
     skill1: 0,
     skill2: 0,
     skill3: 0,
-    skill4: 0
+    skill4: 0,
   },
   maxCooldowns: {
     skill1: 8,
     skill2: 10,
     skill3: 15,
-    skill4: 20
-  }
+    skill4: 20,
+  },
 };
 
 const defaultState: GameState = {
@@ -179,105 +179,120 @@ const defaultState: GameState = {
   playTime: 0,
   powerupsCollected: 0,
   skillsUsed: 0,
-  enemiesDefeated: 0
+  enemiesDefeated: 0,
 };
 
 export const useGameStore = create<GameState & GameActions>()(
   persist(
     (set, get) => ({
       ...defaultState,
-      
+
       setLoading: (loading) => set({ isLoading: loading }),
       setLoadingProgress: (progress) => set({ loadingProgress: progress }),
       setError: (error) => set({ error }),
       setGamePaused: (paused) => set({ isGamePaused: paused }),
       setSceneReady: (ready) => set({ isSceneReady: ready }),
       toggleAchievements: () => set((state) => ({ showAchievements: !state.showAchievements })),
-      
-      updatePlayerHealth: (health) => set((state) => ({
-        player: { ...state.player, health: Math.max(0, Math.min(state.player.maxHealth, health)) }
-      })),
-      
-      updatePlayerShield: (shield) => set((state) => ({
-        player: { ...state.player, shield: Math.max(0, Math.min(state.player.maxShield, shield)) }
-      })),
-      
-      addScore: (score) => set((state) => ({
-        player: { ...state.player, score: state.player.score + score }
-      })),
-      
-      setPlayerLevel: (level) => set((state) => ({
-        player: { ...state.player, level }
-      })),
-      
-      setSpeed: (speed) => set((state) => ({
-        player: { ...state.player, speed }
-      })),
-      
-      setBoostActive: (active) => set((state) => ({
-        player: { ...state.player, isBoostActive: active }
-      })),
-      
+
+      updatePlayerHealth: (health) =>
+        set((state) => ({
+          player: {
+            ...state.player,
+            health: Math.max(0, Math.min(state.player.maxHealth, health)),
+          },
+        })),
+
+      updatePlayerShield: (shield) =>
+        set((state) => ({
+          player: {
+            ...state.player,
+            shield: Math.max(0, Math.min(state.player.maxShield, shield)),
+          },
+        })),
+
+      addScore: (score) =>
+        set((state) => ({
+          player: { ...state.player, score: state.player.score + score },
+        })),
+
+      setPlayerLevel: (level) =>
+        set((state) => ({
+          player: { ...state.player, level },
+        })),
+
+      setSpeed: (speed) =>
+        set((state) => ({
+          player: { ...state.player, speed },
+        })),
+
+      setBoostActive: (active) =>
+        set((state) => ({
+          player: { ...state.player, isBoostActive: active },
+        })),
+
       setWave: (wave) => set({ currentWave: wave }),
       setTotalWaves: (waves) => set({ totalWaves: waves }),
       setWaveProgress: (progress) => set({ waveProgress: progress }),
       setEnemyCount: (count) => set({ enemyCount: count }),
       setProjectileCount: (count) => set({ projectileCount: count }),
       setFps: (fps) => set({ fps }),
-      
-      setSkillCooldown: (skillId, cooldown) => set((state) => ({
-        skills: {
-          ...state.skills,
-          cooldowns: {
-            ...state.skills.cooldowns,
-            [skillId]: Math.max(0, cooldown)
-          }
-        }
-      })),
-      
-      updateSkillCooldowns: (dt) => set((state) => ({
-        skills: {
-          ...state.skills,
-          cooldowns: {
-            skill1: Math.max(0, state.skills.cooldowns.skill1 - dt),
-            skill2: Math.max(0, state.skills.cooldowns.skill2 - dt),
-            skill3: Math.max(0, state.skills.cooldowns.skill3 - dt),
-            skill4: Math.max(0, state.skills.cooldowns.skill4 - dt)
-          }
-        }
-      })),
-      
+
+      setSkillCooldown: (skillId, cooldown) =>
+        set((state) => ({
+          skills: {
+            ...state.skills,
+            cooldowns: {
+              ...state.skills.cooldowns,
+              [skillId]: Math.max(0, cooldown),
+            },
+          },
+        })),
+
+      updateSkillCooldowns: (dt) =>
+        set((state) => ({
+          skills: {
+            ...state.skills,
+            cooldowns: {
+              skill1: Math.max(0, state.skills.cooldowns.skill1 - dt),
+              skill2: Math.max(0, state.skills.cooldowns.skill2 - dt),
+              skill3: Math.max(0, state.skills.cooldowns.skill3 - dt),
+              skill4: Math.max(0, state.skills.cooldowns.skill4 - dt),
+            },
+          },
+        })),
+
       setTouchHandlers: (handlers) => set({ touchHandlers: handlers }),
-      
+
       addKill: () => set((state) => ({ killCount: state.killCount + 1 })),
       addPowerup: () => set((state) => ({ powerupsCollected: state.powerupsCollected + 1 })),
       addSkill: () => set((state) => ({ skillsUsed: state.skillsUsed + 1 })),
-      
+
       getPlayerScore: () => get().player.score,
       getKillCount: () => get().killCount,
       getPlayTime: () => get().playTime,
       getPowerupsCollected: () => get().powerupsCollected,
       getSkillsUsed: () => get().skillsUsed,
-      
+
       setVictory: (victory) => set({ isVictory: victory }),
-      
-      resetGame: () => set({
-        ...defaultState,
-        player: { ...defaultPlayerState, score: get().player.score, level: get().player.level }
-      }),
-      
+
+      resetGame: () =>
+        set({
+          ...defaultState,
+          player: { ...defaultPlayerState, score: get().player.score, level: get().player.level },
+        }),
+
       saveGame: () => {
         const state = get();
         const saveData = {
           player: {
             score: state.player.score,
-            level: state.player.level
+            level: state.player.level,
           },
-          lastSaved: new Date().toISOString()
+          lastSaved: new Date().toISOString(),
         };
         safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
       },
-      
+
       loadGame: () => {
         const saved = safeLocalStorage.getItem(STORAGE_KEY);
         if (saved) {
@@ -288,8 +303,8 @@ export const useGameStore = create<GameState & GameActions>()(
                 player: {
                   ...get().player,
                   score: data.player.score ?? get().player.score,
-                  level: data.player.level ?? get().player.level
-                }
+                  level: data.player.level ?? get().player.level,
+                },
               });
             }
           } catch {
@@ -297,13 +312,13 @@ export const useGameStore = create<GameState & GameActions>()(
           }
         }
       },
-      
+
       clearSave: () => {
         safeLocalStorage.removeItem(STORAGE_KEY);
         set({
-          player: { ...get().player, score: 0, level: 1 }
+          player: { ...get().player, score: 0, level: 1 },
         });
-      }
+      },
     }),
     {
       name: STORAGE_KEY,
@@ -311,15 +326,15 @@ export const useGameStore = create<GameState & GameActions>()(
       partialize: (state) => ({
         player: {
           score: state.player.score,
-          level: state.player.level
-        }
+          level: state.player.level,
+        },
       }),
       version: 1,
       onRehydrateStorage: () => (state) => {
         if (state) {
           console.log('Game state rehydrated:', state.player);
         }
-      }
-    }
-  )
+      },
+    },
+  ),
 );

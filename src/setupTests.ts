@@ -5,7 +5,7 @@ vi.mock('wasmoon', () => {
   const activeCombo: { currentSequence: string[]; startTime: number; lastSkillTime: number } = {
     currentSequence: [],
     startTime: 0,
-    lastSkillTime: 0
+    lastSkillTime: 0,
   };
 
   const luaGlobals: Record<string, unknown> = {
@@ -15,26 +15,33 @@ vi.mock('wasmoon', () => {
         COOLDOWN: 'cooldown',
         ACTIVE: 'active',
         DISABLED: 'disabled',
-        LOCKED: 'locked'
+        LOCKED: 'locked',
       },
       LearnedSkills: learnedSkills,
       ActiveCombo: activeCombo,
 
       createSkill: (skillId: string) => {
         if (typeof skillId !== 'string') return null;
-        return { id: skillId, state: 'locked', currentCooldown: 0, level: 1, maxLevel: 10, cooldown: 0 };
+        return {
+          id: skillId,
+          state: 'locked',
+          currentCooldown: 0,
+          level: 1,
+          maxLevel: 10,
+          cooldown: 0,
+        };
       },
 
       learnSkill: (skillId: string, playerLevel: number, _learnedSkillIds: string[]) => {
         if (!skillId || typeof skillId !== 'string') return false;
         if (playerLevel < 0) return false;
-        learnedSkills[skillId] = { 
-          id: skillId, 
-          state: 'ready', 
-          currentCooldown: 0, 
-          level: 1, 
+        learnedSkills[skillId] = {
+          id: skillId,
+          state: 'ready',
+          currentCooldown: 0,
+          level: 1,
           maxLevel: 10,
-          cooldown: 0.5
+          cooldown: 0.5,
         };
         return true;
       },
@@ -55,7 +62,12 @@ vi.mock('wasmoon', () => {
         return [true, 'ready'];
       },
 
-      castSkill: (skillId: string, _caster: unknown, _target: unknown, _resources: Record<string, number>) => {
+      castSkill: (
+        skillId: string,
+        _caster: unknown,
+        _target: unknown,
+        _resources: Record<string, number>,
+      ) => {
         const skill = learnedSkills[skillId];
         if (!skill || skill.state !== 'ready') {
           return { success: false, error: 'skill_not_ready' };
@@ -68,7 +80,7 @@ vi.mock('wasmoon', () => {
           skillName: skillId,
           effects: [],
           remainingCooldown: skill.cooldown || 0,
-          costPaid: 0
+          costPaid: 0,
         };
       },
 
@@ -119,8 +131,8 @@ vi.mock('wasmoon', () => {
 
       checkComboBonus: () => {
         return null;
-      }
-    }
+      },
+    },
   };
 
   const mockLuaState = {
@@ -135,17 +147,17 @@ vi.mock('wasmoon', () => {
         }
         return result || (() => {});
       }),
-      set: vi.fn()
+      set: vi.fn(),
     },
     onError: vi.fn(),
-    close: vi.fn()
+    close: vi.fn(),
   };
-  
+
   return {
     LuaState: vi.fn().mockImplementation(() => mockLuaState),
     factory: {
-      create: vi.fn().mockResolvedValue(mockLuaState)
-    }
+      create: vi.fn().mockResolvedValue(mockLuaState),
+    },
   };
 });
 
@@ -154,13 +166,13 @@ vi.mock('playcanvas', () => {
     x: number;
     y: number;
     z: number;
-    
+
     constructor(x = 0, y = 0, z = 0) {
       this.x = x;
       this.y = y;
       this.z = z;
     }
-    
+
     clone = vi.fn().mockReturnThis();
     copy = vi.fn().mockReturnThis();
     add = vi.fn().mockReturnThis();
@@ -179,14 +191,14 @@ vi.mock('playcanvas', () => {
     g: number;
     b: number;
     a: number;
-    
+
     constructor(r = 0, g = 0, b = 0, a = 1) {
       this.r = r;
       this.g = g;
       this.b = b;
       this.a = a;
     }
-    
+
     clone = vi.fn().mockReturnThis();
     copy = vi.fn().mockReturnThis();
   }
@@ -225,7 +237,7 @@ vi.mock('playcanvas', () => {
     Application: vi.fn(),
     Scene: vi.fn(),
     ScriptType: vi.fn(),
-    createScript: vi.fn()
+    createScript: vi.fn(),
   };
 });
 
@@ -245,7 +257,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation((contextType
       uniform1i: vi.fn(),
       uniform1f: vi.fn(),
       uniform3f: vi.fn(),
-      uniformMatrix4fv: vi.fn()
+      uniformMatrix4fv: vi.fn(),
     };
   }
   return null;
@@ -263,14 +275,14 @@ const localStorageMock = (() => {
     }),
     clear: vi.fn(() => {
       store = {};
-    })
+    }),
   };
 })();
 
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
   writable: true,
-  configurable: true
+  configurable: true,
 });
 
 window.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
@@ -291,8 +303,8 @@ Object.defineProperty(window, 'matchMedia', {
     removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn()
-  }))
+    dispatchEvent: vi.fn(),
+  })),
 });
 
 const originalConsoleError = console.error;
@@ -310,13 +322,13 @@ class MockAudioContext {
   createGain = vi.fn().mockReturnValue({
     gain: { value: 1 },
     connect: vi.fn(),
-    disconnect: vi.fn()
+    disconnect: vi.fn(),
   });
   createBufferSource = vi.fn().mockReturnValue({
     buffer: null,
     connect: vi.fn(),
     start: vi.fn(),
-    stop: vi.fn()
+    stop: vi.fn(),
   });
   destination = {};
   currentTime = 0;
@@ -326,7 +338,8 @@ class MockAudioContext {
 }
 
 (window as unknown as { AudioContext: typeof MockAudioContext }).AudioContext = MockAudioContext;
-(window as unknown as { webkitAudioContext: typeof MockAudioContext }).webkitAudioContext = MockAudioContext;
+(window as unknown as { webkitAudioContext: typeof MockAudioContext }).webkitAudioContext =
+  MockAudioContext;
 
 global.fetch = vi.fn().mockResolvedValue({
   ok: true,
@@ -335,9 +348,9 @@ global.fetch = vi.fn().mockResolvedValue({
     get: (name: string) => {
       if (name.toLowerCase() === 'content-length') return '1024';
       return null;
-    }
+    },
   },
   arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(1024)),
   json: vi.fn().mockResolvedValue({ success: true }),
-  text: vi.fn().mockResolvedValue('mock response')
+  text: vi.fn().mockResolvedValue('mock response'),
 });

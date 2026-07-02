@@ -32,15 +32,15 @@ const defaultSettings: GameSettings = {
   showFPS: true,
   showDamageNumbers: true,
   screenShake: true,
-  particleEffects: true
+  particleEffects: true,
 };
 
 export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const { t, i18n } = useTranslation();
-  const [language, setLanguage] = useState<'zh' | 'en'>(() => 
-    (localStorage.getItem('language') as 'zh' | 'en') || 'zh'
+  const [language, setLanguage] = useState<'zh' | 'en'>(
+    () => (localStorage.getItem('language') as 'zh' | 'en') || 'zh',
   );
-  
+
   const [settings, setSettings] = useState<GameSettings>(() => {
     const saved = localStorage.getItem('gameSettings');
     if (saved) {
@@ -57,168 +57,191 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     localStorage.setItem('gameSettings', JSON.stringify(settings));
   }, [settings]);
 
-  const updateSetting = useCallback(<K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-    saveSettings();
-  }, [saveSettings]);
+  const updateSetting = useCallback(
+    <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
+      setSettings((prev) => ({ ...prev, [key]: value }));
+      saveSettings();
+    },
+    [saveSettings],
+  );
 
-  const changeLanguage = useCallback((lang: 'zh' | 'en') => {
-    setLanguage(lang);
-    i18n.changeLanguage(lang);
-    localStorage.setItem('language', lang);
-  }, [i18n]);
+  const changeLanguage = useCallback(
+    (lang: 'zh' | 'en') => {
+      setLanguage(lang);
+      i18n.changeLanguage(lang);
+      localStorage.setItem('language', lang);
+    },
+    [i18n],
+  );
 
-  const renderAudioSettings = useMemo(() => (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-slate-300 font-medium">{t('settings.masterVolume')}</span>
-          <span className="text-slate-500 text-sm">{settings.volume}%</span>
+  const renderAudioSettings = useMemo(
+    () => (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-300 font-medium">{t('settings.masterVolume')}</span>
+            <span className="text-slate-500 text-sm">{settings.volume}%</span>
+          </div>
+          <Progress value={settings.volume} className="h-2" />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={settings.volume}
+            onChange={(e) => updateSetting('volume', parseInt(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
         </div>
-        <Progress value={settings.volume} className="h-2" />
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={settings.volume}
-          onChange={(e) => updateSetting('volume', parseInt(e.target.value))}
-          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-        />
-      </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-slate-300 font-medium">{t('settings.musicVolume')}</span>
-          <span className="text-slate-500 text-sm">{settings.musicVolume}%</span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-300 font-medium">{t('settings.musicVolume')}</span>
+            <span className="text-slate-500 text-sm">{settings.musicVolume}%</span>
+          </div>
+          <Progress value={settings.musicVolume} className="h-2 bg-blue-500" />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={settings.musicVolume}
+            onChange={(e) => updateSetting('musicVolume', parseInt(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
         </div>
-        <Progress value={settings.musicVolume} className="h-2 bg-blue-500" />
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={settings.musicVolume}
-          onChange={(e) => updateSetting('musicVolume', parseInt(e.target.value))}
-          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-        />
-      </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-slate-300 font-medium">{t('settings.sfxVolume')}</span>
-          <span className="text-slate-500 text-sm">{settings.sfxVolume}%</span>
-        </div>
-        <Progress value={settings.sfxVolume} className="h-2 bg-yellow-500" />
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={settings.sfxVolume}
-          onChange={(e) => updateSetting('sfxVolume', parseInt(e.target.value))}
-          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
-        />
-      </div>
-    </div>
-  ), [settings, updateSetting, t]);
-
-  const renderGameSettings = useMemo(() => (
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <span className="text-slate-300 font-medium">{t('settings.difficulty')}</span>
-        <div className="flex gap-2">
-          {(['easy', 'normal', 'hard'] as const).map(diff => (
-            <button
-              key={diff}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
-                settings.difficulty === diff
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
-              onClick={() => updateSetting('difficulty', diff)}
-            >
-              {diff === 'easy' ? t('settings.easy') : diff === 'normal' ? t('settings.normal') : t('settings.hard')}
-            </button>
-          ))}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-300 font-medium">{t('settings.sfxVolume')}</span>
+            <span className="text-slate-500 text-sm">{settings.sfxVolume}%</span>
+          </div>
+          <Progress value={settings.sfxVolume} className="h-2 bg-yellow-500" />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={settings.sfxVolume}
+            onChange={(e) => updateSetting('sfxVolume', parseInt(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+          />
         </div>
       </div>
+    ),
+    [settings, updateSetting, t],
+  );
 
-      <div className="flex items-center justify-between py-3 border-b border-slate-800">
-        <span className="text-slate-300 font-medium">{t('settings.showFPS')}</span>
-        <Switch
-          checked={settings.showFPS}
-          onCheckedChange={(checked) => updateSetting('showFPS', checked)}
-        />
-      </div>
-
-      <div className="flex items-center justify-between py-3 border-b border-slate-800">
-        <span className="text-slate-300 font-medium">{t('settings.showDamageNumbers')}</span>
-        <Switch
-          checked={settings.showDamageNumbers}
-          onCheckedChange={(checked) => updateSetting('showDamageNumbers', checked)}
-        />
-      </div>
-
-      <div className="flex items-center justify-between py-3 border-b border-slate-800">
-        <span className="text-slate-300 font-medium">{t('settings.screenShake')}</span>
-        <Switch
-          checked={settings.screenShake}
-          onCheckedChange={(checked) => updateSetting('screenShake', checked)}
-        />
-      </div>
-
-      <div className="space-y-3 pt-3">
-        <div className="flex items-center gap-2">
-          <Languages className="w-4 h-4 text-slate-400" />
-          <span className="text-slate-300 font-medium">{t('settings.language')}</span>
+  const renderGameSettings = useMemo(
+    () => (
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <span className="text-slate-300 font-medium">{t('settings.difficulty')}</span>
+          <div className="flex gap-2">
+            {(['easy', 'normal', 'hard'] as const).map((diff) => (
+              <button
+                key={diff}
+                className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                  settings.difficulty === diff
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+                onClick={() => updateSetting('difficulty', diff)}
+              >
+                {diff === 'easy'
+                  ? t('settings.easy')
+                  : diff === 'normal'
+                    ? t('settings.normal')
+                    : t('settings.hard')}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          {(['zh', 'en'] as const).map(lang => (
-            <button
-              key={lang}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
-                language === lang
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
-              onClick={() => changeLanguage(lang)}
-            >
-              {lang === 'zh' ? t('settings.languageZh') : t('settings.languageEn')}
-            </button>
-          ))}
+
+        <div className="flex items-center justify-between py-3 border-b border-slate-800">
+          <span className="text-slate-300 font-medium">{t('settings.showFPS')}</span>
+          <Switch
+            checked={settings.showFPS}
+            onCheckedChange={(checked) => updateSetting('showFPS', checked)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between py-3 border-b border-slate-800">
+          <span className="text-slate-300 font-medium">{t('settings.showDamageNumbers')}</span>
+          <Switch
+            checked={settings.showDamageNumbers}
+            onCheckedChange={(checked) => updateSetting('showDamageNumbers', checked)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between py-3 border-b border-slate-800">
+          <span className="text-slate-300 font-medium">{t('settings.screenShake')}</span>
+          <Switch
+            checked={settings.screenShake}
+            onCheckedChange={(checked) => updateSetting('screenShake', checked)}
+          />
+        </div>
+
+        <div className="space-y-3 pt-3">
+          <div className="flex items-center gap-2">
+            <Languages className="w-4 h-4 text-slate-400" />
+            <span className="text-slate-300 font-medium">{t('settings.language')}</span>
+          </div>
+          <div className="flex gap-2">
+            {(['zh', 'en'] as const).map((lang) => (
+              <button
+                key={lang}
+                className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                  language === lang
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+                onClick={() => changeLanguage(lang)}
+              >
+                {lang === 'zh' ? t('settings.languageZh') : t('settings.languageEn')}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  ), [settings, updateSetting, t, language, changeLanguage]);
+    ),
+    [settings, updateSetting, t, language, changeLanguage],
+  );
 
-  const renderVisualSettings = useMemo(() => (
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <span className="text-slate-300 font-medium">{t('settings.quality')}</span>
-        <div className="flex gap-2">
-          {(['low', 'medium', 'high'] as const).map(quality => (
-            <button
-              key={quality}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
-                settings.quality === quality
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-              }`}
-              onClick={() => updateSetting('quality', quality)}
-            >
-              {quality === 'low' ? t('settings.low') : quality === 'medium' ? t('settings.medium') : t('settings.high')}
-            </button>
-          ))}
+  const renderVisualSettings = useMemo(
+    () => (
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <span className="text-slate-300 font-medium">{t('settings.quality')}</span>
+          <div className="flex gap-2">
+            {(['low', 'medium', 'high'] as const).map((quality) => (
+              <button
+                key={quality}
+                className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                  settings.quality === quality
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+                onClick={() => updateSetting('quality', quality)}
+              >
+                {quality === 'low'
+                  ? t('settings.low')
+                  : quality === 'medium'
+                    ? t('settings.medium')
+                    : t('settings.high')}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between py-3">
+          <span className="text-slate-300 font-medium">{t('settings.particleEffects')}</span>
+          <Switch
+            checked={settings.particleEffects}
+            onCheckedChange={(checked) => updateSetting('particleEffects', checked)}
+          />
         </div>
       </div>
-
-      <div className="flex items-center justify-between py-3">
-        <span className="text-slate-300 font-medium">{t('settings.particleEffects')}</span>
-        <Switch
-          checked={settings.particleEffects}
-          onCheckedChange={(checked) => updateSetting('particleEffects', checked)}
-        />
-      </div>
-    </div>
-  ), [settings, updateSetting, t]);
+    ),
+    [settings, updateSetting, t],
+  );
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
@@ -266,10 +289,12 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           <Button variant="outline" onClick={onClose}>
             {t('common.close')}
           </Button>
-          <Button onClick={() => {
-            saveSettings();
-            onClose();
-          }}>
+          <Button
+            onClick={() => {
+              saveSettings();
+              onClose();
+            }}
+          >
             {t('settings.saveSettings')}
           </Button>
         </CardFooter>

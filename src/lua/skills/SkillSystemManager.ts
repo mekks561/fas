@@ -69,7 +69,18 @@ export interface EffectResult {
 }
 
 export type SkillType = 'active' | 'passive' | 'toggle' | 'ultimate';
-export type EffectType = 'damage' | 'dot' | 'heal' | 'hot' | 'buff' | 'debuff' | 'shield' | 'stun' | 'knockback' | 'summon' | 'area';
+export type EffectType =
+  | 'damage'
+  | 'dot'
+  | 'heal'
+  | 'hot'
+  | 'buff'
+  | 'debuff'
+  | 'shield'
+  | 'stun'
+  | 'knockback'
+  | 'summon'
+  | 'area';
 export type ResourceType = 'mana' | 'energy' | 'health' | 'cooldown' | 'charge';
 export type SkillState = 'ready' | 'cooldown' | 'active' | 'disabled' | 'locked';
 
@@ -108,7 +119,7 @@ export class SkillSystemManager {
     const skillScript = await this.loadSkillScript();
     luaEngine.registerModule({
       name: 'skill_system',
-      script: skillScript
+      script: skillScript,
     });
 
     this.initialized = true;
@@ -245,7 +256,12 @@ end
     }
 
     try {
-      return luaEngine.call<boolean>('SkillSystem.learnSkill', skillId, playerLevel, learnedSkillIds);
+      return luaEngine.call<boolean>(
+        'SkillSystem.learnSkill',
+        skillId,
+        playerLevel,
+        learnedSkillIds,
+      );
     } catch (error) {
       console.error('[SkillSystemManager] Failed to learn skill:', error);
       return false;
@@ -270,11 +286,18 @@ end
   /**
    * 检查技能是否可用
    */
-  canCastSkill(skillId: string, resources: Record<string, number>): { canCast: boolean; reason: string } {
+  canCastSkill(
+    skillId: string,
+    resources: Record<string, number>,
+  ): { canCast: boolean; reason: string } {
     if (!this.initialized) return { canCast: false, reason: 'not_initialized' };
 
     try {
-      const result = luaEngine.call<[boolean, string]>('SkillSystem.canCastSkill', skillId, resources);
+      const result = luaEngine.call<[boolean, string]>(
+        'SkillSystem.canCastSkill',
+        skillId,
+        resources,
+      );
       return { canCast: result[0], reason: result[1] };
     } catch (error) {
       console.error('[SkillSystemManager] Failed to check skill:', error);
@@ -289,14 +312,20 @@ end
     skillId: string,
     caster: { x: number; y: number; stats: Record<string, number> },
     target: { x: number; y: number } | null,
-    resources: Record<string, number>
+    resources: Record<string, number>,
   ): CastResult {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<CastResult>('SkillSystem.castSkill', skillId, caster, target, resources);
+      return luaEngine.call<CastResult>(
+        'SkillSystem.castSkill',
+        skillId,
+        caster,
+        target,
+        resources,
+      );
     } catch (error) {
       console.error('[SkillSystemManager] Failed to cast skill:', error);
       return { success: false, error: 'cast_error' };
@@ -393,7 +422,9 @@ end
     if (!this.initialized) return null;
 
     try {
-      return luaEngine.call<{ type: string; multiplier: number } | null>('SkillSystem.checkComboBonus');
+      return luaEngine.call<{ type: string; multiplier: number } | null>(
+        'SkillSystem.checkComboBonus',
+      );
     } catch {
       return null;
     }
@@ -407,7 +438,7 @@ end
     const newScript = await this.loadSkillScript();
     luaEngine.registerModule({
       name: 'skill_system',
-      script: newScript
+      script: newScript,
     });
     console.log('[SkillSystemManager] Skill script reloaded');
   }

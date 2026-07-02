@@ -17,11 +17,16 @@ export class ObjectPool<T extends Poolable> {
   private maxSize: number;
   private name: string;
 
-  constructor(factory: () => T, initialSize: number = 10, maxSize: number = 100, name: string = 'ObjectPool') {
+  constructor(
+    factory: () => T,
+    initialSize: number = 10,
+    maxSize: number = 100,
+    name: string = 'ObjectPool',
+  ) {
     this.factory = factory;
     this.maxSize = maxSize;
     this.name = name;
-    
+
     for (let i = 0; i < initialSize; i++) {
       this.available.push(this.factory());
     }
@@ -29,7 +34,7 @@ export class ObjectPool<T extends Poolable> {
 
   public acquire(): T | null {
     let obj: T;
-    
+
     if (this.available.length > 0) {
       obj = this.available.pop() as T;
     } else if (this.inUse.size < this.maxSize) {
@@ -38,7 +43,7 @@ export class ObjectPool<T extends Poolable> {
       console.warn(`[ObjectPool:${this.name}] Pool exhausted, max size ${this.maxSize} reached`);
       return null;
     }
-    
+
     this.inUse.add(obj);
     return obj;
   }
@@ -48,14 +53,14 @@ export class ObjectPool<T extends Poolable> {
       console.warn(`[ObjectPool:${this.name}] Attempting to release object not in use`);
       return;
     }
-    
+
     this.inUse.delete(obj);
     obj.reset();
     this.available.push(obj);
   }
 
   public releaseAll(): void {
-    this.inUse.forEach(obj => {
+    this.inUse.forEach((obj) => {
       obj.reset();
       this.available.push(obj);
     });
@@ -63,8 +68,8 @@ export class ObjectPool<T extends Poolable> {
   }
 
   public clear(): void {
-    this.available.forEach(obj => obj.destroy());
-    this.inUse.forEach(obj => obj.destroy());
+    this.available.forEach((obj) => obj.destroy());
+    this.inUse.forEach((obj) => obj.destroy());
     this.available = [];
     this.inUse.clear();
   }
@@ -94,7 +99,7 @@ export class ProjectilePoolItem implements Poolable {
     material: pc.StandardMaterial,
     initialPosition: pc.Vec3 = new pc.Vec3(0, 0, 0),
     initialVelocity: pc.Vec3 = new pc.Vec3(0, 0, 0),
-    scale: number = 0.15
+    scale: number = 0.15,
   ) {
     this.material = material;
     this.initialPosition = initialPosition.clone();
@@ -111,7 +116,7 @@ export class ProjectilePoolItem implements Poolable {
     this.entity.enabled = true;
     this.entity.setPosition(this.initialPosition);
     this.entity.setLocalScale(this.initialScale, this.initialScale, this.initialScale);
-    
+
     if (this.entity.rigidbody) {
       this.entity.rigidbody.linearVelocity = new pc.Vec3(0, 0, 0);
       this.entity.rigidbody.angularVelocity = new pc.Vec3(0, 0, 0);
@@ -135,7 +140,7 @@ export class ParticlePoolItem implements Poolable {
 
   constructor(scene: pc.Scene) {
     this.scene = scene;
-    
+
     this.entity = new pc.Entity('particle');
     this.entity.addComponent('particlesystem', {
       type: 'box',
@@ -145,11 +150,19 @@ export class ParticlePoolItem implements Poolable {
       speed: 15,
       spread: 360,
       colorGraph: {
-        graph: new pc.CurveSet([[1, 0.8, 0.2], [1, 0.5, 0], [0.5, 0.2, 0], [0, 0, 0]], 'color')
+        graph: new pc.CurveSet(
+          [
+            [1, 0.8, 0.2],
+            [1, 0.5, 0],
+            [0.5, 0.2, 0],
+            [0, 0, 0],
+          ],
+          'color',
+        ),
       },
       sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5], 'size')
-      }
+        graph: new pc.Curve([0.5, 1.5], 'size'),
+      },
     });
   }
 
@@ -184,12 +197,15 @@ export class ParticlePoolItem implements Poolable {
   public setColor(colors: [pc.Color, pc.Color, pc.Color, pc.Color]): void {
     if (this.particleSystem) {
       this.particleSystem.colorGraph = {
-        graph: new pc.CurveSet([
-          [colors[0].r, colors[0].g, colors[0].b],
-          [colors[1].r, colors[1].g, colors[1].b],
-          [colors[2].r, colors[2].g, colors[2].b],
-          [colors[3].r, colors[3].g, colors[3].b]
-        ], 'color')
+        graph: new pc.CurveSet(
+          [
+            [colors[0].r, colors[0].g, colors[0].b],
+            [colors[1].r, colors[1].g, colors[1].b],
+            [colors[2].r, colors[2].g, colors[2].b],
+            [colors[3].r, colors[3].g, colors[3].b],
+          ],
+          'color',
+        ),
       };
     }
   }
@@ -223,7 +239,12 @@ export class EnemyPoolItem implements Poolable {
     this.entity = this.createEnemyEntity();
   }
 
-  private getStatsForType(type: EnemyType): { health: number; speed: number; damage: number; attackCooldown: number } {
+  private getStatsForType(type: EnemyType): {
+    health: number;
+    speed: number;
+    damage: number;
+    attackCooldown: number;
+  } {
     switch (type) {
       case EnemyType.SCOUT:
         return { health: 20, speed: 8, damage: 10, attackCooldown: 2000 };
@@ -329,7 +350,7 @@ export class EnemyPoolItem implements Poolable {
 
     const now = Date.now();
     const distance = this.getDistanceToPlayer();
-    
+
     if (distance <= 3 && now - this.lastAttackTime >= this.attackCooldown) {
       this.player.takeDamage(this.damage);
       this.lastAttackTime = now;
@@ -376,16 +397,19 @@ export class ExplosionPoolItem implements Poolable {
       speed: 20,
       spread: 360,
       colorGraph: {
-        graph: new pc.CurveSet([
-          [1, 0.8, 0.2],
-          [1, 0.5, 0],
-          [0.5, 0.2, 0],
-          [0, 0, 0]
-        ], 'color')
+        graph: new pc.CurveSet(
+          [
+            [1, 0.8, 0.2],
+            [1, 0.5, 0],
+            [0.5, 0.2, 0],
+            [0, 0, 0],
+          ],
+          'color',
+        ),
       },
       sizeGraph: {
-        graph: new pc.Curve([0.5, 2], 'size')
-      }
+        graph: new pc.Curve([0.5, 2], 'size'),
+      },
     });
     this.particleSystem = this.entity.particlesystem;
     this.entity.enabled = false;
@@ -427,23 +451,30 @@ export class ObjectPoolManager {
     this.app = app;
   }
 
-  public createProjectilePool(material: pc.StandardMaterial, initialSize: number = 20, maxSize: number = 200): ObjectPool<ProjectilePoolItem> {
+  public createProjectilePool(
+    material: pc.StandardMaterial,
+    initialSize: number = 20,
+    maxSize: number = 200,
+  ): ObjectPool<ProjectilePoolItem> {
     const pool = new ObjectPool<ProjectilePoolItem>(
       () => new ProjectilePoolItem(this.app, material),
       initialSize,
       maxSize,
-      'ProjectilePool'
+      'ProjectilePool',
     );
     this.pools.set('projectile', pool);
     return pool;
   }
 
-  public createParticlePool(initialSize: number = 10, maxSize: number = 50): ObjectPool<ParticlePoolItem> {
+  public createParticlePool(
+    initialSize: number = 10,
+    maxSize: number = 50,
+  ): ObjectPool<ParticlePoolItem> {
     const pool = new ObjectPool<ParticlePoolItem>(
       () => new ParticlePoolItem(this.app.root),
       initialSize,
       maxSize,
-      'ParticlePool'
+      'ParticlePool',
     );
     this.pools.set('particle', pool);
     return pool;
@@ -454,24 +485,27 @@ export class ObjectPoolManager {
     player: PlayerShip,
     type: EnemyType,
     initialSize: number = 10,
-    maxSize: number = 50
+    maxSize: number = 50,
   ): ObjectPool<EnemyPoolItem> {
     const pool = new ObjectPool<EnemyPoolItem>(
       () => new EnemyPoolItem(engine, player, type),
       initialSize,
       maxSize,
-      `EnemyPool_${type}`
+      `EnemyPool_${type}`,
     );
     this.pools.set(`enemy_${type}`, pool);
     return pool;
   }
 
-  public createExplosionPool(initialSize: number = 10, maxSize: number = 50): ObjectPool<ExplosionPoolItem> {
+  public createExplosionPool(
+    initialSize: number = 10,
+    maxSize: number = 50,
+  ): ObjectPool<ExplosionPoolItem> {
     const pool = new ObjectPool<ExplosionPoolItem>(
       () => new ExplosionPoolItem(this.app),
       initialSize,
       maxSize,
-      'ExplosionPool'
+      'ExplosionPool',
     );
     this.pools.set('explosion', pool);
     return pool;
@@ -482,26 +516,26 @@ export class ObjectPoolManager {
   }
 
   public releaseAll(): void {
-    this.pools.forEach(pool => pool.releaseAll());
+    this.pools.forEach((pool) => pool.releaseAll());
   }
 
   public clearAll(): void {
-    this.pools.forEach(pool => pool.clear());
+    this.pools.forEach((pool) => pool.clear());
     this.pools.clear();
   }
 
   public getPoolStats(): { name: string; available: number; inUse: number; total: number }[] {
     const stats: { name: string; available: number; inUse: number; total: number }[] = [];
-    
+
     this.pools.forEach((pool, name) => {
       stats.push({
         name,
         available: pool.getAvailableCount(),
         inUse: pool.getInUseCount(),
-        total: pool.getTotalCount()
+        total: pool.getTotalCount(),
       });
     });
-    
+
     return stats;
   }
 }

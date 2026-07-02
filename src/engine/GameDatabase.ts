@@ -58,7 +58,7 @@ export class GameDatabase extends Dexie {
 
   constructor() {
     super('FighterGameDB');
-    
+
     this.version(1).stores({
       playerProgress: 'playerId, playerName, level, highestScore, highestWave, lastUpdated',
       gameSessions: 'id, playerId, timestamp, wave, isCompleted',
@@ -66,7 +66,7 @@ export class GameDatabase extends Dexie {
       resources: 'id, filename, type, timestamp',
       achievements: 'id, playerId, achievementId',
       skills: 'id, playerId, skillId',
-      weapons: 'id, playerId, weaponId'
+      weapons: 'id, playerId, weaponId',
     });
 
     this.on('populate', () => this.populateInitialData());
@@ -83,7 +83,7 @@ export class GameDatabase extends Dexie {
       showDamageNumbers: true,
       cameraShake: true,
       screenFlash: true,
-      touchControls: true
+      touchControls: true,
     };
 
     const defaultProgress: PlayerProgress = {
@@ -101,7 +101,7 @@ export class GameDatabase extends Dexie {
       levelStars: {},
       settings: defaultSettings,
       lastUpdated: Date.now(),
-      version: '1.0.0'
+      version: '1.0.0',
     };
 
     await this.playerProgress.add(defaultProgress);
@@ -120,7 +120,10 @@ export class GameDatabase extends Dexie {
     return this.playerProgress.toArray();
   }
 
-  public async updatePlayerSettings(playerId: string, settings: Partial<GameSettings>): Promise<void> {
+  public async updatePlayerSettings(
+    playerId: string,
+    settings: Partial<GameSettings>,
+  ): Promise<void> {
     const progress = await this.playerProgress.get(playerId);
     if (progress) {
       progress.settings = { ...progress.settings, ...settings };
@@ -132,9 +135,9 @@ export class GameDatabase extends Dexie {
   public async addAchievement(playerId: string, achievementId: string): Promise<boolean> {
     const progress = await this.playerProgress.get(playerId);
     if (!progress) return false;
-    
+
     if (progress.achievementsUnlocked.includes(achievementId)) return false;
-    
+
     progress.achievementsUnlocked.push(achievementId);
     progress.lastUpdated = Date.now();
     await this.playerProgress.put(progress);
@@ -145,7 +148,7 @@ export class GameDatabase extends Dexie {
       achievementId,
       unlockedAt: Date.now(),
       progress: 1,
-      total: 1
+      total: 1,
     };
     await this.achievements.put(record);
 
@@ -158,26 +161,23 @@ export class GameDatabase extends Dexie {
   }
 
   public async getRecentSessions(playerId: string, limit: number = 10): Promise<GameSession[]> {
-    return this.gameSessions
-      .where('playerId').equals(playerId)
-      .reverse()
-      .limit(limit)
-      .toArray();
+    return this.gameSessions.where('playerId').equals(playerId).reverse().limit(limit).toArray();
   }
 
   public async getBestSession(playerId: string): Promise<GameSession | undefined> {
     return this.gameSessions
-      .where('playerId').equals(playerId)
-      .and(session => session.isCompleted)
+      .where('playerId')
+      .equals(playerId)
+      .and((session) => session.isCompleted)
       .reverse()
       .sortBy('score')
-      .then(sessions => sessions[sessions.length - 1]);
+      .then((sessions) => sessions[sessions.length - 1]);
   }
 
   public async saveLeaderboardEntry(entry: Omit<LeaderboardEntry, 'id'>): Promise<void> {
     const fullEntry: LeaderboardEntry = {
       ...entry,
-      id: `${entry.playerId}_${entry.timestamp}`
+      id: `${entry.playerId}_${entry.timestamp}`,
     };
     await this.leaderboard.put(fullEntry);
   }
@@ -186,17 +186,17 @@ export class GameDatabase extends Dexie {
     const entries = await this.leaderboard
       .reverse()
       .sortBy('score')
-      .then(sorted => sorted.reverse());
-    
+      .then((sorted) => sorted.reverse());
+
     return entries.slice(0, limit).map((entry, index) => ({
       ...entry,
-      rank: index + 1
+      rank: index + 1,
     }));
   }
 
   public async getPlayerRank(playerId: string): Promise<number> {
     const leaderboard = await this.getLeaderboard(1000);
-    const entry = leaderboard.find(e => e.playerId === playerId);
+    const entry = leaderboard.find((e) => e.playerId === playerId);
     return entry?.rank || 0;
   }
 
@@ -205,7 +205,7 @@ export class GameDatabase extends Dexie {
     const fullResource: GameResource = {
       ...resource,
       id,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
     await this.resources.put(fullResource);
     return id;
@@ -230,18 +230,26 @@ export class GameDatabase extends Dexie {
     }
   }
 
-  public async saveSkillProgress(playerId: string, skillId: string, level: number, experience: number): Promise<void> {
+  public async saveSkillProgress(
+    playerId: string,
+    skillId: string,
+    level: number,
+    experience: number,
+  ): Promise<void> {
     const record: SkillProgress = {
       id: `${playerId}_${skillId}`,
       playerId,
       skillId,
       level,
-      experience
+      experience,
     };
     await this.skills.put(record);
   }
 
-  public async getSkillProgress(playerId: string, skillId: string): Promise<SkillProgress | undefined> {
+  public async getSkillProgress(
+    playerId: string,
+    skillId: string,
+  ): Promise<SkillProgress | undefined> {
     return this.skills.get(`${playerId}_${skillId}`);
   }
 
@@ -249,18 +257,26 @@ export class GameDatabase extends Dexie {
     return this.skills.where('playerId').equals(playerId).toArray();
   }
 
-  public async saveWeaponProgress(playerId: string, weaponId: string, level: number, experience: number): Promise<void> {
+  public async saveWeaponProgress(
+    playerId: string,
+    weaponId: string,
+    level: number,
+    experience: number,
+  ): Promise<void> {
     const record: WeaponProgress = {
       id: `${playerId}_${weaponId}`,
       playerId,
       weaponId,
       level,
-      experience
+      experience,
     };
     await this.weapons.put(record);
   }
 
-  public async getWeaponProgress(playerId: string, weaponId: string): Promise<WeaponProgress | undefined> {
+  public async getWeaponProgress(
+    playerId: string,
+    weaponId: string,
+  ): Promise<WeaponProgress | undefined> {
     return this.weapons.get(`${playerId}_${weaponId}`);
   }
 

@@ -9,19 +9,32 @@ import { useGameStore } from './store/useGameStore';
 import { GameState } from './game/GameStateMachine';
 import './App.css';
 
-const GameScene = lazy(() => import('./components/GameScene').then(m => ({ default: m.GameScene })));
-const LevelSelect = lazy(() => import('./components/LevelSelect').then(m => ({ default: m.LevelSelect })));
-const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
-const PauseMenu = lazy(() => import('./components/PauseMenu').then(m => ({ default: m.PauseMenu })));
-const GameOver = lazy(() => import('./components/GameOver').then(m => ({ default: m.GameOver })));
-const AchievementPanel = lazy(() => import('./components/AchievementPanel').then(m => ({ default: m.AchievementPanel })));
-const ShopPanel = lazy(() => import('./components/ShopPanel').then(m => ({ default: m.ShopPanel })));
+const GameScene = lazy(() =>
+  import('./components/GameScene').then((m) => ({ default: m.GameScene })),
+);
+const LevelSelect = lazy(() =>
+  import('./components/LevelSelect').then((m) => ({ default: m.LevelSelect })),
+);
+const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })));
+const PauseMenu = lazy(() =>
+  import('./components/PauseMenu').then((m) => ({ default: m.PauseMenu })),
+);
+const GameOver = lazy(() => import('./components/GameOver').then((m) => ({ default: m.GameOver })));
+const AchievementPanel = lazy(() =>
+  import('./components/AchievementPanel').then((m) => ({ default: m.AchievementPanel })),
+);
+const ShopPanel = lazy(() =>
+  import('./components/ShopPanel').then((m) => ({ default: m.ShopPanel })),
+);
 
 const PageLoader = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
     <div className="w-64 space-y-4">
       <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" style={{ width: '60%' }} />
+        <div
+          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"
+          style={{ width: '60%' }}
+        />
       </div>
       <p className="text-center text-slate-500 text-sm">Loading...</p>
     </div>
@@ -32,13 +45,13 @@ function App() {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [isPaused, setIsPaused] = useState(false);
-  
+
   const isSceneReady = useGameStore((state) => state.isSceneReady);
   const isVictory = useGameStore((state) => state.isVictory);
   const setSceneReady = useGameStore((state) => state.setSceneReady);
   const setVictory = useGameStore((state) => state.setVictory);
   const resetGame = useGameStore((state) => state.resetGame);
-  
+
   const playerScore = useGameStore((state) => state.player.score);
   const playerLevel = useGameStore((state) => state.player.level);
   const currentWave = useGameStore((state) => state.currentWave);
@@ -54,7 +67,7 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Escape' && gameState === GameState.PLAYING) {
-        setIsPaused(prev => !prev);
+        setIsPaused((prev) => !prev);
       }
     };
 
@@ -68,12 +81,15 @@ function App() {
   }, []);
 
   // 选择关卡后开始游戏
-  const handleSelectLevel = useCallback((levelId: number) => {
-    setSelectedLevel(levelId);
-    resetGame();
-    setSceneReady(true);
-    setGameState(GameState.PLAYING);
-  }, [resetGame, setSceneReady]);
+  const handleSelectLevel = useCallback(
+    (levelId: number) => {
+      setSelectedLevel(levelId);
+      resetGame();
+      setSceneReady(true);
+      setGameState(GameState.PLAYING);
+    },
+    [resetGame, setSceneReady],
+  );
 
   // 继续游戏
   const handleContinueGame = useCallback(() => {
@@ -145,24 +161,30 @@ function App() {
   }, [selectedLevel, resetGame, setSceneReady]);
 
   // 统计数据
-  const gameStats = useMemo(() => ({
-    score: playerScore,
-    highScore: parseInt(localStorage.getItem('highScore') || '0'),
-    wave: currentWave,
-    level: playerLevel,
-    enemiesDefeated: enemiesDefeated,
-    timeElapsed: 0, // TODO: 从游戏状态获取
-    accuracy: 0.85 // TODO: 从游戏状态获取
-  }), [playerScore, currentWave, playerLevel, enemiesDefeated]);
+  const gameStats = useMemo(
+    () => ({
+      score: playerScore,
+      highScore: parseInt(localStorage.getItem('highScore') || '0'),
+      wave: currentWave,
+      level: playerLevel,
+      enemiesDefeated: enemiesDefeated,
+      timeElapsed: 0, // TODO: 从游戏状态获取
+      accuracy: 0.85, // TODO: 从游戏状态获取
+    }),
+    [playerScore, currentWave, playerLevel, enemiesDefeated],
+  );
 
   // 暂停菜单统计
-  const pauseStats = useMemo(() => ({
-    score: playerScore,
-    wave: currentWave,
-    level: playerLevel,
-    enemiesDefeated: enemiesDefeated,
-    timeElapsed: 0
-  }), [playerScore, currentWave, playerLevel, enemiesDefeated]);
+  const pauseStats = useMemo(
+    () => ({
+      score: playerScore,
+      wave: currentWave,
+      level: playerLevel,
+      enemiesDefeated: enemiesDefeated,
+      timeElapsed: 0,
+    }),
+    [playerScore, currentWave, playerLevel, enemiesDefeated],
+  );
 
   return (
     <div className="app-container">
@@ -211,12 +233,12 @@ function App() {
       )}
 
       {/* 游戏场景 */}
-      {(gameState === GameState.PLAYING && isSceneReady) && (
+      {gameState === GameState.PLAYING && isSceneReady && (
         <>
           <Suspense fallback={<PageLoader />}>
             <GameScene onGameOver={handleGameOver} onLevelComplete={handleLevelComplete} />
           </Suspense>
-          
+
           {/* 暂停菜单 */}
           {isPaused && (
             <Suspense fallback={<PageLoader />}>

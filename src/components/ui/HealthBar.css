@@ -203,7 +203,8 @@
 
 /* 低血量动画 */
 @keyframes healthBarLowPulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
   }
   50% {
@@ -213,7 +214,8 @@
 
 /* 危急血量动画 */
 @keyframes healthBarCriticalPulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
     filter: brightness(1);
   }
@@ -225,7 +227,8 @@
 
 /* 普通脉冲动画 */
 @keyframes healthBarPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -235,10 +238,12 @@
 
 /* 闪烁动画 */
 @keyframes healthBarFlash {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
-  25%, 75% {
+  25%,
+  75% {
     opacity: 0.5;
   }
   50% {

@@ -73,7 +73,9 @@ export function configExample(): void {
   console.log('[Example] Difficulty configurations:');
   levels.forEach((level) => {
     const config = gameConfigManager.getDifficultyConfig(level);
-    console.log(`${level}: waveInterval=${config.waveInterval}s, scoreMult=${config.scoreMultiplier}`);
+    console.log(
+      `${level}: waveInterval=${config.waveInterval}s, scoreMult=${config.scoreMultiplier}`,
+    );
   });
 
   // 获取武器配置
@@ -88,8 +90,14 @@ export function configExample(): void {
   const baseDamage = 100;
   const playerBonus = 0.5; // 50% 额外伤害
   const difficultyMultiplier = 1.2;
-  const finalDamage = gameConfigManager.calculateDamage(baseDamage, playerBonus, difficultyMultiplier);
-  console.log(`[Example] Calculated damage: ${baseDamage} * (1+${playerBonus}) * ${difficultyMultiplier} = ${finalDamage}`);
+  const finalDamage = gameConfigManager.calculateDamage(
+    baseDamage,
+    playerBonus,
+    difficultyMultiplier,
+  );
+  console.log(
+    `[Example] Calculated damage: ${baseDamage} * (1+${playerBonus}) * ${difficultyMultiplier} = ${finalDamage}`,
+  );
 
   // 计算分数
   const score = gameConfigManager.calculateScore('elite', 'hard', 2.5);

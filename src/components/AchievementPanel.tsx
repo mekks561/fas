@@ -45,7 +45,9 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
         try {
           const resp = await fetch(`/assets/achievements/${id}.json`);
           if (resp.ok) loaded.push(await resp.json());
-        } catch (e) { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
       setAchievements(loaded);
       // 从localStorage读取已解锁成就
@@ -60,9 +62,9 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
 
   const filteredAchievements = useMemo(() => {
     if (filter === 'all') return achievements;
-    if (filter === 'unlocked') return achievements.filter(a => unlockedIds.has(a.id));
-    if (filter === 'locked') return achievements.filter(a => !unlockedIds.has(a.id));
-    return achievements.filter(a => a.category === filter);
+    if (filter === 'unlocked') return achievements.filter((a) => unlockedIds.has(a.id));
+    if (filter === 'locked') return achievements.filter((a) => !unlockedIds.has(a.id));
+    return achievements.filter((a) => a.category === filter);
   }, [achievements, filter, unlockedIds]);
 
   const stats = useMemo(() => {
@@ -70,10 +72,10 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
     const unlocked = unlockedIds.size;
     const pct = total > 0 ? (unlocked / total) * 100 : 0;
     const totalExp = achievements
-      .filter(a => unlockedIds.has(a.id))
+      .filter((a) => unlockedIds.has(a.id))
       .reduce((sum, a) => sum + a.rewards.experience, 0);
     const totalCredits = achievements
-      .filter(a => unlockedIds.has(a.id))
+      .filter((a) => unlockedIds.has(a.id))
       .reduce((sum, a) => sum + a.rewards.credits, 0);
     return { total, unlocked, pct, totalExp, totalCredits };
   }, [achievements, unlockedIds]);
@@ -89,10 +91,14 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
   return (
     <div className="achievement-panel">
       <div className="achievement-header">
-        <button className="achievement-back-btn" onClick={onBack}>← 返回</button>
+        <button className="achievement-back-btn" onClick={onBack}>
+          ← 返回
+        </button>
         <h1 className="achievement-title">成就</h1>
         <div className="achievement-stats-bar">
-          <span className="achievement-stat">{stats.unlocked}/{stats.total}</span>
+          <span className="achievement-stat">
+            {stats.unlocked}/{stats.total}
+          </span>
           <span className="achievement-stat">+{stats.totalExp} EXP</span>
           <span className="achievement-stat">+{stats.totalCredits} 信用</span>
         </div>
@@ -133,7 +139,7 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
       </div>
 
       <div className="achievement-grid">
-        {filteredAchievements.map(ach => {
+        {filteredAchievements.map((ach) => {
           const isUnlocked = unlockedIds.has(ach.id);
           const rarity = rarityConfig[ach.rarity] || rarityConfig.common;
           return (
@@ -166,17 +172,13 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
                   <span className="achievement-reward">+{ach.rewards.credits} 信用</span>
                 </div>
               </div>
-              <div className="achievement-card-status">
-                {isUnlocked ? '✓' : '🔒'}
-              </div>
+              <div className="achievement-card-status">{isUnlocked ? '✓' : '🔒'}</div>
             </div>
           );
         })}
       </div>
 
-      {filteredAchievements.length === 0 && (
-        <div className="achievement-empty">暂无成就</div>
-      )}
+      {filteredAchievements.length === 0 && <div className="achievement-empty">暂无成就</div>}
     </div>
   );
 };

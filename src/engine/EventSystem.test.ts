@@ -31,10 +31,12 @@ describe('EventSystem', () => {
       eventSystem.emit('player_damage', { damage: 10 });
 
       expect(callback).toHaveBeenCalledTimes(1);
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'player_damage',
-        data: { damage: 10 }
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'player_damage',
+          data: { damage: 10 },
+        }),
+      );
     });
 
     it('应该正确取消订阅', () => {
@@ -91,9 +93,11 @@ describe('EventSystem', () => {
       eventSystem.emit('player_damage', { damage: 20 });
 
       expect(callback).toHaveBeenCalledTimes(1);
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        data: { damage: 10 }
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { damage: 10 },
+        }),
+      );
     });
   });
 
@@ -104,10 +108,12 @@ describe('EventSystem', () => {
 
       eventSystem.emitPlayerDamage(50, 100, 100);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'player_damage',
-        data: { damage: 50, remainingHealth: 100, maxHealth: 100 }
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'player_damage',
+          data: { damage: 50, remainingHealth: 100, maxHealth: 100 },
+        }),
+      );
     });
 
     it('应该正确发射敌人死亡事件', () => {
@@ -117,13 +123,15 @@ describe('EventSystem', () => {
       const position = new pc.Vec3(0, 0, 0);
       eventSystem.emitEnemyDeath('basic', 100, position);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'enemy_death',
-        data: expect.objectContaining({
-          type: 'basic',
-          score: 100
-        })
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'enemy_death',
+          data: expect.objectContaining({
+            type: 'basic',
+            score: 100,
+          }),
+        }),
+      );
     });
 
     it('应该正确发射道具收集事件', () => {
@@ -133,12 +141,14 @@ describe('EventSystem', () => {
       const position = new pc.Vec3(5, 0, 5);
       eventSystem.emitPowerupCollect('health', position);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'powerup_collect',
-        data: expect.objectContaining({
-          type: 'health'
-        })
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'powerup_collect',
+          data: expect.objectContaining({
+            type: 'health',
+          }),
+        }),
+      );
     });
 
     it('应该正确发射技能激活事件', () => {
@@ -147,10 +157,12 @@ describe('EventSystem', () => {
 
       eventSystem.emitSkillActivate('missile_strike', 1);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'skill_activate',
-        data: { skillId: 'missile_strike', level: 1 }
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'skill_activate',
+          data: { skillId: 'missile_strike', level: 1 },
+        }),
+      );
     });
 
     it('应该正确发射波次开始事件', () => {
@@ -159,10 +171,12 @@ describe('EventSystem', () => {
 
       eventSystem.emitWaveStart(3, 10);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'wave_start',
-        data: { wave: 3, enemyCount: 10 }
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'wave_start',
+          data: { wave: 3, enemyCount: 10 },
+        }),
+      );
     });
 
     it('应该正确发射波次完成事件', () => {
@@ -171,10 +185,12 @@ describe('EventSystem', () => {
 
       eventSystem.emitWaveComplete(5, 0);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'wave_complete',
-        data: { wave: 5, enemyCount: 0 }
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'wave_complete',
+          data: { wave: 5, enemyCount: 0 },
+        }),
+      );
     });
 
     it('应该正确发射分数更新事件', () => {
@@ -183,10 +199,12 @@ describe('EventSystem', () => {
 
       eventSystem.emitScoreUpdate(1000, 100);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'score_update',
-        data: { score: 1000, delta: 100 }
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'score_update',
+          data: { score: 1000, delta: 100 },
+        }),
+      );
     });
 
     it('应该正确发射玩家射击事件', () => {
@@ -196,13 +214,15 @@ describe('EventSystem', () => {
       const position = new pc.Vec3(0, 0, 0);
       eventSystem.emitPlayerShoot('laser', 2, position);
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'player_shoot',
-        data: expect.objectContaining({
-          weaponType: 'laser',
-          weaponLevel: 2
-        })
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'player_shoot',
+          data: expect.objectContaining({
+            weaponType: 'laser',
+            weaponLevel: 2,
+          }),
+        }),
+      );
     });
 
     it('应该正确发射游戏暂停事件', () => {
@@ -211,9 +231,11 @@ describe('EventSystem', () => {
 
       eventSystem.emitGamePause();
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'game_pause'
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'game_pause',
+        }),
+      );
     });
 
     it('应该正确发射游戏恢复事件', () => {
@@ -222,9 +244,11 @@ describe('EventSystem', () => {
 
       eventSystem.emitGameResume();
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'game_resume'
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'game_resume',
+        }),
+      );
     });
 
     it('应该正确发射游戏胜利事件', () => {
@@ -233,9 +257,11 @@ describe('EventSystem', () => {
 
       eventSystem.emitGameWin();
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'game_win'
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'game_win',
+        }),
+      );
     });
 
     it('应该正确发射游戏失败事件', () => {
@@ -244,9 +270,11 @@ describe('EventSystem', () => {
 
       eventSystem.emitGameOver();
 
-      expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'game_over'
-      }));
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'game_over',
+        }),
+      );
     });
   });
 

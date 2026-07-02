@@ -2,7 +2,10 @@ import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { InputManager } from '../InputManager';
 import { IShipControls, IKeyBindings } from '../types';
 
-export const useInputManager = (canvas: HTMLCanvasElement | null, keyBindings?: Partial<IKeyBindings>) => {
+export const useInputManager = (
+  canvas: HTMLCanvasElement | null,
+  keyBindings?: Partial<IKeyBindings>,
+) => {
   const inputManagerRef = useRef<InputManager | null>(null);
 
   useEffect(() => {
@@ -22,18 +25,20 @@ export const useInputManager = (canvas: HTMLCanvasElement | null, keyBindings?: 
 
   // 获取控制状态
   const getControls = useCallback((): IShipControls => {
-    return inputManagerRef.current?.getControls() || {
-      forward: false,
-      backward: false,
-      left: false,
-      right: false,
-      up: false,
-      down: false,
-      rollLeft: false,
-      rollRight: false,
-      boost: false,
-      fire: false,
-    };
+    return (
+      inputManagerRef.current?.getControls() || {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+        rollLeft: false,
+        rollRight: false,
+        boost: false,
+        fire: false,
+      }
+    );
   }, []);
 
   // 获取鼠标Delta
@@ -126,52 +131,55 @@ export const useInputManager = (canvas: HTMLCanvasElement | null, keyBindings?: 
   }, []);
 
   // 返回所有可用的方法
-  const methods = useMemo(() => ({
-    inputManagerRef,
-    getControls,
-    getMouseDelta,
-    isKeyPressed,
-    isMouseButtonPressed,
-    setMouseSensitivity,
-    getMouseSensitivity,
-    setKeyBindings,
-    getKeyBindings,
-    resetKeyBindings,
-    addKeyBinding,
-    removeKeyBinding,
-    checkCombo,
-    registerCombo,
-    enableDebugMode,
-    disableDebugMode,
-    getDebugInfo,
-    getInputHistory,
-    clearInputHistory,
-    isAnyKeyPressed,
-    getPressedKeys,
-    clearAll
-  }), [
-    getControls,
-    getMouseDelta,
-    isKeyPressed,
-    isMouseButtonPressed,
-    setMouseSensitivity,
-    getMouseSensitivity,
-    setKeyBindings,
-    getKeyBindings,
-    resetKeyBindings,
-    addKeyBinding,
-    removeKeyBinding,
-    checkCombo,
-    registerCombo,
-    enableDebugMode,
-    disableDebugMode,
-    getDebugInfo,
-    getInputHistory,
-    clearInputHistory,
-    isAnyKeyPressed,
-    getPressedKeys,
-    clearAll
-  ]);
+  const methods = useMemo(
+    () => ({
+      inputManagerRef,
+      getControls,
+      getMouseDelta,
+      isKeyPressed,
+      isMouseButtonPressed,
+      setMouseSensitivity,
+      getMouseSensitivity,
+      setKeyBindings,
+      getKeyBindings,
+      resetKeyBindings,
+      addKeyBinding,
+      removeKeyBinding,
+      checkCombo,
+      registerCombo,
+      enableDebugMode,
+      disableDebugMode,
+      getDebugInfo,
+      getInputHistory,
+      clearInputHistory,
+      isAnyKeyPressed,
+      getPressedKeys,
+      clearAll,
+    }),
+    [
+      getControls,
+      getMouseDelta,
+      isKeyPressed,
+      isMouseButtonPressed,
+      setMouseSensitivity,
+      getMouseSensitivity,
+      setKeyBindings,
+      getKeyBindings,
+      resetKeyBindings,
+      addKeyBinding,
+      removeKeyBinding,
+      checkCombo,
+      registerCombo,
+      enableDebugMode,
+      disableDebugMode,
+      getDebugInfo,
+      getInputHistory,
+      clearInputHistory,
+      isAnyKeyPressed,
+      getPressedKeys,
+      clearAll,
+    ],
+  );
 
   return methods;
 };

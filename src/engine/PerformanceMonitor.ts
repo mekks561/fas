@@ -26,17 +26,17 @@ export class PerformanceMonitor {
   private lastTime: number = 0;
   private fpsHistory: number[] = [];
   private maxHistorySize: number = 60;
-  
+
   private fpsMin: number = 60;
   private fpsMax: number = 0;
   private totalFps: number = 0;
-  
+
   private updateStartTime: number = 0;
   private renderStartTime: number = 0;
-  
+
   private lastFrameTime: number = 0;
   private deltaTime: number = 0;
-  
+
   private isMonitoring: boolean = false;
   private updateCallback: ((metrics: PerformanceMetrics) => void) | null = null;
   private intervalId: number | null = null;
@@ -47,12 +47,12 @@ export class PerformanceMonitor {
 
   public start(): void {
     if (this.isMonitoring) return;
-    
+
     this.isMonitoring = true;
     this.lastTime = performance.now();
-    
+
     this.app.on('update', this.onUpdate.bind(this));
-    
+
     this.intervalId = window.setInterval(() => {
       this.reportMetrics();
     }, 1000);
@@ -60,9 +60,9 @@ export class PerformanceMonitor {
 
   public stop(): void {
     if (!this.isMonitoring) return;
-    
+
     this.isMonitoring = false;
-    
+
     if (this.intervalId !== null) {
       window.clearInterval(this.intervalId);
       this.intervalId = null;
@@ -97,21 +97,21 @@ export class PerformanceMonitor {
 
   private reportMetrics(): void {
     if (!this.isMonitoring) return;
-    
+
     const fps = this.frameCount;
     this.frameCount = 0;
-    
+
     this.fpsHistory.push(fps);
     if (this.fpsHistory.length > this.maxHistorySize) {
       this.fpsHistory.shift();
     }
-    
+
     this.fpsMin = Math.min(this.fpsMin, fps);
     this.fpsMax = Math.max(this.fpsMax, fps);
     this.totalFps += fps;
-    
+
     const metrics = this.getMetrics();
-    
+
     if (this.updateCallback) {
       this.updateCallback(metrics);
     }
@@ -119,19 +119,21 @@ export class PerformanceMonitor {
 
   public getMetrics(): PerformanceMetrics {
     const gpu = this.app.graphicsDevice;
-    
+
     let memoryUsed = 0;
     let memoryTotal = 0;
-    
+
     if ('memory' in performance) {
-      const memory = (performance as unknown as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+      const memory = (
+        performance as unknown as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
+      ).memory;
       memoryUsed = memory.usedJSHeapSize / (1024 * 1024);
       memoryTotal = memory.jsHeapSizeLimit / (1024 * 1024);
     }
-    
+
     let entityCount = 0;
     let particleCount = 0;
-    
+
     this.app.root?.find((entity: pc.Entity) => {
       entityCount++;
       if (entity.particlesystem) {
@@ -139,11 +141,12 @@ export class PerformanceMonitor {
       }
       return false;
     });
-    
-    const currentFps = this.fpsHistory.length > 0 
-      ? this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length 
-      : 60;
-    
+
+    const currentFps =
+      this.fpsHistory.length > 0
+        ? this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length
+        : 60;
+
     return {
       fps: Math.round(currentFps),
       fpsMin: this.fpsMin,
@@ -155,7 +158,7 @@ export class PerformanceMonitor {
       memoryTotal,
       entityCount,
       particleCount,
-      audioSources: 0
+      audioSources: 0,
     };
   }
 
@@ -166,9 +169,9 @@ export class PerformanceMonitor {
 
   public getFpsVariance(): number {
     if (this.fpsHistory.length < 2) return 0;
-    
+
     const mean = this.getAverageFps();
-    const squaredDiffs = this.fpsHistory.map(fps => Math.pow(fps - mean, 2));
+    const squaredDiffs = this.fpsHistory.map((fps) => Math.pow(fps - mean, 2));
     return squaredDiffs.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
   }
 
@@ -195,7 +198,7 @@ export class PerformanceMonitor {
 
   public needsOptimization(): { level: 'none' | 'low' | 'medium' | 'high'; reason: string } {
     const fps = this.getAverageFps();
-    
+
     if (fps >= 55) {
       return { level: 'none', reason: 'Performance is excellent' };
     } else if (fps >= 40) {
@@ -236,7 +239,7 @@ export class MemoryManager {
 
   public unloadUnusedAssets(): number {
     let unloadedCount = 0;
-    
+
     this.assetReferenceCounts.forEach((count, id) => {
       if (count === 0) {
         const asset = this.loadedAssets.get(id);
@@ -249,31 +252,33 @@ export class MemoryManager {
         }
       }
     });
-    
+
     return unloadedCount;
   }
 
   public getMemoryUsage(): { used: number; total: number; assetCount: number } {
     let used = 0;
-    
+
     if ('memory' in performance) {
-      const memory = (performance as unknown as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+      const memory = (
+        performance as unknown as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
+      ).memory;
       used = memory.usedJSHeapSize / (1024 * 1024);
     }
-    
+
     return {
       used,
       total: this.loadedAssets.size,
-      assetCount: this.loadedAssets.size
+      assetCount: this.loadedAssets.size,
     };
   }
 
   public clear(): void {
-    this.loadedAssets.forEach(asset => {
+    this.loadedAssets.forEach((asset) => {
       this.app.assets.remove(asset);
       asset.unload();
     });
-    
+
     this.loadedAssets.clear();
     this.assetReferenceCounts.clear();
   }

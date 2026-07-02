@@ -108,7 +108,7 @@ export class CloudSaveSystem {
       apiKey: config?.apiKey,
       timeout: config?.timeout || 10000,
       retryAttempts: config?.retryAttempts || 3,
-      retryDelay: config?.retryDelay || 1000
+      retryDelay: config?.retryDelay || 1000,
     };
 
     this.setupNetworkListeners();
@@ -139,7 +139,10 @@ export class CloudSaveSystem {
     return this.localOnly;
   }
 
-  public async saveProgress(data: PlayerProgress, provider: SaveProvider = 'auto'): Promise<SaveResult> {
+  public async saveProgress(
+    data: PlayerProgress,
+    provider: SaveProvider = 'auto',
+  ): Promise<SaveResult> {
     if (!this.isEnabled) {
       return { success: false, savedAt: 0, syncedToCloud: false, error: 'System disabled' };
     }
@@ -147,12 +150,13 @@ export class CloudSaveSystem {
     data.lastUpdated = Date.now();
     data.version = this.version;
 
-    const useCloud = provider === 'cloud' || (provider === 'auto' && this.isOnline && !this.localOnly);
+    const useCloud =
+      provider === 'cloud' || (provider === 'auto' && this.isOnline && !this.localOnly);
 
     let result: SaveResult = {
       success: false,
       savedAt: Date.now(),
-      syncedToCloud: false
+      syncedToCloud: false,
     };
 
     try {
@@ -168,18 +172,18 @@ export class CloudSaveSystem {
             result.syncedToCloud = cloudResult;
             this.lastSyncTime = Date.now();
             this.pendingSync = false;
-          } catch (error) {
+          } catch {
             this.pendingSync = true;
             this.enqueueSave(data);
           }
         }
       }
 
-      this.saveCallbacks.forEach(cb => cb(result));
+      this.saveCallbacks.forEach((cb) => cb(result));
       return result;
     } catch (error) {
       result.error = (error as Error).message;
-      this.saveCallbacks.forEach(cb => cb(result));
+      this.saveCallbacks.forEach((cb) => cb(result));
       return result;
     }
   }
@@ -207,10 +211,12 @@ export class CloudSaveSystem {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.cloudConfig.apiKey ? { 'Authorization': `Bearer ${this.cloudConfig.apiKey}` } : {})
+          ...(this.cloudConfig.apiKey
+            ? { Authorization: `Bearer ${this.cloudConfig.apiKey}` }
+            : {}),
         },
         body: JSON.stringify(data),
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -287,9 +293,11 @@ export class CloudSaveSystem {
       const response = await fetch(`${this.cloudConfig.endpoint}/load`, {
         method: 'GET',
         headers: {
-          ...(this.cloudConfig.apiKey ? { 'Authorization': `Bearer ${this.cloudConfig.apiKey}` } : {})
+          ...(this.cloudConfig.apiKey
+            ? { Authorization: `Bearer ${this.cloudConfig.apiKey}` }
+            : {}),
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -308,7 +316,14 @@ export class CloudSaveSystem {
 
   public async syncWithCloud(): Promise<SyncResult> {
     if (!this.isOnline || this.localOnly) {
-      return { success: false, syncedAt: 0, uploaded: false, downloaded: false, conflictsResolved: 0, error: 'Not online' };
+      return {
+        success: false,
+        syncedAt: 0,
+        uploaded: false,
+        downloaded: false,
+        conflictsResolved: 0,
+        error: 'Not online',
+      };
     }
 
     const result: SyncResult = {
@@ -316,7 +331,7 @@ export class CloudSaveSystem {
       syncedAt: 0,
       uploaded: false,
       downloaded: false,
-      conflictsResolved: 0
+      conflictsResolved: 0,
     };
 
     try {
@@ -374,12 +389,16 @@ export class CloudSaveSystem {
       totalPlayTime: local.totalPlayTime + cloud.totalPlayTime,
       totalKills: Math.max(local.totalKills, cloud.totalKills),
       totalDeaths: local.totalDeaths + cloud.totalDeaths,
-      achievementsUnlocked: Array.from(new Set([...local.achievementsUnlocked, ...cloud.achievementsUnlocked])),
-      unlockedLevels: Array.from(new Set([...local.unlockedLevels, ...cloud.unlockedLevels])).sort((a, b) => a - b),
+      achievementsUnlocked: Array.from(
+        new Set([...local.achievementsUnlocked, ...cloud.achievementsUnlocked]),
+      ),
+      unlockedLevels: Array.from(new Set([...local.unlockedLevels, ...cloud.unlockedLevels])).sort(
+        (a, b) => a - b,
+      ),
       levelStars: { ...cloud.levelStars, ...local.levelStars },
       settings: { ...cloud.settings, ...local.settings },
       lastUpdated: Date.now(),
-      version: this.version
+      version: this.version,
     };
   }
 
@@ -388,7 +407,7 @@ export class CloudSaveSystem {
       data,
       resolve: () => {},
       reject: () => {},
-      retries: 0
+      retries: 0,
     });
     this.processSaveQueue();
   }
@@ -405,7 +424,7 @@ export class CloudSaveSystem {
         await this.saveToCloud(item.data);
         this.saveQueue.shift();
         this.lastSyncTime = Date.now();
-      } catch (_error) {
+      } catch {
         item.retries++;
         if (item.retries >= this.cloudConfig.retryAttempts) {
           this.saveQueue.shift();
@@ -429,9 +448,11 @@ export class CloudSaveSystem {
 
       const response = await fetch(`${this.cloudConfig.endpoint}/leaderboard?limit=${limit}`, {
         headers: {
-          ...(this.cloudConfig.apiKey ? { 'Authorization': `Bearer ${this.cloudConfig.apiKey}` } : {})
+          ...(this.cloudConfig.apiKey
+            ? { Authorization: `Bearer ${this.cloudConfig.apiKey}` }
+            : {}),
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -442,7 +463,7 @@ export class CloudSaveSystem {
 
       const entries: LeaderboardEntry[] = await response.json();
       const ranked = this.assignRanks(entries);
-      this.leaderboardCallbacks.forEach(cb => cb(ranked));
+      this.leaderboardCallbacks.forEach((cb) => cb(ranked));
       return ranked;
     } catch (error) {
       console.warn('Failed to fetch leaderboard:', error);
@@ -466,14 +487,12 @@ export class CloudSaveSystem {
   public async submitScore(entry: Omit<LeaderboardEntry, 'rank' | 'timestamp'>): Promise<boolean> {
     const fullEntry: LeaderboardEntry = {
       ...entry,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     const local = this.getLocalLeaderboard(1000);
-    const updated = [...local, fullEntry]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 100);
-    
+    const updated = [...local, fullEntry].sort((a, b) => b.score - a.score).slice(0, 100);
+
     localStorage.setItem('leaderboard', JSON.stringify(updated));
 
     if (this.isOnline && !this.localOnly) {
@@ -485,10 +504,12 @@ export class CloudSaveSystem {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(this.cloudConfig.apiKey ? { 'Authorization': `Bearer ${this.cloudConfig.apiKey}` } : {})
+            ...(this.cloudConfig.apiKey
+              ? { Authorization: `Bearer ${this.cloudConfig.apiKey}` }
+              : {}),
           },
           body: JSON.stringify(fullEntry),
-          signal: controller.signal
+          signal: controller.signal,
         });
 
         clearTimeout(timeoutId);
@@ -515,7 +536,7 @@ export class CloudSaveSystem {
 
     this.currentProgress = {
       ...this.currentProgress,
-      ...updates
+      ...updates,
     };
     return true;
   }
@@ -525,7 +546,7 @@ export class CloudSaveSystem {
 
     this.currentProgress.settings = {
       ...this.currentProgress.settings,
-      ...settings
+      ...settings,
     };
     return true;
   }
@@ -553,7 +574,7 @@ export class CloudSaveSystem {
 
   public setLevelStars(level: number, stars: number): boolean {
     if (!this.currentProgress) return false;
-    
+
     const currentStars = this.currentProgress.levelStars[level] || 0;
     if (stars > currentStars) {
       this.currentProgress.levelStars[level] = stars;
@@ -578,7 +599,7 @@ export class CloudSaveSystem {
       levelStars: {},
       settings: this.getDefaultSettings(),
       lastUpdated: Date.now(),
-      version: this.version
+      version: this.version,
     };
 
     this.currentProgress = progress;
@@ -596,7 +617,7 @@ export class CloudSaveSystem {
       showDamageNumbers: true,
       cameraShake: true,
       screenFlash: true,
-      touchControls: true
+      touchControls: true,
     };
   }
 
@@ -684,7 +705,7 @@ export class CloudSaveSystem {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   public enable(): void {

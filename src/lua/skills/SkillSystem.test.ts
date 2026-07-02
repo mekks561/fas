@@ -13,21 +13,21 @@ const mockCaster = {
   stats: {
     damage: 100,
     critChance: 10,
-    critDamage: 50
-  }
+    critDamage: 50,
+  },
 };
 
 // 模拟目标数据
 const mockTarget = {
   x: 50,
-  y: 50
+  y: 50,
 };
 
 // 模拟资源
 const mockResources = {
   mana: 100,
   energy: 100,
-  health: 100
+  health: 100,
 };
 
 /**
@@ -72,7 +72,7 @@ describe('SkillSystemManager', () => {
     test('应该能够升级技能', () => {
       // 先学习技能
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       // 升级
       const result = skillManager.upgradeSkill('basic_attack');
       expect(result.success).toBeDefined();
@@ -81,12 +81,12 @@ describe('SkillSystemManager', () => {
 
     test('不应该超过最大等级', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       // 多次升级直到达到上限
       for (let i = 0; i < 15; i++) {
         skillManager.upgradeSkill('basic_attack');
       }
-      
+
       const status = skillManager.getSkillStatus('basic_attack');
       // 根据实际逻辑调整预期
       expect(status).toBeDefined();
@@ -100,7 +100,7 @@ describe('SkillSystemManager', () => {
   describe('技能施放', () => {
     test('应该能够施放已学习的技能', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const canCast = skillManager.canCastSkill('basic_attack', mockResources);
       expect(canCast.canCast).toBe(true);
       expect(canCast.reason).toBe('ready');
@@ -114,11 +114,11 @@ describe('SkillSystemManager', () => {
 
     test('应该不能施放冷却中的技能', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       // 第一次施放
       const result1 = skillManager.castSkill('basic_attack', mockCaster, mockTarget, mockResources);
       expect(result1.success).toBe(true);
-      
+
       // 立即再次施放（应该失败）
       const canCast = skillManager.canCastSkill('basic_attack', mockResources);
       expect(canCast.canCast).toBe(false);
@@ -127,9 +127,9 @@ describe('SkillSystemManager', () => {
 
     test('应该返回施放结果', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const result = skillManager.castSkill('basic_attack', mockCaster, mockTarget, mockResources);
-      
+
       expect(result.success).toBe(true);
       expect(result.skillId).toBe('basic_attack');
       expect(result.effects).toBeDefined();
@@ -138,9 +138,9 @@ describe('SkillSystemManager', () => {
     test('应该消耗资源', () => {
       const resources = { ...mockResources };
       skillManager.learnSkill('power_shot', 5, ['basic_attack']);
-      
+
       const result = skillManager.castSkill('power_shot', mockCaster, mockTarget, resources);
-      
+
       if (result.success) {
         // 资源应该被消耗（根据实际逻辑）
         expect(result.costPaid).toBeDefined();
@@ -156,11 +156,11 @@ describe('SkillSystemManager', () => {
     test('应该正确更新冷却时间', () => {
       skillManager.learnSkill('basic_attack', 5, []);
       skillManager.castSkill('basic_attack', mockCaster, mockTarget, mockResources);
-      
+
       // 更新冷却
       const readySkills = skillManager.updateCooldowns(0.1);
       expect(Array.isArray(readySkills)).toBe(true);
-      
+
       // 检查状态
       const status = skillManager.getSkillStatus('basic_attack');
       expect(status).toBeDefined();
@@ -169,10 +169,10 @@ describe('SkillSystemManager', () => {
     test('冷却结束后技能应该恢复就绪', () => {
       skillManager.learnSkill('basic_attack', 5, []);
       skillManager.castSkill('basic_attack', mockCaster, mockTarget, mockResources);
-      
+
       // 等待冷却结束（0.5秒）
       skillManager.updateCooldowns(0.6);
-      
+
       const canCast = skillManager.canCastSkill('basic_attack', mockResources);
       expect(canCast.canCast).toBe(true);
     });
@@ -180,11 +180,11 @@ describe('SkillSystemManager', () => {
     test('应该能够重置冷却', () => {
       skillManager.learnSkill('basic_attack', 5, []);
       skillManager.castSkill('basic_attack', mockCaster, mockTarget, mockResources);
-      
+
       // 重置冷却
       const result = skillManager.resetCooldown('basic_attack');
       expect(result).toBe(true);
-      
+
       const canCast = skillManager.canCastSkill('basic_attack', mockResources);
       expect(canCast.canCast).toBe(true);
     });
@@ -207,35 +207,35 @@ describe('SkillSystemManager', () => {
 
     test('应该处理空资源对象', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const canCast = skillManager.canCastSkill('basic_attack', {});
       expect(canCast.canCast).toBeDefined();
     });
 
     test('应该处理空目标', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const result = skillManager.castSkill('basic_attack', mockCaster, null, mockResources);
       expect(result.success).toBe(true);
     });
 
     test('应该处理零冷却时间', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const readySkills = skillManager.updateCooldowns(0);
       expect(Array.isArray(readySkills)).toBe(true);
     });
 
     test('应该处理非常小的冷却时间', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const readySkills = skillManager.updateCooldowns(0.001);
       expect(Array.isArray(readySkills)).toBe(true);
     });
 
     test('应该处理非常大的冷却时间', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const readySkills = skillManager.updateCooldowns(1000);
       expect(Array.isArray(readySkills)).toBe(true);
     });
@@ -253,7 +253,7 @@ describe('SkillSystemManager', () => {
 
     test('应该能够添加技能到连招', () => {
       skillManager.startCombo();
-      
+
       const result = skillManager.addToCombo('basic_attack');
       expect(result.success).toBe(true);
       expect(result.comboName).toBeDefined();
@@ -262,7 +262,7 @@ describe('SkillSystemManager', () => {
     test('应该能够检查连招奖励', () => {
       skillManager.startCombo();
       skillManager.addToCombo('basic_attack');
-      
+
       const bonus = skillManager.checkComboBonus();
       // 根据连招定义决定返回值
       expect(bonus).toBeDefined();
@@ -276,7 +276,7 @@ describe('SkillSystemManager', () => {
   describe('状态查询', () => {
     test('应该能够获取单个技能状态', () => {
       skillManager.learnSkill('basic_attack', 5, []);
-      
+
       const status = skillManager.getSkillStatus('basic_attack');
       expect(status).toBeDefined();
       expect(status?.id).toBe('basic_attack');
@@ -290,7 +290,7 @@ describe('SkillSystemManager', () => {
     test('应该能够获取所有技能状态', () => {
       skillManager.learnSkill('basic_attack', 5, []);
       skillManager.learnSkill('power_shot', 5, ['basic_attack']);
-      
+
       const statuses = skillManager.getAllSkillStatus();
       expect(Array.isArray(statuses)).toBe(true);
       expect(statuses.length).toBeGreaterThanOrEqual(0);
@@ -304,7 +304,7 @@ describe('SkillSystemManager', () => {
   describe('热更新', () => {
     test('应该能够重新加载脚本', async () => {
       await skillManager.reloadScript();
-      
+
       // 验证系统仍然工作
       const result = skillManager.learnSkill('basic_attack', 5, []);
       expect(typeof result).toBe('boolean');
@@ -320,7 +320,7 @@ describe('SkillSystemManager', () => {
       await skillManager.initialize();
       await skillManager.initialize();
       await skillManager.initialize();
-      
+
       expect(skillManager).toBeDefined();
     });
 
@@ -328,7 +328,7 @@ describe('SkillSystemManager', () => {
       skillManager.destroy();
       skillManager.destroy();
       skillManager.destroy();
-      
+
       expect(skillManager).toBeDefined();
     });
 
@@ -337,13 +337,13 @@ describe('SkillSystemManager', () => {
       for (let i = 0; i < 10; i++) {
         skillManager.learnSkill(`skill_${i}`, 5 + i, []);
       }
-      
+
       // 执行多次施放
       for (let i = 0; i < 100; i++) {
         skillManager.castSkill('basic_attack', mockCaster, mockTarget, mockResources);
         skillManager.updateCooldowns(0.01);
       }
-      
+
       // 验证系统仍然稳定
       const statuses = skillManager.getAllSkillStatus();
       expect(Array.isArray(statuses)).toBe(true);
@@ -356,26 +356,26 @@ describe('SkillSystemManager', () => {
  */
 export async function runSkillSystemTests(): Promise<void> {
   console.log('[Test] Running Skill System tests...');
-  
+
   const manager = new SkillSystemManager();
   await manager.initialize();
-  
+
   // 测试 1: 学习技能
   console.log('\n[Test 1] Learning skills...');
   const learnResult = manager.learnSkill('basic_attack', 5, []);
   console.log(`  Result: ${learnResult}`);
-  
+
   // 测试 2: 施放技能
   console.log('\n[Test 2] Casting skill...');
   const castResult = manager.castSkill('basic_attack', mockCaster, mockTarget, mockResources);
   console.log(`  Success: ${castResult.success}`);
   console.log(`  Skill: ${castResult.skillName}`);
-  
+
   // 测试 3: 冷却更新
   console.log('\n[Test 3] Updating cooldowns...');
   const readySkills = manager.updateCooldowns(0.1);
   console.log(`  Ready skills: ${readySkills.length}`);
-  
+
   // 测试 4: 连招
   console.log('\n[Test 4] Combo system...');
   manager.startCombo();
@@ -383,12 +383,12 @@ export async function runSkillSystemTests(): Promise<void> {
   manager.addToCombo('basic_attack');
   const comboResult = manager.addToCombo('power_shot');
   console.log(`  Combo: ${comboResult.comboName}`);
-  
+
   // 测试 5: 状态查询
   console.log('\n[Test 5] Status query...');
   const status = manager.getSkillStatus('basic_attack');
   console.log(`  Status: ${JSON.stringify(status, null, 2)}`);
-  
+
   manager.destroy();
   console.log('\n[Test] All tests completed!');
 }

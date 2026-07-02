@@ -3,7 +3,7 @@
  * 提供跨组件通信机制
  */
 
-export type GameEvent = 
+export type GameEvent =
   | 'game_start'
   | 'game_pause'
   | 'game_resume'
@@ -45,7 +45,7 @@ export class GameEventBus {
 
     const id = Symbol();
     this.subscriptions.set(id, { event, listener });
-    
+
     return id;
   }
 
@@ -59,8 +59,8 @@ export class GameEventBus {
 
   public emit(event: GameEvent, payload?: unknown): void {
     const eventData: GameEventData = { type: event, payload };
-    
-    this.listeners.get(event)?.forEach(listener => {
+
+    this.listeners.get(event)?.forEach((listener) => {
       try {
         listener(eventData);
       } catch (error) {
@@ -73,21 +73,21 @@ export class GameEventBus {
     const wrapper: GameEventListener = (data) => {
       listener(data);
       const ids = this.findSubscriptionIds(event, wrapper);
-      ids.forEach(id => this.off(id));
+      ids.forEach((id) => this.off(id));
     };
-    
+
     return this.on(event, wrapper);
   }
 
   private findSubscriptionIds(event: GameEvent, listener: GameEventListener): symbol[] {
     const ids: symbol[] = [];
-    
+
     this.subscriptions.forEach((sub, id) => {
       if (sub.event === event && sub.listener === listener) {
         ids.push(id);
       }
     });
-    
+
     return ids;
   }
 
@@ -100,7 +100,7 @@ export class GameEventBus {
     if (event) {
       return this.listeners.get(event)?.size || 0;
     }
-    
+
     return Array.from(this.listeners.values()).reduce((sum, set) => sum + set.size, 0);
   }
 
@@ -111,7 +111,7 @@ export class GameEventBus {
 
   public clearEvent(event: GameEvent): void {
     this.listeners.delete(event);
-    
+
     this.subscriptions.forEach((sub, id) => {
       if (sub.event === event) {
         this.subscriptions.delete(id);
@@ -124,19 +124,19 @@ export const gameEventBus = new GameEventBus();
 
 export const useGameEvent = (event: GameEvent, handler: GameEventListener) => {
   const subscriptionRef = { id: null as symbol | null };
-  
+
   const subscribe = () => {
     if (subscriptionRef.id === null) {
       subscriptionRef.id = gameEventBus.on(event, handler);
     }
   };
-  
+
   const unsubscribe = () => {
     if (subscriptionRef.id !== null) {
       gameEventBus.off(subscriptionRef.id);
       subscriptionRef.id = null;
     }
   };
-  
+
   return { subscribe, unsubscribe };
 };

@@ -5,14 +5,14 @@ export enum GameState {
   PLAYING = 'PLAYING',
   PAUSED = 'PAUSED',
   GAME_OVER = 'GAME_OVER',
-  VICTORY = 'VICTORY'
+  VICTORY = 'VICTORY',
 }
 
 export enum Difficulty {
   EASY = 'EASY',
   NORMAL = 'NORMAL',
   HARD = 'HARD',
-  EXPERT = 'EXPERT'
+  EXPERT = 'EXPERT',
 }
 
 export interface GameConfig {

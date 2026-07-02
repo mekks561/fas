@@ -7,42 +7,38 @@ export const level01Config = {
     skybox: 'env-space-01',
     nebula: true,
     asteroidField: false,
-    lighting: 'normal'
+    lighting: 'normal',
   },
   player: {
     health: 100,
     shield: 50,
     maxHealth: 100,
     maxShield: 50,
-    startingPosition: { x: 0, y: 0, z: 0 }
+    startingPosition: { x: 0, y: 0, z: 0 },
   },
   waves: [
     {
       number: 1,
-      enemies: [
-        { type: 'enemy-scout', count: 3, spawnDelay: 1000 }
-      ],
-      objectives: ['Destroy all enemies']
+      enemies: [{ type: 'enemy-scout', count: 3, spawnDelay: 1000 }],
+      objectives: ['Destroy all enemies'],
     },
     {
       number: 2,
-      enemies: [
-        { type: 'enemy-scout', count: 5, spawnDelay: 800 }
-      ],
-      objectives: ['Destroy all enemies']
+      enemies: [{ type: 'enemy-scout', count: 5, spawnDelay: 800 }],
+      objectives: ['Destroy all enemies'],
     },
     {
       number: 3,
       enemies: [
         { type: 'enemy-scout', count: 4, spawnDelay: 600 },
-        { type: 'enemy-fighter', count: 2, spawnDelay: 1500 }
+        { type: 'enemy-fighter', count: 2, spawnDelay: 1500 },
       ],
-      objectives: ['Destroy all enemies']
-    }
+      objectives: ['Destroy all enemies'],
+    },
   ],
   rewards: {
     experience: 100,
     credits: 500,
-    unlocks: ['ship-fighter']
-  }
+    unlocks: ['ship-fighter'],
+  },
 };

@@ -69,7 +69,9 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
         try {
           const resp = await fetch(`/assets/shop/${id}.json`);
           if (resp.ok) loaded.push(await resp.json());
-        } catch (e) { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
       setItems(loaded);
       // 从localStorage读取已购买物品和信用点
@@ -83,7 +85,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
 
   const filteredItems = useMemo(() => {
     if (filter === 'all') return items;
-    return items.filter(i => i.type === filter);
+    return items.filter((i) => i.type === filter);
   }, [items, filter]);
 
   const handlePurchase = (item: ShopItem) => {
@@ -120,7 +122,9 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
   return (
     <div className="shop-panel">
       <div className="shop-header">
-        <button className="shop-back-btn" onClick={onBack}>← 返回</button>
+        <button className="shop-back-btn" onClick={onBack}>
+          ← 返回
+        </button>
         <h1 className="shop-title">商店</h1>
         <div className="shop-credits">
           <span className="shop-credits-icon">💰</span>
@@ -147,7 +151,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
       </div>
 
       <div className="shop-grid">
-        {filteredItems.map(item => {
+        {filteredItems.map((item) => {
           const isPurchased = purchasedIds.has(item.id);
           const canAfford = credits >= item.price;
           const rarity = rarityConfig[item.rarity] || rarityConfig.common;
@@ -163,10 +167,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
               <div className="shop-card-info">
                 <div className="shop-card-header">
                   <span className="shop-card-name">{item.name}</span>
-                  <span
-                    className="shop-card-rarity"
-                    style={{ backgroundColor: rarity.color }}
-                  >
+                  <span className="shop-card-rarity" style={{ backgroundColor: rarity.color }}>
                     {rarity.label}
                   </span>
                 </div>
@@ -180,9 +181,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
                     ))}
                   </div>
                 )}
-                {item.level && (
-                  <div className="shop-card-level">要求等级: {item.level}</div>
-                )}
+                {item.level && <div className="shop-card-level">要求等级: {item.level}</div>}
               </div>
               <div className="shop-card-action">
                 {isPurchased ? (

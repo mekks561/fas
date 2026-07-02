@@ -75,10 +75,7 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({ manager }) => {
 
   return (
     <div className={`quest-tracker ${isExpanded ? '' : 'quest-tracker-collapsed'}`}>
-      <div
-        className="quest-tracker-header"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+      <div className="quest-tracker-header" onClick={() => setIsExpanded(!isExpanded)}>
         <span className="quest-tracker-icon">!</span>
         <span className="quest-tracker-title">任务追踪</span>
         <div className="quest-tracker-stats">
@@ -113,10 +110,7 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({ manager }) => {
                   style={{ borderLeftColor: color }}
                 >
                   <div className="quest-mission-header">
-                    <span
-                      className="quest-mission-type-badge"
-                      style={{ backgroundColor: color }}
-                    >
+                    <span className="quest-mission-type-badge" style={{ backgroundColor: color }}>
                       {typeLabel}
                     </span>
                     <span className="quest-mission-name">{mission.name}</span>

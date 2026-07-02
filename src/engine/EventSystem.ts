@@ -1,6 +1,6 @@
 import * as pc from 'playcanvas';
 
-export type GameEventType = 
+export type GameEventType =
   | 'player_damage'
   | 'player_heal'
   | 'player_death'
@@ -30,7 +30,7 @@ export type GameEventType =
 export interface EventData {
   type: GameEventType;
   timestamp: number;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export interface PlayerDamageData {
@@ -173,13 +173,13 @@ export class EventSystem {
     }
   }
 
-  public emit(type: GameEventType, data?: Record<string, any>): void {
+  public emit(type: GameEventType, data?: Record<string, unknown>): void {
     if (!this.isEnabled) return;
 
     const event: EventData = {
       type,
       timestamp: Date.now(),
-      data
+      data,
     };
 
     this.history.push(event);
@@ -204,7 +204,7 @@ export class EventSystem {
       const listeners = this.listeners.get(event.type) || [];
       const onceListeners = this.onceListeners.get(event.type) || [];
 
-      listeners.forEach(callback => {
+      listeners.forEach((callback) => {
         try {
           callback(event);
         } catch (error) {
@@ -212,7 +212,7 @@ export class EventSystem {
         }
       });
 
-      onceListeners.forEach(callback => {
+      onceListeners.forEach((callback) => {
         try {
           callback(event);
         } catch (error) {
@@ -247,10 +247,10 @@ export class EventSystem {
   }
 
   public emitPlayerShoot(weaponType: string, weaponLevel: number, position: pc.Vec3): void {
-    this.emit('player_shoot', { 
-      weaponType, 
-      weaponLevel, 
-      position: { x: position.x, y: position.y, z: position.z } 
+    this.emit('player_shoot', {
+      weaponType,
+      weaponLevel,
+      position: { x: position.x, y: position.y, z: position.z },
     } as PlayerShootData);
   }
 
@@ -259,10 +259,10 @@ export class EventSystem {
   }
 
   public emitEnemyDeath(type: string, score: number, position: pc.Vec3): void {
-    this.emit('enemy_death', { 
-      type, 
-      score, 
-      position: { x: position.x, y: position.y, z: position.z } 
+    this.emit('enemy_death', {
+      type,
+      score,
+      position: { x: position.x, y: position.y, z: position.z },
     } as EnemyDeathData);
   }
 
@@ -271,9 +271,9 @@ export class EventSystem {
   }
 
   public emitPowerupCollect(type: string, position: pc.Vec3): void {
-    this.emit('powerup_collect', { 
-      type, 
-      position: { x: position.x, y: position.y, z: position.z } 
+    this.emit('powerup_collect', {
+      type,
+      position: { x: position.x, y: position.y, z: position.z },
     } as PowerupCollectData);
   }
 
@@ -322,18 +322,18 @@ export class EventSystem {
   }
 
   public emitScreenFlash(color: pc.Color, duration: number, intensity: number = 1): void {
-    this.emit('screen_flash', { 
-      color: { r: color.r, g: color.g, b: color.b }, 
-      duration, 
-      intensity 
+    this.emit('screen_flash', {
+      color: { r: color.r, g: color.g, b: color.b },
+      duration,
+      intensity,
     } as ScreenFlashData);
   }
 
   public emitSoundPlay(soundId: string, volume?: number, position?: pc.Vec3): void {
-    this.emit('sound_play', { 
-      soundId, 
-      volume, 
-      position: position ? { x: position.x, y: position.y, z: position.z } : undefined 
+    this.emit('sound_play', {
+      soundId,
+      volume,
+      position: position ? { x: position.x, y: position.y, z: position.z } : undefined,
     } as SoundPlayData);
   }
 

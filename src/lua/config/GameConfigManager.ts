@@ -59,7 +59,7 @@ export class GameConfigManager {
     const configScript = await this.loadConfigScript();
     luaEngine.registerModule({
       name: 'game_config',
-      script: configScript
+      script: configScript,
     });
 
     this.initialized = true;
@@ -159,14 +159,24 @@ end
   getDifficultyConfig(level: DifficultyLevel): DifficultyConfig {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
-      return { waveInterval: 7, enemySpawnRate: 1.5, enemySpeedMultiplier: 1, scoreMultiplier: 1.5 };
+      return {
+        waveInterval: 7,
+        enemySpawnRate: 1.5,
+        enemySpeedMultiplier: 1,
+        scoreMultiplier: 1.5,
+      };
     }
 
     try {
       return luaEngine.call<DifficultyConfig>('getDifficultyConfig', level);
     } catch (error) {
       console.error('[GameConfigManager] Failed to get difficulty config:', error);
-      return { waveInterval: 7, enemySpawnRate: 1.5, enemySpeedMultiplier: 1, scoreMultiplier: 1.5 };
+      return {
+        waveInterval: 7,
+        enemySpawnRate: 1.5,
+        enemySpeedMultiplier: 1,
+        scoreMultiplier: 1.5,
+      };
     }
   }
 
@@ -190,14 +200,23 @@ end
   /**
    * 计算伤害
    */
-  calculateDamage(baseDamage: number, playerBonus: number = 0, difficultyMultiplier: number = 1): number {
+  calculateDamage(
+    baseDamage: number,
+    playerBonus: number = 0,
+    difficultyMultiplier: number = 1,
+  ): number {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
       return baseDamage;
     }
 
     try {
-      return luaEngine.call<number>('calculateDamage', baseDamage, playerBonus, difficultyMultiplier);
+      return luaEngine.call<number>(
+        'calculateDamage',
+        baseDamage,
+        playerBonus,
+        difficultyMultiplier,
+      );
     } catch (error) {
       console.error('[GameConfigManager] Failed to calculate damage:', error);
       return baseDamage;
@@ -207,7 +226,11 @@ end
   /**
    * 计算分数
    */
-  calculateScore(enemyType: string, difficultyLevel: DifficultyLevel, comboMultiplier: number = 1): number {
+  calculateScore(
+    enemyType: string,
+    difficultyLevel: DifficultyLevel,
+    comboMultiplier: number = 1,
+  ): number {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
       return 100;
@@ -268,7 +291,7 @@ end
     const newScript = await this.loadConfigScript();
     luaEngine.registerModule({
       name: 'game_config',
-      script: newScript
+      script: newScript,
     });
     console.log('[GameConfigManager] Config reloaded');
   }

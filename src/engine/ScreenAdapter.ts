@@ -22,21 +22,24 @@ export interface ScreenMetrics {
   deviceType: DeviceType;
 }
 
-const QUALITY_PRESETS: Record<QualityLevel, {
-  shadowResolution: number;
-  shadowDistance: number;
-  textureQuality: 'low' | 'medium' | 'high';
-  particleDensity: number;
-  maxLights: number;
-  postProcessing: boolean;
-}> = {
+const QUALITY_PRESETS: Record<
+  QualityLevel,
+  {
+    shadowResolution: number;
+    shadowDistance: number;
+    textureQuality: 'low' | 'medium' | 'high';
+    particleDensity: number;
+    maxLights: number;
+    postProcessing: boolean;
+  }
+> = {
   low: {
     shadowResolution: 512,
     shadowDistance: 20,
     textureQuality: 'low',
     particleDensity: 0.5,
     maxLights: 2,
-    postProcessing: false
+    postProcessing: false,
   },
   medium: {
     shadowResolution: 1024,
@@ -44,7 +47,7 @@ const QUALITY_PRESETS: Record<QualityLevel, {
     textureQuality: 'medium',
     particleDensity: 0.75,
     maxLights: 4,
-    postProcessing: true
+    postProcessing: true,
   },
   high: {
     shadowResolution: 2048,
@@ -52,7 +55,7 @@ const QUALITY_PRESETS: Record<QualityLevel, {
     textureQuality: 'high',
     particleDensity: 1.0,
     maxLights: 8,
-    postProcessing: true
+    postProcessing: true,
   },
   ultra: {
     shadowResolution: 4096,
@@ -60,8 +63,8 @@ const QUALITY_PRESETS: Record<QualityLevel, {
     textureQuality: 'high',
     particleDensity: 1.5,
     maxLights: 16,
-    postProcessing: true
-  }
+    postProcessing: true,
+  },
 };
 
 const RESOLUTION_PRESETS: Record<ResolutionPreset, { width: number; height: number }> = {
@@ -69,7 +72,7 @@ const RESOLUTION_PRESETS: Record<ResolutionPreset, { width: number; height: numb
   '720p': { width: 1280, height: 720 },
   '1080p': { width: 1920, height: 1080 },
   '1440p': { width: 2560, height: 1440 },
-  '4k': { width: 3840, height: 2160 }
+  '4k': { width: 3840, height: 2160 },
 };
 
 export class ScreenAdapter {
@@ -81,14 +84,14 @@ export class ScreenAdapter {
 
   constructor(app: pc.Application, config?: Partial<ScreenConfig>) {
     this.app = app;
-    
+
     this.config = {
       resolution: config?.resolution || 'auto',
       quality: config?.quality || 'high',
       vsync: config?.vsync !== undefined ? config.vsync : true,
       antiAliasing: config?.antiAliasing !== undefined ? config.antiAliasing : true,
       fullscreen: config?.fullscreen || false,
-      maxFPS: config?.maxFPS || 60
+      maxFPS: config?.maxFPS || 60,
     };
 
     this.metrics = this.calculateMetrics();
@@ -103,7 +106,7 @@ export class ScreenAdapter {
     const height = window.innerHeight;
     const aspectRatio = width / height;
     const devicePixelRatio = window.devicePixelRatio || 1;
-    
+
     let orientation: 'landscape' | 'portrait' | 'square' = 'landscape';
     if (aspectRatio > 1.2) {
       orientation = 'landscape';
@@ -126,13 +129,13 @@ export class ScreenAdapter {
       aspectRatio,
       devicePixelRatio,
       orientation,
-      deviceType
+      deviceType,
     };
   }
 
   private applyConfig(): void {
     const _resolution = RESOLUTION_PRESETS[this.config.resolution];
-    
+
     if (this.config.resolution === 'auto') {
       this.app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
     } else {
@@ -146,7 +149,7 @@ export class ScreenAdapter {
     this.app.graphicsDevice.requestion = this.config.vsync ? 'FILL_MANUAL' : 'FILL_RACE';
 
     const _qualityPreset = QUALITY_PRESETS[this.config.quality];
-    
+
     if (this.metrics.deviceType === 'mobile') {
       this.app.graphicsDevice.maxPixelRatio = Math.min(this.metrics.devicePixelRatio, 2);
     }
@@ -229,7 +232,7 @@ export class ScreenAdapter {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(callback => callback(this.metrics));
+    this.listeners.forEach((callback) => callback(this.metrics));
   }
 
   public isPortrait(): boolean {
@@ -265,18 +268,17 @@ export class ScreenAdapter {
 
   public autoDetectQuality(): QualityLevel {
     const gpu = this.app.graphicsDevice;
-    
+
     const renderer = gpu?.renderer || '';
     const _vendor = gpu?.vendor || '';
-    
-    const isLowEndDevice = 
+
+    const isLowEndDevice =
       this.metrics.deviceType === 'mobile' ||
       /Intel|Mali|Adreno 3|Adreno 4/.test(renderer) ||
       this.metrics.width > 2000;
 
-    const isHighEndDevice = 
-      /RTX|Radeon RX|GTX 10|Nvidia/.test(renderer) ||
-      this.metrics.width < 1500;
+    const isHighEndDevice =
+      /RTX|Radeon RX|GTX 10|Nvidia/.test(renderer) || this.metrics.width < 1500;
 
     if (isLowEndDevice) return 'low';
     if (isHighEndDevice) return 'ultra';
@@ -286,11 +288,11 @@ export class ScreenAdapter {
   public destroy(): void {
     window.removeEventListener('resize', this.onResize.bind(this));
     window.removeEventListener('orientationchange', this.onOrientationChange.bind(this));
-    
+
     if (this.resizeTimeout) {
       clearTimeout(this.resizeTimeout);
     }
-    
+
     this.listeners.clear();
   }
 }
@@ -303,7 +305,7 @@ export class ResponsiveUI {
   constructor(baseWidth: number = 1920, baseHeight: number = 1080) {
     this.baseWidth = baseWidth;
     this.baseHeight = baseHeight;
-    
+
     window.addEventListener('resize', this.onResize.bind(this));
   }
 
@@ -320,7 +322,7 @@ export class ResponsiveUI {
   public getRelativePosition(x: number, y: number): { x: number; y: number } {
     return {
       x: (x / this.baseWidth) * window.innerWidth,
-      y: (y / this.baseHeight) * window.innerHeight
+      y: (y / this.baseHeight) * window.innerHeight,
     };
   }
 
@@ -328,7 +330,7 @@ export class ResponsiveUI {
     const scale = this.getScale();
     return {
       width: width * scale,
-      height: height * scale
+      height: height * scale,
     };
   }
 
@@ -341,7 +343,7 @@ export class ResponsiveUI {
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach(callback => callback());
+    this.listeners.forEach((callback) => callback());
   }
 
   public destroy(): void {

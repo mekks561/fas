@@ -15,7 +15,7 @@ export enum EnemyType {
   BOSS = 'boss',
   SNIPER = 'sniper',
   ASSASSIN = 'assassin',
-  SUPPORT = 'support'
+  SUPPORT = 'support',
 }
 
 export enum AIState {
@@ -26,7 +26,7 @@ export enum AIState {
   RETREAT,
   EVADE,
   FORMATION,
-  SUPPORT
+  SUPPORT,
 }
 
 export interface EnemyConfig {
@@ -57,21 +57,26 @@ export class EnhancedEnemy {
   private lastAttackTime: number = 0;
   private patrolPoint: pc.Vec3 | null = null;
   private stateTimer: number = 0;
-  
+
   private targetPosition: pc.Vec3 = new pc.Vec3(0, 0, 0);
   private movementSpeed: number = 0;
-  
-  constructor(engine: EnhancedPlayCanvasEngine, type: EnemyType, position: pc.Vec3, player: EnhancedPlayerShip) {
+
+  constructor(
+    engine: EnhancedPlayCanvasEngine,
+    type: EnemyType,
+    position: pc.Vec3,
+    player: EnhancedPlayerShip,
+  ) {
     this.engine = engine;
     this.type = type;
     this.player = player;
     this.config = this.getConfigForType(type);
     this.health = this.config.health;
-    
+
     this.entity = this.createEnemy(position);
     this.movementSpeed = this.config.speed;
   }
-  
+
   private getConfigForType(type: EnemyType): EnemyConfig {
     switch (type) {
       case EnemyType.SCOUT:
@@ -83,7 +88,7 @@ export class EnhancedEnemy {
           attackCooldown: 2000,
           detectionRange: 30,
           attackRange: 5,
-          rewardScore: 100
+          rewardScore: 100,
         };
       case EnemyType.FIGHTER:
         return {
@@ -94,7 +99,7 @@ export class EnhancedEnemy {
           attackCooldown: 1500,
           detectionRange: 25,
           attackRange: 4,
-          rewardScore: 150
+          rewardScore: 150,
         };
       case EnemyType.TANK:
         return {
@@ -105,7 +110,7 @@ export class EnhancedEnemy {
           attackCooldown: 3000,
           detectionRange: 20,
           attackRange: 3,
-          rewardScore: 300
+          rewardScore: 300,
         };
       case EnemyType.ELITE:
         return {
@@ -116,7 +121,7 @@ export class EnhancedEnemy {
           attackCooldown: 1200,
           detectionRange: 35,
           attackRange: 6,
-          rewardScore: 250
+          rewardScore: 250,
         };
       case EnemyType.BOSS:
         return {
@@ -127,7 +132,7 @@ export class EnhancedEnemy {
           attackCooldown: 2000,
           detectionRange: 40,
           attackRange: 8,
-          rewardScore: 1000
+          rewardScore: 1000,
         };
       case EnemyType.SNIPER:
         return {
@@ -138,7 +143,7 @@ export class EnhancedEnemy {
           attackCooldown: 2500,
           detectionRange: 50,
           attackRange: 30,
-          rewardScore: 200
+          rewardScore: 200,
         };
       case EnemyType.ASSASSIN:
         return {
@@ -149,7 +154,7 @@ export class EnhancedEnemy {
           attackCooldown: 1800,
           detectionRange: 20,
           attackRange: 2,
-          rewardScore: 180
+          rewardScore: 180,
         };
       case EnemyType.SUPPORT:
         return {
@@ -160,7 +165,7 @@ export class EnhancedEnemy {
           attackCooldown: 1000,
           detectionRange: 25,
           attackRange: 10,
-          rewardScore: 120
+          rewardScore: 120,
         };
       default:
         return {
@@ -171,17 +176,17 @@ export class EnhancedEnemy {
           attackCooldown: 2000,
           detectionRange: 25,
           attackRange: 4,
-          rewardScore: 100
+          rewardScore: 100,
         };
     }
   }
-  
+
   private createEnemy(position: pc.Vec3): pc.Entity {
     const material = this.createEnemyMaterial();
-    
+
     const enemy = new pc.Entity(`enemy_${this.type}_${Date.now()}`);
     enemy.setPosition(position);
-    
+
     const body = new pc.Entity('enemyBody');
     body.addComponent('model', { type: this.getModelType() });
     if (body.model) body.model.material = material;
@@ -190,7 +195,7 @@ export class EnhancedEnemy {
       body.setLocalEulerAngles(0, 0, 90);
     }
     enemy.addChild(body);
-    
+
     const cockpit = new pc.Entity('enemyCockpit');
     cockpit.addComponent('model', { type: 'sphere' });
     const cockpitMaterial = new pc.StandardMaterial();
@@ -200,27 +205,27 @@ export class EnhancedEnemy {
     cockpit.setLocalPosition(0, 0.3, 0);
     cockpit.setLocalScale(0.3, 0.3, 0.3);
     enemy.addChild(cockpit);
-    
+
     enemy.addComponent('rigidbody', {
       type: 'dynamic',
       mass: 1,
-      linearDamping: 0.2
+      linearDamping: 0.2,
     });
-    
+
     enemy.addComponent('collision', {
       type: 'cylinder',
       radius: 0.5,
-      height: 1.5
+      height: 1.5,
     });
-    
+
     this.engine.addToScene(enemy);
-    
+
     return enemy;
   }
-  
+
   private createEnemyMaterial(): pc.StandardMaterial {
     const material = new pc.StandardMaterial();
-    
+
     switch (this.type) {
       case EnemyType.SCOUT:
         material.diffuse.set(0.5, 0.5, 0.5);
@@ -258,11 +263,11 @@ export class EnhancedEnemy {
       default:
         material.diffuse.set(0.8, 0.2, 0.2);
     }
-    
+
     material.update();
     return material;
   }
-  
+
   private getModelType(): string {
     switch (this.type) {
       case EnemyType.SCOUT:
@@ -275,7 +280,7 @@ export class EnhancedEnemy {
         return 'cylinder';
     }
   }
-  
+
   private getScale(): pc.Vec3 {
     switch (this.type) {
       case EnemyType.SCOUT:
@@ -290,19 +295,19 @@ export class EnhancedEnemy {
         return new pc.Vec3(0.6, 0.8, 0.6);
     }
   }
-  
+
   public update(dt: number): void {
     this.stateTimer += dt;
-    
+
     this.updateAIState();
     this.executeAIState(dt);
-    
+
     this.entity.lookAt(this.targetPosition);
   }
-  
+
   private updateAIState(): void {
     const distance = this.getDistanceToPlayer();
-    
+
     if (distance <= this.config.attackRange) {
       this.aiState = AIState.ATTACK;
     } else if (distance <= this.config.detectionRange) {
@@ -315,13 +320,13 @@ export class EnhancedEnemy {
       }
     }
   }
-  
+
   private executeAIState(dt: number): void {
     switch (this.aiState) {
       case AIState.IDLE:
         this.targetPosition = this.entity.getPosition();
         break;
-        
+
       case AIState.PATROL:
         if (this.patrolPoint) {
           this.moveToPosition(this.patrolPoint, dt);
@@ -330,10 +335,10 @@ export class EnhancedEnemy {
           }
         }
         break;
-        
+
       case AIState.CHASE:
         const playerPos = this.player.getPosition();
-        
+
         if (this.type === EnemyType.SNIPER) {
           this.targetPosition = playerPos.clone();
           if (this.entity.rigidbody) this.entity.rigidbody.linearVelocity = new pc.Vec3(0, 0, 0);
@@ -341,143 +346,151 @@ export class EnhancedEnemy {
           this.moveToPosition(playerPos, dt);
         }
         break;
-        
+
       case AIState.ATTACK:
         this.targetPosition = this.player.getPosition();
         this.attack();
         break;
-        
+
       case AIState.EVADE:
-        const awayDir = this.entity.getPosition().clone().sub(this.player.getPosition()).normalize();
+        const awayDir = this.entity
+          .getPosition()
+          .clone()
+          .sub(this.player.getPosition())
+          .normalize();
         this.moveToPosition(this.entity.getPosition().clone().add(awayDir.scale(10)), dt);
         break;
-        
+
       case AIState.RETREAT:
-        const retreatDir = this.entity.getPosition().clone().sub(this.player.getPosition()).normalize();
+        const retreatDir = this.entity
+          .getPosition()
+          .clone()
+          .sub(this.player.getPosition())
+          .normalize();
         this.moveToPosition(this.entity.getPosition().clone().add(retreatDir.scale(20)), dt);
         break;
     }
   }
-  
+
   private generatePatrolPoint(): void {
     const currentPos = this.entity.getPosition();
     const angle = Math.random() * Math.PI * 2;
     const distance = 5 + Math.random() * 10;
-    
+
     this.patrolPoint = new pc.Vec3(
       currentPos.x + Math.cos(angle) * distance,
       currentPos.y,
-      currentPos.z + Math.sin(angle) * distance
+      currentPos.z + Math.sin(angle) * distance,
     );
   }
-  
+
   private moveToPosition(target: pc.Vec3, dt: number): void {
     const currentPos = this.entity.getPosition();
     const direction = target.clone().sub(currentPos).normalize();
-    
-    this.entity.rigidbody!.applyForce(direction.scale(this.movementSpeed * dt * 50));
+
+    this.entity.rigidbody?.applyForce(direction.scale(this.movementSpeed * dt * 50));
     this.targetPosition = target;
   }
-  
+
   private getDistanceToPlayer(): number {
     const playerPos = this.player.getPosition();
     const enemyPos = this.entity.getPosition();
     return playerPos.clone().sub(enemyPos).length();
   }
-  
+
   private getDistanceToPoint(point: pc.Vec3): number {
     const enemyPos = this.entity.getPosition();
     return point.clone().sub(enemyPos).length();
   }
-  
+
   private attack(): void {
     const now = Date.now();
     if (now - this.lastAttackTime >= this.config.attackCooldown) {
       this.player.takeDamage(this.config.damage);
       this.lastAttackTime = now;
-      
+
       if (this.type === EnemyType.SNIPER) {
         this.spawnProjectile();
       }
     }
   }
-  
+
   private spawnProjectile(): void {
     const playerPos = this.player.getPosition();
     const enemyPos = this.entity.getPosition();
-    
+
     const projectile = new pc.Entity(`enemy_projectile_${Date.now()}`);
     projectile.setPosition(enemyPos.clone());
-    
+
     const material = new pc.StandardMaterial();
     material.diffuse.set(1, 0.2, 0.2);
     material.emissive.set(1, 0.2, 0.2);
     material.update();
-    
+
     projectile.addComponent('model', { type: 'sphere' });
     if (projectile.model) projectile.model.material = material;
     projectile.setLocalScale(0.15, 0.15, 0.15);
-    
+
     projectile.addComponent('rigidbody', {
       type: 'dynamic',
-      mass: 0.1
+      mass: 0.1,
     });
-    
+
     projectile.addComponent('collision', {
       type: 'sphere',
-      radius: 0.15
+      radius: 0.15,
     });
-    
+
     this.engine.addToScene(projectile);
-    
+
     const direction = playerPos.clone().sub(enemyPos).normalize();
     if (projectile.rigidbody) projectile.rigidbody.linearVelocity = direction.scale(25);
   }
-  
+
   public takeDamage(amount: number): void {
     this.health -= amount;
-    
+
     if (this.health <= this.config.health * 0.3 && this.type !== EnemyType.BOSS) {
       this.aiState = AIState.RETREAT;
     }
-    
+
     if (this.health <= 0) {
       this.destroy();
     }
   }
-  
+
   public destroy(): void {
     this.entity.destroy();
   }
-  
+
   public getHealth(): number {
     return this.health;
   }
-  
+
   public getMaxHealth(): number {
     return this.config.health;
   }
-  
+
   public getPosition(): pc.Vec3 {
     return this.entity.getPosition();
   }
-  
+
   public getEntity(): pc.Entity {
     return this.entity;
   }
-  
+
   public isAlive(): boolean {
     return this.health > 0;
   }
-  
+
   public getType(): EnemyType {
     return this.type;
   }
-  
+
   public getRewardScore(): number {
     return this.config.rewardScore;
   }
-  
+
   public getAIState(): AIState {
     return this.aiState;
   }

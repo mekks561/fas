@@ -77,8 +77,12 @@ export class InputSystem {
     window.addEventListener('keyup', this.handleKeyUp.bind(this));
 
     if (this.canvas) {
-      this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
-      this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
+      this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), {
+        passive: false,
+      });
+      this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), {
+        passive: false,
+      });
       this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
     }
 
@@ -110,7 +114,7 @@ export class InputSystem {
 
     this.bindings.forEach((binding, action) => {
       if (binding.keys.includes(e.code)) {
-        const hasOtherKey = binding.keys.some(key => this.keyboardState.has(key));
+        const hasOtherKey = binding.keys.some((key) => this.keyboardState.has(key));
         if (!hasOtherKey) {
           this.updateAction(action, 'released', 0);
         }
@@ -203,7 +207,7 @@ export class InputSystem {
     this.actions.set('moveJoystick', {
       state: 'held',
       value: 1,
-      axis: { x, y }
+      axis: { x, y },
     });
   }
 
@@ -236,7 +240,7 @@ export class InputSystem {
         this.actions.set('moveJoystick', {
           state: 'held',
           value: 1,
-          axis: { x: leftStickX, y: leftStickY }
+          axis: { x: leftStickX, y: leftStickY },
         });
       }
 
@@ -274,14 +278,14 @@ export class InputSystem {
     const updated: InputAction = {
       state,
       value,
-      axis: current?.axis || undefined
+      axis: current?.axis || undefined,
     };
 
     this.actions.set(action, updated);
 
     const callbacks = this.listeners.get(action);
     if (callbacks) {
-      callbacks.forEach(callback => callback(action, updated));
+      callbacks.forEach((callback) => callback(action, updated));
     }
   }
 
@@ -366,7 +370,7 @@ export class InputSystem {
       { id: 'fire', type: 'button', x: 0.75, y: 0.4, width: 0.25, height: 0.25 },
       { id: 'boost', type: 'button', x: 0.75, y: 0.8, width: 0.25, height: 0.2 },
       { id: 'skill1', type: 'button', x: 0.1, y: 0.2, width: 0.15, height: 0.15 },
-      { id: 'skill2', type: 'button', x: 0.85, y: 0.2, width: 0.15, height: 0.15 }
+      { id: 'skill2', type: 'button', x: 0.85, y: 0.2, width: 0.15, height: 0.15 },
     ];
   }
 

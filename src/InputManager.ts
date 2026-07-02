@@ -13,7 +13,7 @@ export class InputManager {
     left: false,
     right: false,
     up: false,
-    down: false
+    down: false,
   };
   private comboKeys: Set<string> = new Set();
   private comboTimeout: number | null = null;
@@ -32,10 +32,13 @@ export class InputManager {
     boost: ['shift'],
     fire: [' ', 'ctrl', 'mouse0'],
     pause: ['escape', 'p'],
-    reset: ['r']
+    reset: ['r'],
   };
 
-  constructor(private canvas: HTMLCanvasElement, keyBindings?: Partial<IKeyBindings>) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    keyBindings?: Partial<IKeyBindings>,
+  ) {
     this.keyBindings = { ...InputManager.defaultBindings, ...keyBindings };
     this.setupEventListeners();
   }
@@ -64,7 +67,7 @@ export class InputManager {
   public getControls(): IShipControls {
     const isPressed = (action: keyof IKeyBindings): boolean => {
       const bindings = this.keyBindings[action] || [];
-      return bindings.some(binding => {
+      return bindings.some((binding) => {
         if (binding.startsWith('mouse')) {
           const btn = parseInt(binding.replace('mouse', ''), 10);
           return this.mouseButtons[btn] || false;
@@ -85,7 +88,7 @@ export class InputManager {
       rollLeft: isPressed('rollLeft'),
       rollRight: isPressed('rollRight'),
       boost: isPressed('boost'),
-      fire: isPressed('fire')
+      fire: isPressed('fire'),
     };
   }
 
@@ -127,7 +130,7 @@ export class InputManager {
 
   // 组合键检测
   public checkCombo(combo: string[]): boolean {
-    return combo.every(key => this.keys[key.toLowerCase()]);
+    return combo.every((key) => this.keys[key.toLowerCase()]);
   }
 
   public registerCombo(combo: string[], callback: () => void, timeout: number = 500): void {
@@ -174,7 +177,7 @@ export class InputManager {
   public removeKeyBinding(action: keyof IKeyBindings, key: string): void {
     const bindings = this.keyBindings[action];
     if (bindings) {
-      this.keyBindings[action] = bindings.filter(k => k !== key);
+      this.keyBindings[action] = bindings.filter((k) => k !== key);
     }
   }
 
@@ -197,15 +200,15 @@ export class InputManager {
       isLocked: this.isLocked,
       mouseSensitivity: this.mouseSensitivity,
       touchState: { ...this.touchState },
-      inputHistorySize: this.inputHistory.length
+      inputHistorySize: this.inputHistory.length,
     };
   }
 
   public clear(): void {
-    Object.keys(this.keys).forEach(key => {
+    Object.keys(this.keys).forEach((key) => {
       this.keys[key] = false;
     });
-    Object.keys(this.mouseButtons).forEach(btnStr => {
+    Object.keys(this.mouseButtons).forEach((btnStr) => {
       const btn = parseInt(btnStr, 10);
       if (!isNaN(btn)) {
         this.mouseButtons[btn] = false;
@@ -237,13 +240,13 @@ export class InputManager {
   private handleKeyDown = (e: KeyboardEvent) => {
     const key = e.key.toLowerCase();
     this.keys[key] = true;
-    
+
     if (this.isDebugMode) {
       this.addToHistory('keydown', key);
     }
 
     if (e.key === ' ') e.preventDefault();
-  }
+  };
 
   private handleKeyUp = (e: KeyboardEvent) => {
     const key = e.key.toLowerCase();
@@ -252,7 +255,7 @@ export class InputManager {
     if (this.isDebugMode) {
       this.addToHistory('keyup', key);
     }
-  }
+  };
 
   private handleMouseDown = (e: MouseEvent) => {
     this.mouseButtons[e.button] = true;
@@ -260,7 +263,7 @@ export class InputManager {
     if (this.isDebugMode) {
       this.addToHistory('mousedown', `mouse${e.button}`);
     }
-  }
+  };
 
   private handleMouseUp = (e: MouseEvent) => {
     this.mouseButtons[e.button] = false;
@@ -268,15 +271,15 @@ export class InputManager {
     if (this.isDebugMode) {
       this.addToHistory('mouseup', `mouse${e.button}`);
     }
-  }
+  };
 
   private handleCanvasClick = () => {
     this.canvas.requestPointerLock();
-  }
+  };
 
   private handlePointerLockChange = () => {
-    this.isLocked = document.pointerLockElement === this.canvas as unknown as Element;
-  }
+    this.isLocked = document.pointerLockElement === (this.canvas as unknown as Element);
+  };
 
   private handleMouseMove = (e: MouseEvent) => {
     if (this.isLocked) {
@@ -284,18 +287,18 @@ export class InputManager {
       this.mouseDelta.y += e.movementY * this.mouseSensitivity;
       this.mouseDelta.y = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, this.mouseDelta.y));
     }
-  }
+  };
 
   private handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
-  }
+  };
 
   // 触摸事件处理
   private handleTouchStart = (e: TouchEvent) => {
     e.preventDefault();
     const touches = Array.from(e.touches);
-    
-    touches.forEach(touch => {
+
+    touches.forEach((touch) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = (touch.clientX - rect.left) / rect.width;
       const y = (touch.clientY - rect.top) / rect.height;
@@ -315,7 +318,7 @@ export class InputManager {
     if (this.isDebugMode) {
       this.addToHistory('touchstart');
     }
-  }
+  };
 
   private handleTouchEnd = (e: TouchEvent) => {
     e.preventDefault();
@@ -325,17 +328,17 @@ export class InputManager {
     if (this.isDebugMode) {
       this.addToHistory('touchend');
     }
-  }
+  };
 
   private handleTouchMove = (e: TouchEvent) => {
     e.preventDefault();
-  }
+  };
 
   private addToHistory(type: string, key?: string): void {
     this.inputHistory.push({
       type,
       key,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     if (this.inputHistory.length > this.maxHistoryLength) {

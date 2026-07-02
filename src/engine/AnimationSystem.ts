@@ -38,7 +38,10 @@ export interface AnimatedEntity {
   currentTime: number;
   isPlaying: boolean;
   speed: number;
-  blendStates: Map<string, { clip: AnimationClip; weight: number; time: number; frameIndex: number }>;
+  blendStates: Map<
+    string,
+    { clip: AnimationClip; weight: number; time: number; frameIndex: number }
+  >;
 }
 
 export class AnimationSystem {
@@ -60,10 +63,28 @@ export class AnimationSystem {
       loop: true,
       speed: 1.0,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 1.0, easing: 'easeInOut' },
-        { position: new pc.Vec3(0, 0.1, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 1.0, easing: 'easeInOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 1.0, easing: 'easeInOut' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 1.0,
+          easing: 'easeInOut',
+        },
+        {
+          position: new pc.Vec3(0, 0.1, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 1.0,
+          easing: 'easeInOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 1.0,
+          easing: 'easeInOut',
+        },
+      ],
     });
 
     // 玩家移动动画
@@ -73,10 +94,28 @@ export class AnimationSystem {
       loop: true,
       speed: 1.5,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, -5), scale: new pc.Vec3(1, 1, 1), duration: 0.3, easing: 'easeInOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 5), scale: new pc.Vec3(1, 1, 1), duration: 0.3, easing: 'easeInOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, -5), scale: new pc.Vec3(1, 1, 1), duration: 0.3, easing: 'easeInOut' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, -5),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.3,
+          easing: 'easeInOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 5),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.3,
+          easing: 'easeInOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, -5),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.3,
+          easing: 'easeInOut',
+        },
+      ],
     });
 
     // 玩家攻击动画
@@ -86,10 +125,28 @@ export class AnimationSystem {
       loop: false,
       speed: 2.0,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.05, easing: 'linear' },
-        { position: new pc.Vec3(0, 0, 0.5), rotation: new pc.Vec3(-10, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.1, easing: 'easeOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.15, easing: 'easeIn' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.05,
+          easing: 'linear',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0.5),
+          rotation: new pc.Vec3(-10, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.1,
+          easing: 'easeOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.15,
+          easing: 'easeIn',
+        },
+      ],
     });
 
     // 玩家受伤动画
@@ -99,10 +156,28 @@ export class AnimationSystem {
       loop: false,
       speed: 1.0,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.05, easing: 'linear' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1.1, 1.1, 1.1), duration: 0.1, easing: 'easeOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.15, easing: 'easeIn' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.05,
+          easing: 'linear',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1.1, 1.1, 1.1),
+          duration: 0.1,
+          easing: 'easeOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.15,
+          easing: 'easeIn',
+        },
+      ],
     });
 
     // 玩家死亡动画
@@ -112,11 +187,35 @@ export class AnimationSystem {
       loop: false,
       speed: 1.0,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.2, easing: 'easeOut' },
-        { position: new pc.Vec3(0, 2, 0), rotation: new pc.Vec3(0, 0, 180), scale: new pc.Vec3(1.2, 1.2, 1.2), duration: 0.5, easing: 'easeIn' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 360), scale: new pc.Vec3(0.5, 0.5, 0.5), duration: 0.5, easing: 'easeIn' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 360), scale: new pc.Vec3(0, 0, 0), duration: 0.3, easing: 'linear' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.2,
+          easing: 'easeOut',
+        },
+        {
+          position: new pc.Vec3(0, 2, 0),
+          rotation: new pc.Vec3(0, 0, 180),
+          scale: new pc.Vec3(1.2, 1.2, 1.2),
+          duration: 0.5,
+          easing: 'easeIn',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 360),
+          scale: new pc.Vec3(0.5, 0.5, 0.5),
+          duration: 0.5,
+          easing: 'easeIn',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 360),
+          scale: new pc.Vec3(0, 0, 0),
+          duration: 0.3,
+          easing: 'linear',
+        },
+      ],
     });
 
     // 敌人生成动画
@@ -126,10 +225,28 @@ export class AnimationSystem {
       loop: false,
       speed: 1.0,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(0, 0, 0), duration: 0.3, easing: 'easeOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 360, 0), scale: new pc.Vec3(1.2, 1.2, 1.2), duration: 0.2, easing: 'bounce' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 360, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.2, easing: 'easeIn' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(0, 0, 0),
+          duration: 0.3,
+          easing: 'easeOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 360, 0),
+          scale: new pc.Vec3(1.2, 1.2, 1.2),
+          duration: 0.2,
+          easing: 'bounce',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 360, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.2,
+          easing: 'easeIn',
+        },
+      ],
     });
 
     // 敌人空闲动画
@@ -139,9 +256,21 @@ export class AnimationSystem {
       loop: true,
       speed: 1.0,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 1.5, easing: 'easeInOut' },
-        { position: new pc.Vec3(0, 0.2, 0), rotation: new pc.Vec3(0, 5, 0), scale: new pc.Vec3(1, 1, 1), duration: 1.5, easing: 'easeInOut' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 1.5,
+          easing: 'easeInOut',
+        },
+        {
+          position: new pc.Vec3(0, 0.2, 0),
+          rotation: new pc.Vec3(0, 5, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 1.5,
+          easing: 'easeInOut',
+        },
+      ],
     });
 
     // 敌人攻击动画
@@ -151,10 +280,28 @@ export class AnimationSystem {
       loop: false,
       speed: 1.5,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.1, easing: 'easeIn' },
-        { position: new pc.Vec3(0, 0, -1), rotation: new pc.Vec3(15, 0, 0), scale: new pc.Vec3(1.1, 1.1, 0.9), duration: 0.15, easing: 'easeOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.2, easing: 'easeIn' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.1,
+          easing: 'easeIn',
+        },
+        {
+          position: new pc.Vec3(0, 0, -1),
+          rotation: new pc.Vec3(15, 0, 0),
+          scale: new pc.Vec3(1.1, 1.1, 0.9),
+          duration: 0.15,
+          easing: 'easeOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.2,
+          easing: 'easeIn',
+        },
+      ],
     });
 
     // 敌人死亡动画
@@ -164,10 +311,28 @@ export class AnimationSystem {
       loop: false,
       speed: 1.0,
       frames: [
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 0), scale: new pc.Vec3(1, 1, 1), duration: 0.1, easing: 'linear' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 720), scale: new pc.Vec3(1.5, 1.5, 1.5), duration: 0.3, easing: 'easeOut' },
-        { position: new pc.Vec3(0, 0, 0), rotation: new pc.Vec3(0, 0, 720), scale: new pc.Vec3(0, 0, 0), duration: 0.2, easing: 'easeIn' }
-      ]
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 0),
+          scale: new pc.Vec3(1, 1, 1),
+          duration: 0.1,
+          easing: 'linear',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 720),
+          scale: new pc.Vec3(1.5, 1.5, 1.5),
+          duration: 0.3,
+          easing: 'easeOut',
+        },
+        {
+          position: new pc.Vec3(0, 0, 0),
+          rotation: new pc.Vec3(0, 0, 720),
+          scale: new pc.Vec3(0, 0, 0),
+          duration: 0.2,
+          easing: 'easeIn',
+        },
+      ],
     });
 
     // 默认状态转换
@@ -207,7 +372,7 @@ export class AnimationSystem {
       currentTime: 0,
       isPlaying: true,
       speed: 1.0,
-      blendStates: new Map()
+      blendStates: new Map(),
     };
 
     this.entities.set(entity, animated);
@@ -295,14 +460,14 @@ export class AnimationSystem {
 
     animated.blendStates.clear();
 
-    blends.forEach(blend => {
+    blends.forEach((blend) => {
       const clip = this.clips.get(blend.clipName);
       if (clip) {
         animated.blendStates.set(blend.clipName, {
           clip,
           weight: blend.weight,
           time: 0,
-          frameIndex: 0
+          frameIndex: 0,
         });
       }
     });
@@ -351,9 +516,12 @@ export class AnimationSystem {
         this.applyFrame(animated.entity, newFrame);
       }
     } else {
-      const nextFrameIndex = animated.currentFrameIndex + 1 < clip.frames.length 
-        ? animated.currentFrameIndex + 1 
-        : clip.loop ? 0 : animated.currentFrameIndex;
+      const nextFrameIndex =
+        animated.currentFrameIndex + 1 < clip.frames.length
+          ? animated.currentFrameIndex + 1
+          : clip.loop
+            ? 0
+            : animated.currentFrameIndex;
       const nextFrame = clip.frames[nextFrameIndex];
 
       if (nextFrame && nextFrameIndex !== animated.currentFrameIndex) {
@@ -411,7 +579,7 @@ export class AnimationSystem {
         rotation: baseRot,
         scale: baseScale,
         duration: 0,
-        easing: 'linear'
+        easing: 'linear',
       });
     }
   }
@@ -422,7 +590,12 @@ export class AnimationSystem {
     entity.setLocalScale(frame.scale);
   }
 
-  private applyInterpolatedFrame(entity: pc.Entity, from: AnimationFrame, to: AnimationFrame, t: number): void {
+  private applyInterpolatedFrame(
+    entity: pc.Entity,
+    from: AnimationFrame,
+    to: AnimationFrame,
+    t: number,
+  ): void {
     const pos = new pc.Vec3().lerp(from.position, to.position, t);
     const rot = new pc.Vec3().lerp(from.rotation, to.rotation, t);
     const scale = new pc.Vec3().lerp(from.scale, to.scale, t);
@@ -432,7 +605,10 @@ export class AnimationSystem {
     entity.setLocalScale(scale);
   }
 
-  private applyEasing(t: number, easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'bounce'): number {
+  private applyEasing(
+    t: number,
+    easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'bounce',
+  ): number {
     switch (easing) {
       case 'linear':
         return t;
@@ -467,8 +643,11 @@ export class AnimationSystem {
     return null;
   }
 
-  private findTransition(from: AnimationState, to: AnimationState): AnimationStateTransition | null {
-    return this.transitions.find(t => t.from === from && t.to === to) || null;
+  private findTransition(
+    from: AnimationState,
+    to: AnimationState,
+  ): AnimationStateTransition | null {
+    return this.transitions.find((t) => t.from === from && t.to === to) || null;
   }
 
   public getCurrentState(entity: pc.Entity): AnimationState | null {

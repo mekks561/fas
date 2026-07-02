@@ -104,7 +104,7 @@ export class VisualEffectSystem {
       colorCorrectionContrast: 1.1,
       colorCorrectionExposure: 1.0,
 
-      fxaaEnabled: true
+      fxaaEnabled: true,
     };
 
     this.initializeShaders();
@@ -130,7 +130,7 @@ export class VisualEffectSystem {
     glslVert: string,
     glslFrag: string,
     wgslVert: string,
-    wgslFrag: string
+    wgslFrag: string,
   ): pc.Shader {
     const isWGSL = this.isWebGPU;
     return new pc.Shader(this.app.graphicsDevice, {
@@ -138,8 +138,17 @@ export class VisualEffectSystem {
       shaderLanguage: this.shaderLanguage,
       attributes: { aPosition: pc.SEMANTIC_POSITION },
       vshader: isWGSL ? wgslVert : glslVert,
-      fshader: isWGSL ? wgslFrag : glslFrag
+      fshader: isWGSL ? wgslFrag : glslFrag,
     });
+  }
+
+  /** True when all multi-pass bloom shaders have been created. */
+  private get multiPassBloomShadersReady(): boolean {
+    return (
+      this.bloomBrightShader !== null &&
+      this.bloomBlurShader !== null &&
+      this.bloomCompositeShader !== null
+    );
   }
 
   /**
@@ -149,7 +158,7 @@ export class VisualEffectSystem {
   private createPostEffect(shader: pc.Shader, pass?: number): PostEffectWithUniforms {
     const ctor = pc.PostEffect as unknown as new (
       device: pc.GraphicsDevice,
-      shader?: pc.Shader
+      shader?: pc.Shader,
     ) => PostEffectWithUniforms;
     const effect = new ctor(this.app.graphicsDevice, shader);
     if (pass !== undefined) {
@@ -205,7 +214,7 @@ export class VisualEffectSystem {
             }
             return color;
         }
-      `
+      `,
     );
 
     // ---- Vignette ----
@@ -253,7 +262,7 @@ export class VisualEffectSystem {
             let outRgb = mix(color.rgb, color.rgb * vec3<f32>(vignette) + uColor * (1.0 - vignette), uIntensity);
             return vec4<f32>(outRgb, color.a);
         }
-      `
+      `,
     );
 
     // ---- Chromatic aberration ----
@@ -294,7 +303,7 @@ export class VisualEffectSystem {
             let b = textureSample(uColorBuffer, uColorBufferSampler, uv - dist).b;
             return vec4<f32>(r, g, b, 1.0);
         }
-      `
+      `,
     );
 
     // ---- Color correction ----
@@ -341,7 +350,7 @@ export class VisualEffectSystem {
             color = vec4<f32>(color.rgb * uExposure, color.a);
             return color;
         }
-      `
+      `,
     );
 
     // ---- FXAA ----
@@ -453,7 +462,7 @@ export class VisualEffectSystem {
             }
             return vec4<f32>(rgbB, 1.0);
         }
-      `
+      `,
     );
 
     // Multi-pass bloom shaders + intermediate render targets.
@@ -506,7 +515,7 @@ export class VisualEffectSystem {
             }
             return vec4<f32>(0.0, 0.0, 0.0, 1.0);
         }
-      `
+      `,
     );
 
     // ---- Separable Gaussian blur ----
@@ -557,7 +566,7 @@ export class VisualEffectSystem {
             }
             return sum;
         }
-      `
+      `,
     );
 
     // ---- Composite pass ----
@@ -593,7 +602,7 @@ export class VisualEffectSystem {
             let blur = textureSample(uBlurBuffer, uBlurBufferSampler, uv);
             return vec4<f32>(color.rgb + blur.rgb * uStrength, color.a);
         }
-      `
+      `,
     );
 
     // Ping-pong render targets at half resolution for the blur passes.
@@ -615,12 +624,12 @@ export class VisualEffectSystem {
       minFilter: pc.FILTER_LINEAR,
       magFilter: pc.FILTER_LINEAR,
       addressU: pc.ADDRESS_CLAMP_TO_EDGE,
-      addressV: pc.ADDRESS_CLAMP_TO_EDGE
+      addressV: pc.ADDRESS_CLAMP_TO_EDGE,
     });
     return new pc.RenderTarget({
       name,
       colorBuffer,
-      depth: false
+      depth: false,
     });
   }
 
@@ -628,7 +637,7 @@ export class VisualEffectSystem {
     // PostEffectQueue's public constructor expects (app, camera); the legacy
     // single-argument form used here is preserved via a cast.
     const queueCtor = pc.PostEffectQueue as unknown as new (
-      device: pc.GraphicsDevice
+      device: pc.GraphicsDevice,
     ) => pc.PostEffectQueue;
     this.postEffectQueue = new queueCtor(this.app.graphicsDevice);
 
@@ -670,38 +679,35 @@ export class VisualEffectSystem {
     }
 
     if (this.vignetteEffect) {
+      const c = this.config.vignetteColor;
       this.vignetteEffect.setUniform('uIntensity', this.config.vignetteIntensity);
       this.vignetteEffect.setUniform('uRadius', this.config.vignetteRadius);
-      this.vignetteEffect.setUniform('uColor', this.config.vignetteColor.data);
+      this.vignetteEffect.setUniform('uColor', [c.r, c.g, c.b]);
     }
 
     if (this.chromaticAberrationEffect) {
-      this.chromaticAberrationEffect.setUniform(
-        'uAmount',
-        this.config.chromaticAberrationAmount
-      );
+      this.chromaticAberrationEffect.setUniform('uAmount', this.config.chromaticAberrationAmount);
     }
 
     if (this.colorCorrectionEffect) {
-      this.colorCorrectionEffect.setUniform(
-        'uSaturation',
-        this.config.colorCorrectionSaturation
-      );
-      this.colorCorrectionEffect.setUniform(
-        'uContrast',
-        this.config.colorCorrectionContrast
-      );
-      this.colorCorrectionEffect.setUniform(
-        'uExposure',
-        this.config.colorCorrectionExposure
-      );
+      this.colorCorrectionEffect.setUniform('uSaturation', this.config.colorCorrectionSaturation);
+      this.colorCorrectionEffect.setUniform('uContrast', this.config.colorCorrectionContrast);
+      this.colorCorrectionEffect.setUniform('uExposure', this.config.colorCorrectionExposure);
     }
   }
 
   public enableBloom(): void {
-    if (!this.bloomEffect && this.bloomShader) {
-      this.bloomEffect = this.createPostEffect(this.bloomShader, 1);
-      this.postEffectQueue?.addEffect(this.bloomEffect);
+    if (!this.bloomEffect) {
+      // On WebGPU, prefer the multi-pass composite shader when the multi-pass
+      // bloom pipeline is ready; otherwise fall back to the single-pass shader.
+      const shader =
+        this.isWebGPU && this.multiPassBloomShadersReady && this.bloomCompositeShader
+          ? this.bloomCompositeShader
+          : this.bloomShader;
+      if (shader) {
+        this.bloomEffect = this.createPostEffect(shader, 1);
+        this.postEffectQueue?.addEffect(this.bloomEffect);
+      }
     }
     this.config.bloomEnabled = true;
     this.updateEffects();
@@ -734,9 +740,7 @@ export class VisualEffectSystem {
 
   public enableChromaticAberration(): void {
     if (!this.chromaticAberrationEffect && this.chromaticAberrationShader) {
-      this.chromaticAberrationEffect = this.createPostEffect(
-        this.chromaticAberrationShader
-      );
+      this.chromaticAberrationEffect = this.createPostEffect(this.chromaticAberrationShader);
       this.postEffectQueue?.addEffect(this.chromaticAberrationEffect);
     }
     this.config.chromaticAberrationEnabled = true;
@@ -753,9 +757,7 @@ export class VisualEffectSystem {
 
   public enableColorCorrection(): void {
     if (!this.colorCorrectionEffect && this.colorCorrectionShader) {
-      this.colorCorrectionEffect = this.createPostEffect(
-        this.colorCorrectionShader
-      );
+      this.colorCorrectionEffect = this.createPostEffect(this.colorCorrectionShader);
       this.postEffectQueue?.addEffect(this.colorCorrectionEffect);
     }
     this.config.colorCorrectionEnabled = true;
@@ -817,8 +819,11 @@ export class VisualEffectSystem {
   public enableSSAO(): void {
     if (!this.isWebGPU) {
       console.warn(
-        'VisualEffectSystem.enableSSAO: SSAO is only supported on WebGPU; ignored on WebGL2.'
+        'VisualEffectSystem.enableSSAO: SSAO is only supported on WebGPU; ignored on WebGL2.',
       );
+      return;
+    }
+    if (this.ssaoEnabled) {
       return;
     }
     this.ssaoEnabled = true;
@@ -883,24 +888,66 @@ export class VisualEffectSystem {
     this.config = { ...this.config, ...config };
 
     if (config.bloomEnabled !== undefined) {
-      config.bloomEnabled ? this.enableBloom() : this.disableBloom();
+      if (config.bloomEnabled) this.enableBloom();
+      else this.disableBloom();
     }
     if (config.vignetteEnabled !== undefined) {
-      config.vignetteEnabled ? this.enableVignette() : this.disableVignette();
+      if (config.vignetteEnabled) this.enableVignette();
+      else this.disableVignette();
     }
     if (config.chromaticAberrationEnabled !== undefined) {
-      config.chromaticAberrationEnabled
-        ? this.enableChromaticAberration()
-        : this.disableChromaticAberration();
+      if (config.chromaticAberrationEnabled) this.enableChromaticAberration();
+      else this.disableChromaticAberration();
     }
     if (config.colorCorrectionEnabled !== undefined) {
-      config.colorCorrectionEnabled
-        ? this.enableColorCorrection()
-        : this.disableColorCorrection();
+      if (config.colorCorrectionEnabled) this.enableColorCorrection();
+      else this.disableColorCorrection();
     }
 
     this.updateEffects();
   }
 
   public getConfig(): VisualEffectConfig {
-    return { ...this.config
+    return { ...this.config };
+  }
+
+  /** Frees a bloom render target and its color buffer texture. */
+  private destroyBloomRenderTarget(rt: pc.RenderTarget | null): void {
+    if (!rt) return;
+    const colorBuffer = rt.colorBuffer;
+    if (colorBuffer) {
+      colorBuffer.destroy();
+    }
+    rt.destroy();
+  }
+
+  public dispose(): void {
+    if (this.postEffectQueue) {
+      // PostEffectQueue exposes destroy() rather than clear(); the legacy
+      // clear() call is preserved through a cast.
+      (this.postEffectQueue as unknown as { clear(): void }).clear();
+    }
+
+    this.destroyBloomRenderTarget(this.bloomRenderTarget1);
+    this.destroyBloomRenderTarget(this.bloomRenderTarget2);
+    this.bloomRenderTarget1 = null;
+    this.bloomRenderTarget2 = null;
+
+    this.bloomEffect = null;
+    this.vignetteEffect = null;
+    this.chromaticAberrationEffect = null;
+    this.colorCorrectionEffect = null;
+    this.fxaaEffect = null;
+
+    this.bloomShader = null;
+    this.vignetteShader = null;
+    this.chromaticAberrationShader = null;
+    this.colorCorrectionShader = null;
+    this.fxaaShader = null;
+    this.bloomBrightShader = null;
+    this.bloomBlurShader = null;
+    this.bloomCompositeShader = null;
+
+    this.ssaoEnabled = false;
+  }
+}

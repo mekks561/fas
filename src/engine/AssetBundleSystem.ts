@@ -60,12 +60,12 @@ export class AssetBundleSystem {
       version: data.version,
       bundles: data.bundles,
       dependencies: new Map(Object.entries(data.dependencies || {})),
-      totalSize: data.totalSize || 0
+      totalSize: data.totalSize || 0,
     };
   }
 
   getBundle(id: string): BundleInfo | undefined {
-    return this.manifest?.bundles.find(b => b.id === id);
+    return this.manifest?.bundles.find((b) => b.id === id);
   }
 
   async loadBundle(bundleId: string, options: LoadingOptions = {}): Promise<Map<string, unknown>> {
@@ -97,7 +97,7 @@ export class AssetBundleSystem {
       const assets = await promise;
       this.loadedBundles.add(bundleId);
       const assetIds = new Set<string>();
-      bundle.assets.forEach(a => assetIds.add(a.id));
+      bundle.assets.forEach((a) => assetIds.add(a.id));
       this.bundleAssets.set(bundleId, assetIds);
       return assets;
     } finally {
@@ -105,7 +105,10 @@ export class AssetBundleSystem {
     }
   }
 
-  private async loadBundleAssets(bundle: BundleInfo, options: LoadingOptions): Promise<Map<string, unknown>> {
+  private async loadBundleAssets(
+    bundle: BundleInfo,
+    options: LoadingOptions,
+  ): Promise<Map<string, unknown>> {
     const assets = new Map<string, unknown>();
     const totalSize = bundle.assets.reduce((sum, a) => sum + a.size, 0);
     let loadedSize = 0;
@@ -176,7 +179,10 @@ export class AssetBundleSystem {
 
   private async loadAudio(response: Response): Promise<AudioBuffer> {
     const arrayBuffer = await response.arrayBuffer();
-    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const audioContext = new (
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    )();
     return audioContext.decodeAudioData(arrayBuffer);
   }
 
@@ -193,7 +199,7 @@ export class AssetBundleSystem {
       data,
       timestamp: Date.now(),
       usageCount: 1,
-      size
+      size,
     });
     this.currentMemoryUsage += size;
   }

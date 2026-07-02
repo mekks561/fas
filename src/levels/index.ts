@@ -32,11 +32,11 @@ export const getAllLevels = (): LevelConfig[] => [
   level07Config,
   level08Config,
   level09Config,
-  level10Config
+  level10Config,
 ];
 
 export const getLevelById = (id: string): LevelConfig | undefined => {
-  return getAllLevels().find(level => level.id === id);
+  return getAllLevels().find((level) => level.id === id);
 };
 
 export const getLevelByIndex = (index: number): LevelConfig | undefined => {

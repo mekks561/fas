@@ -24,7 +24,9 @@
   font-size: 14px;
   transition: all 0.2s;
 }
-.achievement-back-btn:hover { background: rgba(50, 70, 100, 0.9); }
+.achievement-back-btn:hover {
+  background: rgba(50, 70, 100, 0.9);
+}
 
 .achievement-title {
   font-size: 28px;
@@ -49,7 +51,7 @@
 
 .achievement-progress-bar {
   height: 6px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -75,7 +77,9 @@
   font-size: 13px;
   transition: all 0.2s;
 }
-.achievement-filter-btn:hover { background: rgba(30, 50, 80, 0.9); }
+.achievement-filter-btn:hover {
+  background: rgba(30, 50, 80, 0.9);
+}
 .achievement-filter-btn.active {
   background: #4a9eff;
   color: #fff;
@@ -100,8 +104,12 @@
   padding: 12px 16px;
   transition: transform 0.2s;
 }
-.achievement-card:hover { transform: translateY(-2px); }
-.achievement-card.locked { opacity: 0.6; }
+.achievement-card:hover {
+  transform: translateY(-2px);
+}
+.achievement-card.locked {
+  opacity: 0.6;
+}
 
 .achievement-card-icon {
   font-size: 32px;
@@ -110,7 +118,10 @@
   flex-shrink: 0;
 }
 
-.achievement-card-info { flex: 1; min-width: 0; }
+.achievement-card-info {
+  flex: 1;
+  min-width: 0;
+}
 
 .achievement-card-header {
   display: flex;
@@ -118,7 +129,10 @@
   gap: 8px;
   margin-bottom: 4px;
 }
-.achievement-card-name { font-size: 15px; font-weight: bold; }
+.achievement-card-name {
+  font-size: 15px;
+  font-weight: bold;
+}
 .achievement-card-rarity {
   font-size: 10px;
   padding: 1px 6px;
@@ -136,7 +150,9 @@
   gap: 10px;
   font-size: 12px;
 }
-.achievement-reward { color: #ffdd44; }
+.achievement-reward {
+  color: #ffdd44;
+}
 
 .achievement-card-status {
   font-size: 20px;
@@ -144,7 +160,8 @@
   padding-left: 8px;
 }
 
-.achievement-loading, .achievement-empty {
+.achievement-loading,
+.achievement-empty {
   text-align: center;
   padding: 40px;
   color: rgba(200, 210, 220, 0.5);
@@ -152,6 +169,10 @@
 }
 
 @media (max-width: 600px) {
-  .achievement-grid { grid-template-columns: 1fr; }
-  .achievement-title { font-size: 22px; }
+  .achievement-grid {
+    grid-template-columns: 1fr;
+  }
+  .achievement-title {
+    font-size: 22px;
+  }
 }

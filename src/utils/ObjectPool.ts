@@ -21,7 +21,7 @@ export class ObjectPool<T> {
     createFn: () => T,
     resetFn: (item: T) => void,
     maxSize: number = 100,
-    cleanupThreshold: number = 5000
+    cleanupThreshold: number = 5000,
   ) {
     this.createFn = createFn;
     this.resetFn = resetFn;
@@ -35,38 +35,36 @@ export class ObjectPool<T> {
    */
   public acquire(): T {
     // 优先查找空闲对象
-    const available = this.pool.find(item => !item.active);
-    
+    const available = this.pool.find((item) => !item.active);
+
     if (available) {
       available.active = true;
       available.lastUsed = Date.now();
       this.resetFn(available.instance);
       return available.instance;
     }
-    
+
     // 池未满则创建新对象
     if (this.pool.length < this.maxSize) {
       const newItem = this.createFn();
       this.pool.push({
         instance: newItem,
         active: true,
-        lastUsed: Date.now()
+        lastUsed: Date.now(),
       });
       return newItem;
     }
-    
+
     // 池已满，强制复用最旧的对象
-    const oldest = this.pool.reduce((prev, curr) => 
-      prev.lastUsed < curr.lastUsed ? prev : curr
-    );
-    
+    const oldest = this.pool.reduce((prev, curr) => (prev.lastUsed < curr.lastUsed ? prev : curr));
+
     if (!oldest.active) {
       oldest.active = true;
       oldest.lastUsed = Date.now();
       this.resetFn(oldest.instance);
       return oldest.instance;
     }
-    
+
     // 所有对象都在使用，创建临时对象
     return this.createFn();
   }
@@ -75,8 +73,8 @@ export class ObjectPool<T> {
    * 释放对象回池
    */
   public release(instance: T): void {
-    const item = this.pool.find(item => item.instance === instance);
-    
+    const item = this.pool.find((item) => item.instance === instance);
+
     if (item) {
       item.active = false;
       item.lastUsed = Date.now();
@@ -87,7 +85,7 @@ export class ObjectPool<T> {
    * 获取活动对象数量
    */
   public getActiveCount(): number {
-    return this.pool.filter(item => item.active).length;
+    return this.pool.filter((item) => item.active).length;
   }
 
   /**
@@ -103,9 +101,9 @@ export class ObjectPool<T> {
   private cleanup(): void {
     const now = Date.now();
     const threshold = this.cleanupThreshold;
-    
-    this.pool = this.pool.filter(item => {
-      if (!item.active && (now - item.lastUsed) > threshold) {
+
+    this.pool = this.pool.filter((item) => {
+      if (!item.active && now - item.lastUsed > threshold) {
         // 清理逻辑可在此扩展
         return false;
       }
@@ -129,13 +127,13 @@ export class ObjectPool<T> {
    */
   public prefill(count: number): void {
     const actualCount = Math.min(count, this.maxSize - this.pool.length);
-    
+
     for (let i = 0; i < actualCount; i++) {
       const newItem = this.createFn();
       this.pool.push({
         instance: newItem,
         active: false,
-        lastUsed: Date.now()
+        lastUsed: Date.now(),
       });
     }
   }
@@ -159,7 +157,7 @@ export class ProjectilePool extends ObjectPool<Projectile> {
         velocityZ: 0,
         damage: 10,
         lifetime: 3,
-        type: 'PLAYER'
+        type: 'PLAYER',
       }),
       (proj) => {
         proj.x = 0;
@@ -170,7 +168,7 @@ export class ProjectilePool extends ObjectPool<Projectile> {
         proj.velocityZ = 0;
       },
       200,
-      10000
+      10000,
     );
   }
 }

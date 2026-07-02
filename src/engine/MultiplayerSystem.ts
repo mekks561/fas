@@ -1,8 +1,9 @@
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed';
+export type ConnectionState =
+  'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed';
 
 export type PlayerRole = 'host' | 'client';
 
-export type NetworkMessageType = 
+export type NetworkMessageType =
   | 'join'
   | 'leave'
   | 'player_update'
@@ -133,11 +134,11 @@ export class MultiplayerSystem {
   private roomId: string = '';
   private players: Map<string, Player> = new Map();
   private hostId: string = '';
-  
+
   private peerConnections: Map<string, RTCPeerConnection> = new Map();
   private dataChannels: Map<string, RTCDataChannel> = new Map();
   private webSocket: WebSocket | null = null;
-  
+
   private config: ConnectionConfig;
   private stats: MultiplayerStats = {
     packetsSent: 0,
@@ -146,18 +147,19 @@ export class MultiplayerSystem {
     bytesReceived: 0,
     latency: 0,
     packetLoss: 0,
-    jitter: 0
+    jitter: 0,
   };
-  
+
   private sequenceNumber: number = 0;
   private messageQueue: NetworkMessage[] = [];
-  private pendingReliableMessages: Map<number, { message: NetworkMessage; ack: boolean }> = new Map();
-  
+  private pendingReliableMessages: Map<number, { message: NetworkMessage; ack: boolean }> =
+    new Map();
+
   private reconnectAttempts: number = 0;
   private reconnectTimer: number | null = null;
   private heartbeatTimer: number | null = null;
   private pingTimestamp: number = 0;
-  
+
   private callbacks: {
     connectionStateChange: ConnectionCallback[];
     playerJoin: PlayerCallback[];
@@ -177,7 +179,7 @@ export class MultiplayerSystem {
     gameStateChange: [],
     chatReceived: [],
     roomUpdate: [],
-    statsUpdate: []
+    statsUpdate: [],
   };
 
   private isEnabled: boolean = true;
@@ -191,7 +193,7 @@ export class MultiplayerSystem {
       reconnectInterval: config?.reconnectInterval || 3000,
       maxReconnectAttempts: config?.maxReconnectAttempts || 5,
       heartbeatInterval: config?.heartbeatInterval || 2000,
-      timeout: config?.timeout || 10000
+      timeout: config?.timeout || 10000,
     };
 
     this.localPlayerId = this.generatePlayerId();
@@ -225,7 +227,11 @@ export class MultiplayerSystem {
     return { ...this.stats };
   }
 
-  public async createRoom(playerName: string, maxPlayers: number = 4, isPrivate: boolean = false): Promise<string> {
+  public async createRoom(
+    playerName: string,
+    maxPlayers: number = 4,
+    isPrivate: boolean = false,
+  ): Promise<string> {
     if (this.connectionState !== 'disconnected') {
       throw new Error('Already connected');
     }
@@ -238,7 +244,7 @@ export class MultiplayerSystem {
 
     try {
       await this.connectToSignaling();
-      
+
       const roomInfo: RoomInfo = {
         roomId: this.roomId,
         hostId: this.localPlayerId,
@@ -247,12 +253,12 @@ export class MultiplayerSystem {
         maxPlayers,
         gameMode: 'deathmatch',
         isPrivate,
-        createdAt: Date.now()
+        createdAt: Date.now(),
       };
 
       this.sendSignalingMessage({
         type: 'create_room',
-        room: roomInfo
+        room: roomInfo,
       });
 
       const hostPlayer: Player = {
@@ -260,7 +266,7 @@ export class MultiplayerSystem {
         name: playerName,
         role: 'host',
         isReady: true,
-        color: this.generatePlayerColor()
+        color: this.generatePlayerColor(),
       };
 
       this.players.set(this.localPlayerId, hostPlayer);
@@ -297,8 +303,8 @@ export class MultiplayerSystem {
         roomId,
         player: {
           id: this.localPlayerId,
-          name: playerName
-        }
+          name: playerName,
+        },
       });
     } catch (error) {
       this.setConnectionState('failed');
@@ -315,8 +321,8 @@ export class MultiplayerSystem {
       timestamp: Date.now(),
       payload: {
         playerId: this.localPlayerId,
-        reason: 'left'
-      } as LeavePayload
+        reason: 'left',
+      } as LeavePayload,
     });
 
     this.cleanup();
@@ -376,7 +382,7 @@ export class MultiplayerSystem {
           id: player.id,
           name: player.name,
           role: 'client',
-          color: this.generatePlayerColor()
+          color: this.generatePlayerColor(),
         };
         this.players.set(newPlayer.id, newPlayer);
         this.notifyPlayerJoin(newPlayer);
@@ -399,7 +405,10 @@ export class MultiplayerSystem {
         break;
 
       case 'ice_candidate':
-        this.handleIceCandidate(message.senderId as string, message.candidate as RTCIceCandidateInit);
+        this.handleIceCandidate(
+          message.senderId as string,
+          message.candidate as RTCIceCandidateInit,
+        );
         break;
 
       case 'error':
@@ -411,13 +420,13 @@ export class MultiplayerSystem {
   private async createPeerConnection(peerId: string): Promise<RTCPeerConnection> {
     const config: RTCConfiguration = {
       iceServers: [
-        ...this.config.stunServers.map(url => ({ urls: url })),
-        ...(this.config.turnServers || []).map(server => ({
+        ...this.config.stunServers.map((url) => ({ urls: url })),
+        ...(this.config.turnServers || []).map((server) => ({
           urls: server.url,
           username: server.username,
-          credential: server.credential
-        }))
-      ]
+          credential: server.credential,
+        })),
+      ],
     };
 
     const pc = new RTCPeerConnection(config);
@@ -428,7 +437,7 @@ export class MultiplayerSystem {
         this.sendSignalingMessage({
           type: 'ice_candidate',
           targetId: peerId,
-          candidate: event.candidate
+          candidate: event.candidate,
         });
       }
     };
@@ -445,7 +454,7 @@ export class MultiplayerSystem {
 
     if (this.playerRole === 'host') {
       const dataChannel = pc.createDataChannel('game', {
-        ordered: true
+        ordered: true,
       });
       this.setupDataChannel(peerId, dataChannel);
     }
@@ -483,7 +492,7 @@ export class MultiplayerSystem {
     this.sendSignalingMessage({
       type: 'answer',
       targetId: peerId,
-      answer
+      answer,
     });
   }
 
@@ -517,7 +526,7 @@ export class MultiplayerSystem {
         this.sendSignalingMessage({
           type: 'offer',
           targetId: peerId,
-          offer
+          offer,
         });
       }
     }
@@ -530,13 +539,13 @@ export class MultiplayerSystem {
 
     let message: NetworkMessage;
     try {
-      message = typeof data === 'string' ? JSON.parse(data) : data as NetworkMessage;
+      message = typeof data === 'string' ? JSON.parse(data) : (data as NetworkMessage);
     } catch {
       console.error('Failed to parse message');
       return;
     }
 
-    this.callbacks.messageReceived.forEach(cb => cb(message));
+    this.callbacks.messageReceived.forEach((cb) => cb(message));
 
     switch (message.type) {
       case 'join':
@@ -559,7 +568,7 @@ export class MultiplayerSystem {
           type: 'pong',
           senderId: this.localPlayerId,
           timestamp: Date.now(),
-          payload: {}
+          payload: {},
         });
         break;
       case 'pong':
@@ -613,7 +622,7 @@ export class MultiplayerSystem {
   }
 
   private handleSyncResponse(payload: SyncResponsePayload): void {
-    payload.currentPlayers?.forEach(p => {
+    payload.currentPlayers?.forEach((p) => {
       this.players.set(p.id, p);
     });
     if (payload.currentState) {
@@ -621,8 +630,7 @@ export class MultiplayerSystem {
     }
   }
 
-  private handleEvent(_payload: EventPayload): void {
-  }
+  private handleEvent(_payload: EventPayload): void {}
 
   private handlePlayerLeave(playerId: string, _reason: string): void {
     const player = this.players.get(playerId);
@@ -681,7 +689,7 @@ export class MultiplayerSystem {
       this.heartbeatTimer = null;
     }
 
-    this.peerConnections.forEach(pc => pc.close());
+    this.peerConnections.forEach((pc) => pc.close());
     this.peerConnections.clear();
 
     this.dataChannels.clear();
@@ -706,7 +714,7 @@ export class MultiplayerSystem {
     const data = JSON.stringify(message);
 
     if (this.playerRole === 'host') {
-      this.dataChannels.forEach(channel => {
+      this.dataChannels.forEach((channel) => {
         if (channel.readyState === 'open') {
           channel.send(data);
           this.stats.packetsSent++;
@@ -714,7 +722,7 @@ export class MultiplayerSystem {
         }
       });
     } else {
-      this.dataChannels.forEach(channel => {
+      this.dataChannels.forEach((channel) => {
         if (channel.readyState === 'open') {
           channel.send(data);
           this.stats.packetsSent++;
@@ -724,7 +732,12 @@ export class MultiplayerSystem {
     }
   }
 
-  public broadcastPlayerUpdate(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number }, state: string, health?: number): void {
+  public broadcastPlayerUpdate(
+    position: { x: number; y: number; z: number },
+    rotation: { x: number; y: number; z: number },
+    state: string,
+    health?: number,
+  ): void {
     this.sendMessage({
       type: 'player_update',
       senderId: this.localPlayerId,
@@ -735,8 +748,8 @@ export class MultiplayerSystem {
         rotation,
         state,
         health,
-        timestamp: Date.now()
-      } as PlayerUpdatePayload
+        timestamp: Date.now(),
+      } as PlayerUpdatePayload,
     });
   }
 
@@ -747,7 +760,7 @@ export class MultiplayerSystem {
       type: 'game_state',
       senderId: this.localPlayerId,
       timestamp: Date.now(),
-      payload: state
+      payload: state,
     });
   }
 
@@ -759,8 +772,8 @@ export class MultiplayerSystem {
       payload: {
         playerId: this.localPlayerId,
         playerName: this.localPlayerName,
-        message
-      } as ChatPayload
+        message,
+      } as ChatPayload,
     });
   }
 
@@ -772,8 +785,8 @@ export class MultiplayerSystem {
       payload: {
         eventType,
         eventData,
-        sourcePlayerId: this.localPlayerId
-      } as EventPayload
+        sourcePlayerId: this.localPlayerId,
+      } as EventPayload,
     });
   }
 
@@ -784,8 +797,8 @@ export class MultiplayerSystem {
       timestamp: Date.now(),
       payload: {
         requestingPlayerId: this.localPlayerId,
-        lastKnownState: {}
-      } as SyncRequestPayload
+        lastKnownState: {},
+      } as SyncRequestPayload,
     });
   }
 
@@ -798,7 +811,7 @@ export class MultiplayerSystem {
         type: 'ping',
         senderId: this.localPlayerId,
         timestamp: Date.now(),
-        payload: {}
+        payload: {},
       });
     }, this.config.heartbeatInterval);
   }
@@ -813,7 +826,7 @@ export class MultiplayerSystem {
     if (this.connectionState === state) return;
 
     this.connectionState = state;
-    this.callbacks.connectionStateChange.forEach(cb => cb(state));
+    this.callbacks.connectionStateChange.forEach((cb) => cb(state));
   }
 
   private generatePlayerId(): string {
@@ -825,7 +838,16 @@ export class MultiplayerSystem {
   }
 
   private generatePlayerColor(): string {
-    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#a29bfe', '#fd79a8'];
+    const colors = [
+      '#ff6b6b',
+      '#4ecdc4',
+      '#45b7d1',
+      '#96ceb4',
+      '#ffeaa7',
+      '#dfe6e9',
+      '#a29bfe',
+      '#fd79a8',
+    ];
     return colors[Math.floor(Math.random() * colors.length)];
   }
 
@@ -894,27 +916,27 @@ export class MultiplayerSystem {
   }
 
   private notifyPlayerJoin(player: Player): void {
-    this.callbacks.playerJoin.forEach(cb => cb(player));
+    this.callbacks.playerJoin.forEach((cb) => cb(player));
   }
 
   private notifyPlayerLeave(player: Player): void {
-    this.callbacks.playerLeave.forEach(cb => cb(player));
+    this.callbacks.playerLeave.forEach((cb) => cb(player));
   }
 
   private notifyPlayerUpdate(player: Player): void {
-    this.callbacks.playerUpdate.forEach(cb => cb(player));
+    this.callbacks.playerUpdate.forEach((cb) => cb(player));
   }
 
   private notifyGameStateChange(state: GameStatePayload): void {
-    this.callbacks.gameStateChange.forEach(cb => cb(state));
+    this.callbacks.gameStateChange.forEach((cb) => cb(state));
   }
 
   private notifyChatReceived(chat: ChatPayload): void {
-    this.callbacks.chatReceived.forEach(cb => cb(chat));
+    this.callbacks.chatReceived.forEach((cb) => cb(chat));
   }
 
   private notifyRoomUpdate(room: RoomInfo): void {
-    this.callbacks.roomUpdate.forEach(cb => cb(room));
+    this.callbacks.roomUpdate.forEach((cb) => cb(room));
   }
 
   public enable(): void {
@@ -937,7 +959,7 @@ export class MultiplayerSystem {
       gameStateChange: [],
       chatReceived: [],
       roomUpdate: [],
-      statsUpdate: []
+      statsUpdate: [],
     };
   }
 }

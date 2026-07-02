@@ -27,6 +27,8 @@ export interface BatchGroup {
   instances: Map<string, InstanceData>;
   entity: pc.Entity;
   dirty: boolean;
+  instanceBuffer: pc.VertexBuffer | null; // NEW: batch vertex buffer
+  instanceIdCounter: number; // NEW: ID counter (already used but not declared)
 }
 
 export class InstancedRenderer {
@@ -35,7 +37,7 @@ export class InstancedRenderer {
   private instanceMatrixData: Float32Array = new Float32Array(0);
   private instanceColorData: Float32Array = new Float32Array(0);
   private isEnabled: boolean = true;
-  private maxTotalInstances: number = 1000;
+  private maxTotalInstances: number = 50000;
   private totalInstances: number = 0;
   private cullingEnabled: boolean = true;
   private cullingDistance: number = 200;
@@ -51,6 +53,10 @@ export class InstancedRenderer {
 
   public setApp(app: pc.Application): void {
     this.app = app;
+  }
+
+  public get isWebGPUAvailable(): boolean {
+    return this.app?.graphicsDevice?.deviceType === pc.DEVICETYPE_WEBGPU;
   }
 
   public createBatchGroup(config: {
@@ -79,7 +85,7 @@ export class InstancedRenderer {
     const entity = new pc.Entity(config.id);
     entity.addComponent('render', {
       meshInstances: [meshAsset.resource],
-      material: materialAsset.resource
+      material: materialAsset.resource,
     });
 
     this.app.root.addChild(entity);
@@ -91,7 +97,9 @@ export class InstancedRenderer {
       maxInstances: config.maxInstances || 100,
       instances: new Map(),
       entity,
-      dirty: true
+      dirty: true,
+      instanceBuffer: null, // NEW
+      instanceIdCounter: 0, // NEW
     };
 
     this.batchGroups.set(config.id, batchGroup);
@@ -116,7 +124,7 @@ export class InstancedRenderer {
     const instance: InstanceData = {
       id,
       ...data,
-      visible: data.visible !== undefined ? data.visible : true
+      visible: data.visible !== undefined ? data.visible : true,
     };
 
     batch.instances.set(id, instance);
@@ -196,6 +204,13 @@ export class InstancedRenderer {
     if (!batch) return;
 
     this.totalInstances -= batch.instances.size;
+
+    // Destroy instance buffer
+    if (batch.instanceBuffer) {
+      batch.instanceBuffer.destroy();
+      batch.instanceBuffer = null;
+    }
+
     this.batchGroups.delete(batchId);
 
     if (batch.entity && batch.entity.parent) {
@@ -241,8 +256,9 @@ export class InstancedRenderer {
     const render = batch.entity.render;
     if (!render) return;
 
+    const device = this.app.graphicsDevice;
     const instanceCount = batch.instances.size;
-    
+
     if (instanceCount === 0) {
       render.enabled = false;
       return;
@@ -250,32 +266,66 @@ export class InstancedRenderer {
 
     render.enabled = true;
 
-    const meshInstances = (render as unknown as { meshInstances?: { setMatrix?: (index: number, matrix: pc.Mat4) => void; setColor?: (index: number, color: pc.Color) => void; visibleInstanceCount?: number; }[] }).meshInstances;
+    const meshInstances = (render as unknown as { meshInstances?: pc.MeshInstance[] })
+      .meshInstances;
     if (!meshInstances || meshInstances.length === 0) return;
 
     const meshInstance = meshInstances[0];
 
-    let index = 0;
+    // Collect visible instances into Float32Array
+    const matrixSize = 16; // 4x4 matrix = 16 floats
+    const visibleInstances: InstanceData[] = [];
+
     batch.instances.forEach((instance) => {
       if (instance.visible) {
-        const matrix = new pc.Mat4();
-        const rotation = new pc.Mat4().setTRS(instance.position, new pc.Quat().setFromEulerAngles(instance.rotation.x, instance.rotation.y, instance.rotation.z), new pc.Vec3(1, 1, 1));
-        const scaleMatrix = new pc.Mat4().setTRS(instance.position, new pc.Quat(), instance.scale);
-        
-        matrix.copy(rotation);
-        matrix.mul(scaleMatrix);
-        
-        if (meshInstance.setMatrix) {
-          meshInstance.setMatrix(index, matrix);
-        }
-        if (meshInstance.setColor && instance.color) {
-          meshInstance.setColor(index, instance.color);
-        }
-        index++;
+        visibleInstances.push(instance);
       }
     });
 
-    meshInstance.visibleInstanceCount = this.visibleCount;
+    const visibleCount = visibleInstances.length;
+    if (visibleCount === 0) {
+      render.enabled = false;
+      return;
+    }
+
+    // Build matrix data array (batch upload)
+    const matrices = new Float32Array(visibleCount * matrixSize);
+    const mat = new pc.Mat4();
+    const quat = new pc.Quat();
+
+    for (let i = 0; i < visibleCount; i++) {
+      const inst = visibleInstances[i];
+      quat.setFromEulerAngles(inst.rotation.x, inst.rotation.y, inst.rotation.z);
+      mat.setTRS(inst.position, quat, inst.scale);
+
+      for (let m = 0; m < matrixSize; m++) {
+        matrices[i * matrixSize + m] = mat.data[m];
+      }
+    }
+
+    // Create or resize vertex buffer if needed
+    if (!batch.instanceBuffer || batch.instanceBuffer.numVertices < visibleCount) {
+      if (batch.instanceBuffer) {
+        batch.instanceBuffer.destroy();
+      }
+      const format = pc.VertexFormat.getDefaultInstancingFormat(device);
+      const bufferSize = Math.max(visibleCount, batch.maxInstances);
+      batch.instanceBuffer = new pc.VertexBuffer(device, format, bufferSize, {
+        usage: pc.BUFFER_DYNAMIC,
+      });
+    }
+
+    // Batch upload all matrices at once
+    batch.instanceBuffer.setData(matrices.buffer as ArrayBuffer);
+
+    // Enable instancing on mesh instance
+    meshInstance.setInstancing(batch.instanceBuffer);
+
+    // Set visible instance count
+    (meshInstance as unknown as { visibleInstanceCount: number }).visibleInstanceCount =
+      visibleCount;
+
+    this.visibleCount = visibleCount;
   }
 
   private performCulling(batch: BatchGroup): void {
@@ -288,7 +338,7 @@ export class InstancedRenderer {
 
     batch.instances.forEach((instance) => {
       const distance = cameraPos.distance(instance.position);
-      
+
       if (distance > this.cullingDistance) {
         if (instance.visible) {
           instance.visible = false;
@@ -331,7 +381,7 @@ export class InstancedRenderer {
       totalInstances: this.totalInstances,
       visibleInstances: this.visibleCount,
       hiddenInstances: this.hiddenCount,
-      maxInstances: this.maxTotalInstances
+      maxInstances: this.maxTotalInstances,
     };
   }
 
@@ -347,7 +397,7 @@ export class InstancedRenderer {
     if (!batch) return null;
     return {
       instanceCount: batch.instances.size,
-      maxInstances: batch.maxInstances
+      maxInstances: batch.maxInstances,
     };
   }
 
@@ -360,10 +410,22 @@ export class InstancedRenderer {
   }
 
   public destroy(): void {
-    this.batchGroups.forEach((_, id) => this.removeBatch(id));
+    this.batchGroups.forEach((batch) => {
+      if (batch.instanceBuffer) {
+        batch.instanceBuffer.destroy();
+      }
+    });
     this.batchGroups.clear();
     this.instanceMatrixData = new Float32Array(0);
     this.instanceColorData = new Float32Array(0);
     this.totalInstances = 0;
+  }
+
+  public getRendererInfo(): { webgpu: boolean; maxInstances: number; batches: number } {
+    return {
+      webgpu: this.isWebGPUAvailable,
+      maxInstances: this.maxTotalInstances,
+      batches: this.batchGroups.size,
+    };
   }
 }

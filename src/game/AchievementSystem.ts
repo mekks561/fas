@@ -3,7 +3,8 @@
  * 管理游戏中的成就解锁和奖励发放
  */
 
-export type AchievementCategory = 'combat' | 'progression' | 'exploration' | 'collection' | 'miscellaneous';
+export type AchievementCategory =
+  'combat' | 'progression' | 'exploration' | 'collection' | 'miscellaneous';
 
 export interface Achievement {
   id: string;
@@ -52,7 +53,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 1,
-        rewards: [{ type: 'score', value: 500 }]
+        rewards: [{ type: 'score', value: 500 }],
       },
       {
         id: 'killer',
@@ -64,7 +65,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 10,
-        rewards: [{ type: 'score', value: 1000 }]
+        rewards: [{ type: 'score', value: 1000 }],
       },
       {
         id: 'massacre',
@@ -76,7 +77,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 50,
-        rewards: [{ type: 'score', value: 5000 }]
+        rewards: [{ type: 'score', value: 5000 }],
       },
       {
         id: 'survivor',
@@ -88,7 +89,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 5,
-        rewards: [{ type: 'health', value: 20 }]
+        rewards: [{ type: 'health', value: 20 }],
       },
       {
         id: 'wave_master',
@@ -100,7 +101,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 10,
-        rewards: [{ type: 'shield', value: 30 }]
+        rewards: [{ type: 'shield', value: 30 }],
       },
       {
         id: 'boss_slayer',
@@ -112,7 +113,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 1,
-        rewards: [{ type: 'score', value: 10000 }]
+        rewards: [{ type: 'score', value: 10000 }],
       },
       {
         id: 'speed_demon',
@@ -124,7 +125,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 1,
-        rewards: [{ type: 'score', value: 500 }]
+        rewards: [{ type: 'score', value: 500 }],
       },
       {
         id: 'treasure_hunter',
@@ -136,7 +137,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 10,
-        rewards: [{ type: 'score', value: 2000 }]
+        rewards: [{ type: 'score', value: 2000 }],
       },
       {
         id: 'perfect_run',
@@ -148,7 +149,7 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 1,
-        rewards: [{ type: 'health', value: 50 }]
+        rewards: [{ type: 'health', value: 50 }],
       },
       {
         id: 'millionaire',
@@ -160,11 +161,11 @@ export class AchievementSystem {
         unlocked: false,
         progress: 0,
         requiredProgress: 1000000,
-        rewards: [{ type: 'score', value: 100000 }]
-      }
+        rewards: [{ type: 'score', value: 100000 }],
+      },
     ];
 
-    achievements.forEach(achievement => {
+    achievements.forEach((achievement) => {
       this.achievements.set(achievement.id, achievement);
     });
   }
@@ -174,7 +175,7 @@ export class AchievementSystem {
     if (saved) {
       try {
         const data = JSON.parse(saved) as AchievementProgress[];
-        data.forEach(p => {
+        data.forEach((p) => {
           this.progress.set(p.achievementId, p);
           const achievement = this.achievements.get(p.achievementId);
           if (achievement && p.unlocked) {
@@ -202,15 +203,15 @@ export class AchievementSystem {
   }
 
   public getAchievementsByCategory(category: AchievementCategory): Achievement[] {
-    return Array.from(this.achievements.values()).filter(a => a.category === category);
+    return Array.from(this.achievements.values()).filter((a) => a.category === category);
   }
 
   public getUnlockedAchievements(): Achievement[] {
-    return Array.from(this.achievements.values()).filter(a => a.unlocked);
+    return Array.from(this.achievements.values()).filter((a) => a.unlocked);
   }
 
   public getLockedAchievements(): Achievement[] {
-    return Array.from(this.achievements.values()).filter(a => !a.unlocked);
+    return Array.from(this.achievements.values()).filter((a) => !a.unlocked);
   }
 
   public updateProgress(id: string, amount: number): Achievement | null {
@@ -225,7 +226,7 @@ export class AchievementSystem {
     this.progress.set(id, {
       achievementId: id,
       progress: newProgress,
-      unlocked: newProgress >= achievement.requiredProgress
+      unlocked: newProgress >= achievement.requiredProgress,
     });
 
     achievement.progress = newProgress;
@@ -239,21 +240,22 @@ export class AchievementSystem {
       }
 
       this.saveProgress();
-      this.listeners.forEach(listener => listener(achievement));
+      this.listeners.forEach((listener) => listener(achievement));
     }
 
     return achievement;
   }
 
   public addKill(): Achievement | null {
-    return this.updateProgress('first_blood', 1) || 
-           this.updateProgress('killer', 1) || 
-           this.updateProgress('massacre', 1);
+    return (
+      this.updateProgress('first_blood', 1) ||
+      this.updateProgress('killer', 1) ||
+      this.updateProgress('massacre', 1)
+    );
   }
 
   public addWaveComplete(): Achievement | null {
-    return this.updateProgress('survivor', 1) || 
-           this.updateProgress('wave_master', 1);
+    return this.updateProgress('survivor', 1) || this.updateProgress('wave_master', 1);
   }
 
   public addBossKill(): Achievement | null {
@@ -283,7 +285,7 @@ export class AchievementSystem {
 
   public onAchievementUnlocked(listener: (achievement: Achievement) => void): () => void {
     this.listeners.add(listener);
-    
+
     return () => {
       this.listeners.delete(listener);
     };
@@ -291,13 +293,13 @@ export class AchievementSystem {
 
   public getTotalPoints(): number {
     return Array.from(this.achievements.values())
-      .filter(a => a.unlocked)
+      .filter((a) => a.unlocked)
       .reduce((sum, a) => sum + a.points, 0);
   }
 
   public resetProgress(): void {
     this.progress.clear();
-    this.achievements.forEach(a => {
+    this.achievements.forEach((a) => {
       a.unlocked = false;
       a.progress = 0;
     });

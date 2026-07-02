@@ -121,7 +121,7 @@ export class LevelEditor {
     objectRemove: [],
     objectModify: [],
     levelChange: [],
-    historyChange: []
+    historyChange: [],
   };
 
   private gridMaterial: pc.StandardMaterial | null = null;
@@ -159,20 +159,80 @@ export class LevelEditor {
 
   private initializeDefaultTemplates(): void {
     const templates: ObjectTemplate[] = [
-      { id: 'cube', name: 'Cube', category: 'environment', icon: '⬜', defaultProperties: { size: 1 } },
-      { id: 'sphere', name: 'Sphere', category: 'environment', icon: '⚪', defaultProperties: { radius: 0.5 } },
-      { id: 'cylinder', name: 'Cylinder', category: 'environment', icon: '🔘', defaultProperties: { radius: 0.5, height: 2 } },
-      { id: 'wall', name: 'Wall', category: 'environment', icon: '🧱', defaultProperties: { width: 4, height: 2, thickness: 0.5 } },
-      { id: 'platform', name: 'Platform', category: 'environment', icon: '📦', defaultProperties: { width: 10, height: 0.5, depth: 10 } },
-      { id: 'enemy_spawn', name: 'Enemy Spawn', category: 'trigger', icon: '💀', defaultProperties: { enemyType: 'scout', count: 5 } },
-      { id: 'item_spawn', name: 'Item Spawn', category: 'item', icon: '💎', defaultProperties: { itemType: 'health', respawn: true } },
-      { id: 'checkpoint', name: 'Checkpoint', category: 'trigger', icon: '🚩', defaultProperties: {} },
+      {
+        id: 'cube',
+        name: 'Cube',
+        category: 'environment',
+        icon: '⬜',
+        defaultProperties: { size: 1 },
+      },
+      {
+        id: 'sphere',
+        name: 'Sphere',
+        category: 'environment',
+        icon: '⚪',
+        defaultProperties: { radius: 0.5 },
+      },
+      {
+        id: 'cylinder',
+        name: 'Cylinder',
+        category: 'environment',
+        icon: '🔘',
+        defaultProperties: { radius: 0.5, height: 2 },
+      },
+      {
+        id: 'wall',
+        name: 'Wall',
+        category: 'environment',
+        icon: '🧱',
+        defaultProperties: { width: 4, height: 2, thickness: 0.5 },
+      },
+      {
+        id: 'platform',
+        name: 'Platform',
+        category: 'environment',
+        icon: '📦',
+        defaultProperties: { width: 10, height: 0.5, depth: 10 },
+      },
+      {
+        id: 'enemy_spawn',
+        name: 'Enemy Spawn',
+        category: 'trigger',
+        icon: '💀',
+        defaultProperties: { enemyType: 'scout', count: 5 },
+      },
+      {
+        id: 'item_spawn',
+        name: 'Item Spawn',
+        category: 'item',
+        icon: '💎',
+        defaultProperties: { itemType: 'health', respawn: true },
+      },
+      {
+        id: 'checkpoint',
+        name: 'Checkpoint',
+        category: 'trigger',
+        icon: '🚩',
+        defaultProperties: {},
+      },
       { id: 'goal', name: 'Goal', category: 'trigger', icon: '🎯', defaultProperties: {} },
-      { id: 'light', name: 'Light', category: 'decorator', icon: '💡', defaultProperties: { type: 'point', intensity: 1, range: 10, color: '#ffffff' } },
-      { id: 'particle', name: 'Particle', category: 'decorator', icon: '✨', defaultProperties: { type: 'sparkle', duration: 5 } }
+      {
+        id: 'light',
+        name: 'Light',
+        category: 'decorator',
+        icon: '💡',
+        defaultProperties: { type: 'point', intensity: 1, range: 10, color: '#ffffff' },
+      },
+      {
+        id: 'particle',
+        name: 'Particle',
+        category: 'decorator',
+        icon: '✨',
+        defaultProperties: { type: 'sparkle', duration: 5 },
+      },
     ];
 
-    templates.forEach(t => this.templates.set(t.id, t));
+    templates.forEach((t) => this.templates.set(t.id, t));
   }
 
   private initializeMaterials(): void {
@@ -198,7 +258,7 @@ export class LevelEditor {
     this.editorCamera = new pc.Entity('EditorCamera');
     this.editorCamera.addComponent('camera', {
       clearColor: new pc.Color(0.1, 0.1, 0.15),
-      farClip: 1000
+      farClip: 1000,
     });
     this.editorCamera.setPosition(0, 10, 20);
     this.editorCamera.lookAt(0, 0, 0);
@@ -218,7 +278,7 @@ export class LevelEditor {
     for (let i = -divisions; i <= divisions; i++) {
       const line = new pc.Entity();
       line.addComponent('render', {
-        type: 'box'
+        type: 'box',
       });
       if (line.render) line.render.material = this.gridMaterial;
 
@@ -236,7 +296,7 @@ export class LevelEditor {
     for (let i = -divisions; i <= divisions; i++) {
       const line = new pc.Entity();
       line.addComponent('render', {
-        type: 'box'
+        type: 'box',
       });
       if (line.render) line.render.material = this.gridMaterial;
       line.setLocalScale(size, 0.02, 0.02);
@@ -326,8 +386,16 @@ export class LevelEditor {
   }
 
   private handleSelect(event: pc.MouseEvent): void {
-    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
-    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.nearClip,
+    );
+    const to = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.farClip,
+    );
 
     const result = this.app?.scenery?.raycast(from, to);
     if (result && result.entity) {
@@ -341,8 +409,16 @@ export class LevelEditor {
   private handlePlace(event: pc.MouseEvent): void {
     if (!this.currentTemplate || !this.app) return;
 
-    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
-    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.nearClip,
+    );
+    const to = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.farClip,
+    );
 
     const result = this.app?.scenery?.raycastGround(from, to);
     if (result) {
@@ -352,8 +428,16 @@ export class LevelEditor {
   }
 
   private handleDelete(event: pc.MouseEvent): void {
-    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
-    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.nearClip,
+    );
+    const to = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.farClip,
+    );
 
     const result = this.app?.scenery?.raycast(from, to);
     if (result && result.entity) {
@@ -365,8 +449,16 @@ export class LevelEditor {
   }
 
   private handleHover(event: pc.MouseEvent): void {
-    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
-    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.nearClip,
+    );
+    const to = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.farClip,
+    );
 
     const result = this.app?.scenery?.raycast(from, to);
     if (result && result.entity) {
@@ -382,8 +474,16 @@ export class LevelEditor {
   private updatePreviewPosition(event: pc.MouseEvent): void {
     if (!this.app || !this.previewEntity) return;
 
-    const from = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.nearClip);
-    const to = this.editorCamera?.camera?.screenToWorld(event.x, event.y, this.editorCamera?.camera?.farClip);
+    const from = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.nearClip,
+    );
+    const to = this.editorCamera?.camera?.screenToWorld(
+      event.x,
+      event.y,
+      this.editorCamera?.camera?.farClip,
+    );
 
     const result = this.app.scenery.raycastGround(from, to);
     if (result) {
@@ -396,7 +496,7 @@ export class LevelEditor {
     return new pc.Vec3(
       Math.round(position.x / this.gridSize) * this.gridSize,
       position.y,
-      Math.round(position.z / this.gridSize) * this.gridSize
+      Math.round(position.z / this.gridSize) * this.gridSize,
     );
   }
 
@@ -410,7 +510,7 @@ export class LevelEditor {
       this.previewEntity.enabled = false;
     }
 
-    this.callbacks.modeChange.forEach(cb => cb(mode));
+    this.callbacks.modeChange.forEach((cb) => cb(mode));
   }
 
   public getMode(): EditorMode {
@@ -458,7 +558,7 @@ export class LevelEditor {
 
     this.previewEntity = new pc.Entity('Preview');
     this.previewEntity.addComponent('render', {
-      type: this.getMeshType(template.id)
+      type: this.getMeshType(template.id),
     });
 
     const material = new pc.StandardMaterial();
@@ -473,17 +573,17 @@ export class LevelEditor {
 
   private getMeshType(templateId: string): string {
     const typeMap: Record<string, string> = {
-      'cube': 'box',
-      'sphere': 'sphere',
-      'cylinder': 'cylinder',
-      'wall': 'box',
-      'platform': 'box',
-      'enemy_spawn': 'cone',
-      'item_spawn': 'cone',
-      'checkpoint': 'cone',
-      'goal': 'sphere',
-      'light': 'sphere',
-      'particle': 'sphere'
+      cube: 'box',
+      sphere: 'sphere',
+      cylinder: 'cylinder',
+      wall: 'box',
+      platform: 'box',
+      enemy_spawn: 'cone',
+      item_spawn: 'cone',
+      checkpoint: 'cone',
+      goal: 'sphere',
+      light: 'sphere',
+      particle: 'sphere',
     };
     return typeMap[templateId] || 'box';
   }
@@ -500,17 +600,17 @@ export class LevelEditor {
       settings: this.getDefaultSettings(),
       objects: [],
       spawnPoints: [],
-      objectives: []
+      objectives: [],
     };
 
-    this.callbacks.levelChange.forEach(cb => cb(this.level as LevelData));
+    this.callbacks.levelChange.forEach((cb) => cb(this.level as LevelData));
     return this.level;
   }
 
   public loadLevel(data: LevelData): void {
     this.level = data;
     this.rebuildLevelObjects();
-    this.callbacks.levelChange.forEach(cb => cb(this.level as LevelData));
+    this.callbacks.levelChange.forEach((cb) => cb(this.level as LevelData));
   }
 
   public saveLevel(): string | null {
@@ -541,7 +641,7 @@ export class LevelEditor {
 
     this.clearAllObjects();
 
-    this.level.objects.forEach(obj => {
+    this.level.objects.forEach((obj) => {
       const entity = this.createObjectEntity(obj);
       obj.entity = entity;
       this.app?.root.addChild(entity);
@@ -553,7 +653,7 @@ export class LevelEditor {
     const entity = new pc.Entity(obj.id);
 
     entity.addComponent('render', {
-      type: template ? this.getMeshType(template.id) : 'box'
+      type: template ? this.getMeshType(template.id) : 'box',
     });
 
     if (template?.materialAssetId && this.app) {
@@ -575,7 +675,12 @@ export class LevelEditor {
     return entity;
   }
 
-  public addObject(type: string, position: pc.Vec3, rotation?: pc.Vec3, scale?: pc.Vec3): LevelObject | null {
+  public addObject(
+    type: string,
+    position: pc.Vec3,
+    rotation?: pc.Vec3,
+    scale?: pc.Vec3,
+  ): LevelObject | null {
     if (!this.level) return null;
 
     const template = this.templates.get(type);
@@ -587,7 +692,7 @@ export class LevelEditor {
       position: position.clone(),
       rotation: rotation?.clone() || new pc.Vec3(),
       scale: scale?.clone() || new pc.Vec3(1, 1, 1),
-      properties: { ...template.defaultProperties }
+      properties: { ...template.defaultProperties },
     };
 
     if (this.app) {
@@ -600,17 +705,17 @@ export class LevelEditor {
 
     this.addToHistory({
       action: 'add',
-      objects: [object]
+      objects: [object],
     });
 
-    this.callbacks.objectAdd.forEach(cb => cb(object));
+    this.callbacks.objectAdd.forEach((cb) => cb(object));
     return object;
   }
 
   public removeObject(id: string): boolean {
     if (!this.level) return false;
 
-    const index = this.level.objects.findIndex(o => o.id === id);
+    const index = this.level.objects.findIndex((o) => o.id === id);
     if (index === -1) return false;
 
     const object = this.level.objects[index];
@@ -624,17 +729,17 @@ export class LevelEditor {
 
     this.addToHistory({
       action: 'remove',
-      objects: [object]
+      objects: [object],
     });
 
-    this.callbacks.objectRemove.forEach(cb => cb(object));
+    this.callbacks.objectRemove.forEach((cb) => cb(object));
     return true;
   }
 
   public modifyObject(id: string, updates: Partial<LevelObject>): boolean {
     if (!this.level) return false;
 
-    const object = this.level.objects.find(o => o.id === id);
+    const object = this.level.objects.find((o) => o.id === id);
     if (!object) return false;
 
     const previousState = { ...object };
@@ -655,10 +760,10 @@ export class LevelEditor {
     this.addToHistory({
       action: 'modify',
       objects: [object],
-      previousState: [previousState]
+      previousState: [previousState],
     });
 
-    this.callbacks.objectModify.forEach(cb => cb(object));
+    this.callbacks.objectModify.forEach((cb) => cb(object));
     return true;
   }
 
@@ -670,14 +775,14 @@ export class LevelEditor {
       if (object.entity.render) object.entity.render.material = this.selectionMaterial;
     }
 
-    this.callbacks.objectSelect.forEach(cb => cb(object));
+    this.callbacks.objectSelect.forEach((cb) => cb(object));
   }
 
   public selectObjects(objects: LevelObject[]): void {
     this.clearSelection();
     this.selectedObjects.push(...objects);
 
-    objects.forEach(obj => {
+    objects.forEach((obj) => {
       if (obj.entity && this.selectionMaterial) {
         if (obj.entity.render) obj.entity.render.material = this.selectionMaterial;
       }
@@ -685,7 +790,7 @@ export class LevelEditor {
   }
 
   public clearSelection(): void {
-    this.selectedObjects.forEach(obj => {
+    this.selectedObjects.forEach((obj) => {
       if (obj.entity) {
         const template = this.templates.get(obj.type);
         if (template?.color) {
@@ -702,7 +807,11 @@ export class LevelEditor {
   private setHoveredObject(object: LevelObject | null): void {
     if (this.hoveredObject === object) return;
 
-    if (this.hoveredObject && this.hoveredObject.entity && !this.selectedObjects.includes(this.hoveredObject)) {
+    if (
+      this.hoveredObject &&
+      this.hoveredObject.entity &&
+      !this.selectedObjects.includes(this.hoveredObject)
+    ) {
       const template = this.templates.get(this.hoveredObject.type);
       if (template?.color) {
         const material = new pc.StandardMaterial();
@@ -720,13 +829,13 @@ export class LevelEditor {
   }
 
   private deleteSelected(): void {
-    const ids = this.selectedObjects.map(o => o.id);
-    ids.forEach(id => this.removeObject(id));
+    const ids = this.selectedObjects.map((o) => o.id);
+    ids.forEach((id) => this.removeObject(id));
     this.clearSelection();
   }
 
   private clearAllObjects(): void {
-    this.level?.objects.forEach(obj => {
+    this.level?.objects.forEach((obj) => {
       if (obj.entity) {
         obj.entity.destroy();
       }
@@ -739,7 +848,7 @@ export class LevelEditor {
   private findLevelObjectByEntity(entity: pc.Entity): LevelObject | null {
     if (!this.level) return null;
 
-    return this.level.objects.find(obj => obj.entity === entity) || null;
+    return this.level.objects.find((obj) => obj.entity === entity) || null;
   }
 
   private getDefaultSettings(): LevelSettings {
@@ -752,7 +861,7 @@ export class LevelEditor {
       ambientColor: new pc.Color(0.1, 0.1, 0.15),
       fogEnabled: false,
       fogColor: new pc.Color(0, 0, 0),
-      fogDensity: 0.01
+      fogDensity: 0.01,
     };
   }
 
@@ -763,7 +872,7 @@ export class LevelEditor {
       this.history.shift();
     }
     this.historyIndex = this.history.length - 1;
-    this.callbacks.historyChange.forEach(cb => cb());
+    this.callbacks.historyChange.forEach((cb) => cb());
   }
 
   public undo(): boolean {
@@ -774,11 +883,11 @@ export class LevelEditor {
 
     switch (history.action) {
       case 'add':
-        history.objects.forEach(obj => this.removeObject(obj.id));
+        history.objects.forEach((obj) => this.removeObject(obj.id));
         break;
       case 'remove':
         if (this.level) {
-          history.objects.forEach(obj => {
+          history.objects.forEach((obj) => {
             if (this.app) {
               obj.entity = this.createObjectEntity(obj);
               this.app.root.addChild(obj.entity);
@@ -788,13 +897,13 @@ export class LevelEditor {
         }
         break;
       case 'modify':
-        history.previousState?.forEach(prev => {
+        history.previousState?.forEach((prev) => {
           this.modifyObject(prev.id, prev);
         });
         break;
     }
 
-    this.callbacks.historyChange.forEach(cb => cb());
+    this.callbacks.historyChange.forEach((cb) => cb());
     return true;
   }
 
@@ -806,25 +915,25 @@ export class LevelEditor {
 
     switch (history.action) {
       case 'add':
-        history.objects.forEach(obj => {
+        history.objects.forEach((obj) => {
           if (this.app && !obj.entity) {
             obj.entity = this.createObjectEntity(obj);
             this.app.root.addChild(obj.entity);
           }
-          if (this.level && !this.level.objects.find(o => o.id === obj.id)) {
+          if (this.level && !this.level.objects.find((o) => o.id === obj.id)) {
             this.level.objects.push(obj);
           }
         });
         break;
       case 'remove':
-        history.objects.forEach(obj => this.removeObject(obj.id));
+        history.objects.forEach((obj) => this.removeObject(obj.id));
         break;
       case 'modify':
-        history.objects.forEach(obj => this.modifyObject(obj.id, obj));
+        history.objects.forEach((obj) => this.modifyObject(obj.id, obj));
         break;
     }
 
-    this.callbacks.historyChange.forEach(cb => cb());
+    this.callbacks.historyChange.forEach((cb) => cb());
     return true;
   }
 
@@ -942,7 +1051,7 @@ export class LevelEditor {
       objectRemove: [],
       objectModify: [],
       levelChange: [],
-      historyChange: []
+      historyChange: [],
     };
   }
 }

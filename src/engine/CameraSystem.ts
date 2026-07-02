@@ -53,7 +53,7 @@ export class CameraSystem {
     maxDistance: 20,
     minHeight: 2,
     maxHeight: 10,
-    followSpeed: 0.1
+    followSpeed: 0.1,
   };
   private thirdPersonOffset: pc.Vec3 = new pc.Vec3(0, 5, -10);
   private firstPersonOffset: pc.Vec3 = new pc.Vec3(0, 1, 2);
@@ -96,12 +96,17 @@ export class CameraSystem {
     return this.mode;
   }
 
-  public shake(intensity: number, duration: number, frequency: number = 20, decay: number = 1): void {
+  public shake(
+    intensity: number,
+    duration: number,
+    frequency: number = 20,
+    decay: number = 1,
+  ): void {
     this.currentShake = {
       intensity,
       duration,
       frequency,
-      decay
+      decay,
     };
     this.shakeTime = 0;
   }
@@ -139,7 +144,7 @@ export class CameraSystem {
     cameraPos.add(this.thirdPersonOffset);
 
     this.setCinematic(cameraPos, targetPos, duration);
-    
+
     setTimeout(() => {
       this.isCinematic = false;
       this.mode = 'thirdPerson';
@@ -211,8 +216,9 @@ export class CameraSystem {
       this.zoomTimer += dt;
       const progress = Math.min(this.zoomTimer / this.zoomDuration, 1);
       const easedProgress = this.easeOutCubic(progress);
-      
-      this.zoomCurrentFOV = this.zoomCurrentFOV + (this.zoomTargetFOV - this.zoomCurrentFOV) * easedProgress;
+
+      this.zoomCurrentFOV =
+        this.zoomCurrentFOV + (this.zoomTargetFOV - this.zoomCurrentFOV) * easedProgress;
       this.camera.camera.fov = this.zoomCurrentFOV;
     }
   }
@@ -247,35 +253,41 @@ export class CameraSystem {
     switch (this.mode) {
       case 'thirdPerson': {
         const offset = this.thirdPersonOffset.clone();
-        offset.y = Math.max(this.constraints.minHeight || 2, Math.min(this.constraints.maxHeight || 10, offset.y));
-        
+        offset.y = Math.max(
+          this.constraints.minHeight || 2,
+          Math.min(this.constraints.maxHeight || 10, offset.y),
+        );
+
         const forward = new pc.Vec3(0, 0, -1);
         forward.transformQuat(this.target.getRotation());
-        
+
         const right = new pc.Vec3(1, 0, 0);
         right.transformQuat(this.target.getRotation());
-        
+
         desiredPos.copy(targetPos);
         desiredPos.add(forward.scale(-offset.z));
         desiredPos.add(right.scale(offset.x));
         desiredPos.y += offset.y;
-        
+
         const distance = desiredPos.distance(targetPos);
-        const clampedDistance = Math.max(this.constraints.minDistance || 5, Math.min(this.constraints.maxDistance || 20, distance));
+        const clampedDistance = Math.max(
+          this.constraints.minDistance || 5,
+          Math.min(this.constraints.maxDistance || 20, distance),
+        );
         desiredPos.sub(targetPos).normalize().scale(clampedDistance).add(targetPos);
-        
+
         break;
       }
       case 'firstPerson': {
         const offset = this.firstPersonOffset.clone();
-        
+
         const forward = new pc.Vec3(0, 0, 1);
         forward.transformQuat(this.target.getRotation());
-        
+
         desiredPos.copy(targetPos);
         desiredPos.add(forward.scale(offset.z));
         desiredPos.y += offset.y;
-        
+
         break;
       }
       case 'fixed': {
@@ -289,10 +301,10 @@ export class CameraSystem {
     const currentPos = this.camera.getPosition();
     const smoothPos = new pc.Vec3();
     const followSpeed = this.constraints.followSpeed || 0.1;
-    
+
     smoothPos.lerp(currentPos, desiredPos, dt * 60 * followSpeed);
     smoothPos.add(this.shakeOffset);
-    
+
     this.camera.setPosition(smoothPos);
 
     if (this.mode === 'thirdPerson' || this.mode === 'firstPerson') {

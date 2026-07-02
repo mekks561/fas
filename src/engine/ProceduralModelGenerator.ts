@@ -6,17 +6,22 @@ import * as pc from 'playcanvas';
  */
 
 export type ShipModelType =
-  | 'fighter' | 'bomber' | 'cruiser' | 'stealth'
-  | 'corvette' | 'dreadnought';
+  'fighter' | 'bomber' | 'cruiser' | 'stealth' | 'corvette' | 'dreadnought';
 
 export type EnemyModelType =
-  | 'scout' | 'fighter' | 'bomber' | 'tank'
-  | 'assassin' | 'drone' | 'corvette' | 'destroyer'
-  | 'boss_sentinel' | 'boss_overlord';
+  | 'scout'
+  | 'fighter'
+  | 'bomber'
+  | 'tank'
+  | 'assassin'
+  | 'drone'
+  | 'corvette'
+  | 'destroyer'
+  | 'boss_sentinel'
+  | 'boss_overlord';
 
 export type StructureModelType =
-  | 'space_station' | 'asteroid' | 'debris' | 'satellite'
-  | 'mining_rig' | 'defense_platform';
+  'space_station' | 'asteroid' | 'debris' | 'satellite' | 'mining_rig' | 'defense_platform';
 
 export interface ModelOptions {
   primaryColor?: [number, number, number];
@@ -173,7 +178,11 @@ export class ProceduralModelGenerator {
     }
 
     // 炮塔 × 3
-    const turretPositions = [[0, 0.7, 0.8], [-0.8, 0.3, -0.5], [0.8, 0.3, -0.5]];
+    const turretPositions = [
+      [0, 0.7, 0.8],
+      [-0.8, 0.3, -0.5],
+      [0.8, 0.3, -0.5],
+    ];
     turretPositions.forEach((pos, _i) => {
       const turret = this.createTurret(scale, hullMat);
       turret.setLocalPosition(pos[0] * scale, pos[1] * scale, pos[2] * scale);
@@ -266,8 +275,12 @@ export class ProceduralModelGenerator {
 
     // 炮塔群
     const turretPositions = [
-      [0, 1.0, 1.5], [-1.2, 0.8, 0.5], [1.2, 0.8, 0.5],
-      [-1.2, 0.8, -1], [1.2, 0.8, -1], [0, 1.0, -2]
+      [0, 1.0, 1.5],
+      [-1.2, 0.8, 0.5],
+      [1.2, 0.8, 0.5],
+      [-1.2, 0.8, -1],
+      [1.2, 0.8, -1],
+      [0, 1.0, -2],
     ];
     turretPositions.forEach((pos) => {
       const turret = this.createTurret(scale, hullMat);
@@ -294,17 +307,28 @@ export class ProceduralModelGenerator {
 
   public createEnemyModel(type: EnemyModelType, options: ModelOptions = {}): pc.Entity {
     switch (type) {
-      case 'scout': return this.createEnemyScout(options);
-      case 'fighter': return this.createEnemyFighter(options);
-      case 'bomber': return this.createEnemyBomber(options);
-      case 'tank': return this.createEnemyTank(options);
-      case 'assassin': return this.createEnemyAssassin(options);
-      case 'drone': return this.createEnemyDrone(options);
-      case 'corvette': return this.createEnemyCorvette(options);
-      case 'destroyer': return this.createEnemyDestroyer(options);
-      case 'boss_sentinel': return this.createBossSentinel(options);
-      case 'boss_overlord': return this.createBossOverlord(options);
-      default: return this.createEnemyFighter(options);
+      case 'scout':
+        return this.createEnemyScout(options);
+      case 'fighter':
+        return this.createEnemyFighter(options);
+      case 'bomber':
+        return this.createEnemyBomber(options);
+      case 'tank':
+        return this.createEnemyTank(options);
+      case 'assassin':
+        return this.createEnemyAssassin(options);
+      case 'drone':
+        return this.createEnemyDrone(options);
+      case 'corvette':
+        return this.createEnemyCorvette(options);
+      case 'destroyer':
+        return this.createEnemyDestroyer(options);
+      case 'boss_sentinel':
+        return this.createBossSentinel(options);
+      case 'boss_overlord':
+        return this.createBossOverlord(options);
+      default:
+        return this.createEnemyFighter(options);
     }
   }
 
@@ -315,7 +339,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.4, 0.8, 0.4],
       [0.5, 0.5, 0.5],
       options.emissiveColor || [0.1, 0.3, 0.1],
-      30
+      30,
     );
 
     // 小型锥形机身
@@ -354,7 +378,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.8, 0.5, 0.2],
       [0.5, 0.5, 0.5],
       options.emissiveColor || [0.2, 0.1, 0],
-      30
+      30,
     );
 
     // 机身
@@ -368,7 +392,13 @@ export class ProceduralModelGenerator {
     // 驾驶舱
     const cockpit = new pc.Entity('cockpit');
     cockpit.addComponent('model', { type: 'sphere' });
-    if (cockpit.model) cockpit.model.material = this.createMaterial([0.2, 0.1, 0.05], [0.3, 0.3, 0.3], [0.1, 0.05, 0], 50);
+    if (cockpit.model)
+      cockpit.model.material = this.createMaterial(
+        [0.2, 0.1, 0.05],
+        [0.3, 0.3, 0.3],
+        [0.1, 0.05, 0],
+        50,
+      );
     cockpit.setLocalPosition(0, 0.2 * scale, 0.3 * scale);
     cockpit.setLocalScale(0.25 * scale, 0.2 * scale, 0.3 * scale);
     enemy.addChild(cockpit);
@@ -402,7 +432,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.5, 0.3, 0.1],
       [0.4, 0.4, 0.4],
       [0.1, 0.05, 0],
-      20
+      20,
     );
 
     // 宽机身
@@ -415,7 +445,8 @@ export class ProceduralModelGenerator {
     // 弹舱
     const bombBay = new pc.Entity('bombBay');
     bombBay.addComponent('model', { type: 'box' });
-    if (bombBay.model) bombBay.model.material = this.createMaterial([0.1, 0.1, 0.1], [0.2, 0.2, 0.2], [0, 0, 0], 10);
+    if (bombBay.model)
+      bombBay.model.material = this.createMaterial([0.1, 0.1, 0.1], [0.2, 0.2, 0.2], [0, 0, 0], 10);
     bombBay.setLocalPosition(0, -0.3 * scale, 0);
     bombBay.setLocalScale(0.5 * scale, 0.3 * scale, 0.8 * scale);
     enemy.addChild(bombBay);
@@ -441,7 +472,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.4, 0.4, 0.45],
       [0.3, 0.3, 0.3],
       [0.05, 0.05, 0.05],
-      10
+      10,
     );
 
     // 重型机身
@@ -454,7 +485,8 @@ export class ProceduralModelGenerator {
     // 装甲板
     const armor = new pc.Entity('armor');
     armor.addComponent('model', { type: 'box' });
-    if (armor.model) armor.model.material = this.createMaterial([0.2, 0.2, 0.25], [0.2, 0.2, 0.2], [0, 0, 0], 5);
+    if (armor.model)
+      armor.model.material = this.createMaterial([0.2, 0.2, 0.25], [0.2, 0.2, 0.2], [0, 0, 0], 5);
     armor.setLocalPosition(0, 0.6 * scale, 0);
     armor.setLocalScale(1.6 * scale, 0.3 * scale, 2.1 * scale);
     enemy.addChild(armor);
@@ -481,7 +513,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.6, 0.3, 1.0],
       [0.4, 0.4, 0.4],
       [0.3, 0.1, 0.5],
-      80
+      80,
     );
 
     // 锐利机身
@@ -529,7 +561,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.3, 0.3, 0.35],
       [0.4, 0.4, 0.4],
       [0.1, 0.1, 0.15],
-      50
+      50,
     );
 
     // 球形主体
@@ -548,7 +580,7 @@ export class ProceduralModelGenerator {
       prop.setLocalPosition(
         Math.cos(angle) * 0.4 * scale,
         0.3 * scale,
-        Math.sin(angle) * 0.4 * scale
+        Math.sin(angle) * 0.4 * scale,
       );
       prop.setLocalScale(0.1 * scale, 0.15 * scale, 0.1 * scale);
       enemy.addChild(prop);
@@ -572,7 +604,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.3, 0.4, 0.5],
       [0.4, 0.4, 0.4],
       [0.05, 0.1, 0.15],
-      30
+      30,
     );
 
     // 主体
@@ -619,7 +651,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.25, 0.25, 0.3],
       [0.3, 0.3, 0.3],
       [0.05, 0.05, 0.1],
-      20
+      20,
     );
 
     // 大型机身
@@ -639,7 +671,12 @@ export class ProceduralModelGenerator {
     enemy.addChild(bow);
 
     // 炮塔群
-    const positions = [[0, 0.6, 1], [-1, 0.5, 0], [1, 0.5, 0], [0, 0.6, -1]];
+    const positions = [
+      [0, 0.6, 1],
+      [-1, 0.5, 0],
+      [1, 0.5, 0],
+      [0, 0.6, -1],
+    ];
     positions.forEach((pos) => {
       const turret = this.createTurret(scale * 0.8, mat);
       turret.setLocalPosition(pos[0] * scale, pos[1] * scale, pos[2] * scale);
@@ -669,7 +706,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.5, 0.2, 0.2],
       [0.4, 0.4, 0.4],
       [0.3, 0.1, 0.1],
-      30
+      30,
     );
 
     // 核心球体
@@ -685,13 +722,9 @@ export class ProceduralModelGenerator {
       const shell = new pc.Entity(`shell_${i}`);
       shell.addComponent('model', { type: 'box' });
       if (shell.model) shell.model.material = mat;
-      shell.setLocalPosition(
-        Math.cos(angle) * 2 * scale,
-        0,
-        Math.sin(angle) * 2 * scale
-      );
+      shell.setLocalPosition(Math.cos(angle) * 2 * scale, 0, Math.sin(angle) * 2 * scale);
       shell.setLocalScale(1.5 * scale, 0.8 * scale, 0.5 * scale);
-      shell.setLocalEulerAngles(0, -angle * 180 / Math.PI, 0);
+      shell.setLocalEulerAngles(0, (-angle * 180) / Math.PI, 0);
       boss.addChild(shell);
     }
 
@@ -701,11 +734,7 @@ export class ProceduralModelGenerator {
       const arm = new pc.Entity(`arm_${i}`);
       arm.addComponent('model', { type: 'cylinder' });
       if (arm.model) arm.model.material = mat;
-      arm.setLocalPosition(
-        Math.cos(angle) * 2.5 * scale,
-        0,
-        Math.sin(angle) * 2.5 * scale
-      );
+      arm.setLocalPosition(Math.cos(angle) * 2.5 * scale, 0, Math.sin(angle) * 2.5 * scale);
       arm.setLocalScale(0.3 * scale, 1.5 * scale, 0.3 * scale);
       arm.setLocalEulerAngles(90, 0, 0);
       boss.addChild(arm);
@@ -714,11 +743,7 @@ export class ProceduralModelGenerator {
       const tip = new pc.Entity(`tip_${i}`);
       tip.addComponent('model', { type: 'sphere' });
       if (tip.model) tip.model.material = this.createEmissiveMaterial([1.0, 0.1, 0.1], 2.0);
-      tip.setLocalPosition(
-        Math.cos(angle) * 3.2 * scale,
-        0,
-        Math.sin(angle) * 3.2 * scale
-      );
+      tip.setLocalPosition(Math.cos(angle) * 3.2 * scale, 0, Math.sin(angle) * 3.2 * scale);
       tip.setLocalScale(0.35 * scale, 0.35 * scale, 0.35 * scale);
       boss.addChild(tip);
     }
@@ -733,7 +758,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.3, 0.0, 0.3],
       [0.5, 0.5, 0.5],
       [0.4, 0.1, 0.5],
-      40
+      40,
     );
 
     // 中央核心
@@ -755,10 +780,10 @@ export class ProceduralModelGenerator {
         seg.setLocalPosition(
           Math.cos(angle) * ringRadius,
           Math.sin(ring * 0.5) * 0.5 * scale,
-          Math.sin(angle) * ringRadius
+          Math.sin(angle) * ringRadius,
         );
         seg.setLocalScale(0.6 * scale, 0.4 * scale, 0.6 * scale);
-        seg.setLocalEulerAngles(0, -angle * 180 / Math.PI, 0);
+        seg.setLocalEulerAngles(0, (-angle * 180) / Math.PI, 0);
         boss.addChild(seg);
       }
     }
@@ -769,11 +794,7 @@ export class ProceduralModelGenerator {
       const pillar = new pc.Entity(`pillar_${i}`);
       pillar.addComponent('model', { type: 'cylinder' });
       if (pillar.model) pillar.model.material = this.createEmissiveMaterial([0.5, 0.1, 0.8], 2.5);
-      pillar.setLocalPosition(
-        Math.cos(angle) * 4 * scale,
-        0,
-        Math.sin(angle) * 4 * scale
-      );
+      pillar.setLocalPosition(Math.cos(angle) * 4 * scale, 0, Math.sin(angle) * 4 * scale);
       pillar.setLocalScale(0.3 * scale, 3 * scale, 0.3 * scale);
       boss.addChild(pillar);
     }
@@ -785,13 +806,20 @@ export class ProceduralModelGenerator {
 
   public createStructure(type: StructureModelType, options: ModelOptions = {}): pc.Entity {
     switch (type) {
-      case 'space_station': return this.createSpaceStation(options);
-      case 'asteroid': return this.createAsteroid(options);
-      case 'debris': return this.createDebris(options);
-      case 'satellite': return this.createSatellite(options);
-      case 'mining_rig': return this.createMiningRig(options);
-      case 'defense_platform': return this.createDefensePlatform(options);
-      default: return this.createSpaceStation(options);
+      case 'space_station':
+        return this.createSpaceStation(options);
+      case 'asteroid':
+        return this.createAsteroid(options);
+      case 'debris':
+        return this.createDebris(options);
+      case 'satellite':
+        return this.createSatellite(options);
+      case 'mining_rig':
+        return this.createMiningRig(options);
+      case 'defense_platform':
+        return this.createDefensePlatform(options);
+      default:
+        return this.createSpaceStation(options);
     }
   }
 
@@ -802,7 +830,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.4, 0.4, 0.5],
       [0.5, 0.5, 0.5],
       [0.1, 0.1, 0.2],
-      30
+      30,
     );
 
     // 中央塔
@@ -821,13 +849,9 @@ export class ProceduralModelGenerator {
         const seg = new pc.Entity(`ring_${r}_${i}`);
         seg.addComponent('model', { type: 'box' });
         if (seg.model) seg.model.material = mat;
-        seg.setLocalPosition(
-          Math.cos(angle) * radius,
-          (r - 0.5) * scale,
-          Math.sin(angle) * radius
-        );
+        seg.setLocalPosition(Math.cos(angle) * radius, (r - 0.5) * scale, Math.sin(angle) * radius);
         seg.setLocalScale(0.8 * scale, 0.3 * scale, 0.8 * scale);
-        seg.setLocalEulerAngles(0, -angle * 180 / Math.PI, 0);
+        seg.setLocalEulerAngles(0, (-angle * 180) / Math.PI, 0);
         station.addChild(seg);
       }
     }
@@ -838,11 +862,7 @@ export class ProceduralModelGenerator {
       const dock = new pc.Entity(`dock_${i}`);
       dock.addComponent('model', { type: 'cylinder' });
       if (dock.model) dock.model.material = mat;
-      dock.setLocalPosition(
-        Math.cos(angle) * 3.5 * scale,
-        0,
-        Math.sin(angle) * 3.5 * scale
-      );
+      dock.setLocalPosition(Math.cos(angle) * 3.5 * scale, 0, Math.sin(angle) * 3.5 * scale);
       dock.setLocalScale(0.5 * scale, 0.8 * scale, 0.5 * scale);
       dock.setLocalEulerAngles(0, 0, 90);
       station.addChild(dock);
@@ -853,15 +873,12 @@ export class ProceduralModelGenerator {
       const angle = (i / 6) * Math.PI * 2;
       const light = new pc.Entity(`light_${i}`);
       light.addComponent('model', { type: 'sphere' });
-      if (light.model) light.model.material = this.createEmissiveMaterial(
-        i % 2 === 0 ? [1.0, 0.3, 0.1] : [0.1, 1.0, 0.3],
-        2.0
-      );
-      light.setLocalPosition(
-        Math.cos(angle) * 2 * scale,
-        1.5 * scale,
-        Math.sin(angle) * 2 * scale
-      );
+      if (light.model)
+        light.model.material = this.createEmissiveMaterial(
+          i % 2 === 0 ? [1.0, 0.3, 0.1] : [0.1, 1.0, 0.3],
+          2.0,
+        );
+      light.setLocalPosition(Math.cos(angle) * 2 * scale, 1.5 * scale, Math.sin(angle) * 2 * scale);
       light.setLocalScale(0.15 * scale, 0.15 * scale, 0.15 * scale);
       station.addChild(light);
     }
@@ -876,7 +893,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.3, 0.28, 0.25],
       [0.2, 0.2, 0.2],
       [0, 0, 0],
-      5
+      5,
     );
 
     // 不规则形状 - 使用多个球体组合
@@ -895,7 +912,7 @@ export class ProceduralModelGenerator {
       bump.setLocalPosition(
         Math.cos(angle) * 0.8 * scale,
         (Math.random() - 0.5) * 0.8 * scale,
-        Math.sin(angle) * 0.8 * scale
+        Math.sin(angle) * 0.8 * scale,
       );
       bump.setLocalScale(0.5 * scale, 0.4 * scale, 0.6 * scale);
       asteroid.addChild(bump);
@@ -911,7 +928,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.2, 0.2, 0.2],
       [0.1, 0.1, 0.1],
       [0, 0, 0],
-      5
+      5,
     );
 
     // 随机碎片
@@ -923,14 +940,10 @@ export class ProceduralModelGenerator {
       piece.setLocalPosition(
         (Math.random() - 0.5) * scale,
         (Math.random() - 0.5) * scale,
-        (Math.random() - 0.5) * scale
+        (Math.random() - 0.5) * scale,
       );
       piece.setLocalScale(0.3 * scale, 0.4 * scale, 0.2 * scale);
-      piece.setLocalEulerAngles(
-        Math.random() * 360,
-        Math.random() * 360,
-        Math.random() * 360
-      );
+      piece.setLocalEulerAngles(Math.random() * 360, Math.random() * 360, Math.random() * 360);
       debris.addChild(piece);
     }
 
@@ -944,7 +957,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.5, 0.5, 0.5],
       [0.6, 0.6, 0.6],
       [0.1, 0.1, 0.1],
-      40
+      40,
     );
 
     // 主体
@@ -958,7 +971,13 @@ export class ProceduralModelGenerator {
     for (const side of [-1, 1]) {
       const panel = new pc.Entity(`panel_${side}`);
       panel.addComponent('model', { type: 'box' });
-      if (panel.model) panel.model.material = this.createMaterial([0.1, 0.1, 0.3], [0.3, 0.3, 0.3], [0.05, 0.05, 0.2], 60);
+      if (panel.model)
+        panel.model.material = this.createMaterial(
+          [0.1, 0.1, 0.3],
+          [0.3, 0.3, 0.3],
+          [0.05, 0.05, 0.2],
+          60,
+        );
       panel.setLocalPosition(side * 1.2 * scale, 0, 0);
       panel.setLocalScale(1.5 * scale, 0.05 * scale, 0.8 * scale);
       satellite.addChild(panel);
@@ -990,7 +1009,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.35, 0.3, 0.2],
       [0.3, 0.3, 0.3],
       [0.1, 0.08, 0.02],
-      15
+      15,
     );
 
     // 平台
@@ -1003,7 +1022,8 @@ export class ProceduralModelGenerator {
     // 钻头
     const drill = new pc.Entity('drill');
     drill.addComponent('model', { type: 'cone' });
-    if (drill.model) drill.model.material = this.createMaterial([0.5, 0.5, 0.5], [0.6, 0.6, 0.6], [0, 0, 0], 80);
+    if (drill.model)
+      drill.model.material = this.createMaterial([0.5, 0.5, 0.5], [0.6, 0.6, 0.6], [0, 0, 0], 80);
     drill.setLocalPosition(0, -1 * scale, 0);
     drill.setLocalScale(0.5 * scale, 1.5 * scale, 0.5 * scale);
     drill.setLocalEulerAngles(180, 0, 0);
@@ -1018,7 +1038,7 @@ export class ProceduralModelGenerator {
       pillar.setLocalPosition(
         Math.cos(angle) * 1.3 * scale,
         0.5 * scale,
-        Math.sin(angle) * 1.3 * scale
+        Math.sin(angle) * 1.3 * scale,
       );
       pillar.setLocalScale(0.15 * scale, 1.5 * scale, 0.15 * scale);
       rig.addChild(pillar);
@@ -1034,7 +1054,7 @@ export class ProceduralModelGenerator {
       options.primaryColor || [0.3, 0.35, 0.4],
       [0.4, 0.4, 0.4],
       [0.05, 0.1, 0.15],
-      25
+      25,
     );
 
     // 基座
@@ -1056,7 +1076,7 @@ export class ProceduralModelGenerator {
       sub.setLocalPosition(
         Math.cos(angle) * 1.3 * scale,
         0.4 * scale,
-        Math.sin(angle) * 1.3 * scale
+        Math.sin(angle) * 1.3 * scale,
       );
       platform.addChild(sub);
     }
@@ -1064,7 +1084,13 @@ export class ProceduralModelGenerator {
     // 雷达
     const radar = new pc.Entity('radar');
     radar.addComponent('model', { type: 'box' });
-    if (radar.model) radar.model.material = this.createMaterial([0.1, 0.2, 0.1], [0.3, 0.3, 0.3], [0.05, 0.1, 0.05], 50);
+    if (radar.model)
+      radar.model.material = this.createMaterial(
+        [0.1, 0.2, 0.1],
+        [0.3, 0.3, 0.3],
+        [0.05, 0.1, 0.05],
+        50,
+      );
     radar.setLocalPosition(0, 1.5 * scale, 0);
     radar.setLocalScale(0.6 * scale, 0.05 * scale, 1.2 * scale);
     platform.addChild(radar);
@@ -1075,9 +1101,11 @@ export class ProceduralModelGenerator {
   // ============ 辅助方法 ============
 
   private createWing(
-    name: string, side: number,
-    hullMat: pc.StandardMaterial, accentMat: pc.StandardMaterial,
-    scale: number
+    name: string,
+    side: number,
+    hullMat: pc.StandardMaterial,
+    accentMat: pc.StandardMaterial,
+    scale: number,
   ): pc.Entity {
     const wing = new pc.Entity(name);
 
@@ -1097,10 +1125,11 @@ export class ProceduralModelGenerator {
 
     const navLight = new pc.Entity('navLight');
     navLight.addComponent('model', { type: 'sphere' });
-    if (navLight.model) navLight.model.material = this.createEmissiveMaterial(
-      side < 0 ? [1.0, 0.1, 0.1] : [0.1, 1.0, 0.1],
-      1.5
-    );
+    if (navLight.model)
+      navLight.model.material = this.createEmissiveMaterial(
+        side < 0 ? [1.0, 0.1, 0.1] : [0.1, 1.0, 0.1],
+        1.5,
+      );
     navLight.setLocalPosition(side * 1.5 * scale, -0.1 * scale, 0.4 * scale);
     navLight.setLocalScale(0.08 * scale, 0.08 * scale, 0.08 * scale);
     wing.addChild(navLight);
@@ -1160,7 +1189,7 @@ export class ProceduralModelGenerator {
     diffuse: [number, number, number],
     specular: [number, number, number],
     emissive: [number, number, number],
-    shininess: number
+    shininess: number,
   ): pc.StandardMaterial {
     const mat = new pc.StandardMaterial();
     mat.diffuse.set(diffuse[0], diffuse[1], diffuse[2]);
@@ -1173,7 +1202,7 @@ export class ProceduralModelGenerator {
 
   private createEmissiveMaterial(
     emissive: [number, number, number],
-    intensity: number
+    intensity: number,
   ): pc.StandardMaterial {
     const mat = new pc.StandardMaterial();
     mat.diffuse.set(0, 0, 0);
@@ -1199,13 +1228,20 @@ export class ProceduralModelGenerator {
 
   public createShipModel(type: ShipModelType, options: ModelOptions = {}): pc.Entity {
     switch (type) {
-      case 'fighter': return this.createFighterShip(options);
-      case 'bomber': return this.createBomberShip(options);
-      case 'cruiser': return this.createCruiserShip(options);
-      case 'stealth': return this.createStealthShip(options);
-      case 'corvette': return this.createCruiserShip(options);
-      case 'dreadnought': return this.createDreadnoughtShip(options);
-      default: return this.createFighterShip(options);
+      case 'fighter':
+        return this.createFighterShip(options);
+      case 'bomber':
+        return this.createBomberShip(options);
+      case 'cruiser':
+        return this.createCruiserShip(options);
+      case 'stealth':
+        return this.createStealthShip(options);
+      case 'corvette':
+        return this.createCruiserShip(options);
+      case 'dreadnought':
+        return this.createDreadnoughtShip(options);
+      default:
+        return this.createFighterShip(options);
     }
   }
 }

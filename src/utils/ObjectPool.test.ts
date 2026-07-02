@@ -10,7 +10,7 @@ describe('ObjectPool', () => {
 
   const createTestObject = (): TestObject => ({
     id: `test_${Math.random().toString(36).substr(2, 9)}`,
-    value: 0
+    value: 0,
   });
 
   const resetTestObject = (obj: TestObject): void => {

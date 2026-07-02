@@ -1,6 +1,7 @@
 import * as pc from 'playcanvas';
 
-export type DebugCategory = 'render' | 'physics' | 'entities' | 'performance' | 'input' | 'audio' | 'system';
+export type DebugCategory =
+  'render' | 'physics' | 'entities' | 'performance' | 'input' | 'audio' | 'system';
 
 export interface DebugLine {
   start: pc.Vec3;
@@ -80,7 +81,13 @@ export class DebugSystem {
   private isProfilerEnabled: boolean = false;
 
   private enabledCategories: Set<DebugCategory> = new Set([
-    'render', 'physics', 'entities', 'performance', 'input', 'audio', 'system'
+    'render',
+    'physics',
+    'entities',
+    'performance',
+    'input',
+    'audio',
+    'system',
   ]);
 
   private lines: DebugLine[] = [];
@@ -97,7 +104,7 @@ export class DebugSystem {
     triangles: 0,
     entities: 0,
     physicsBodies: 0,
-    memoryUsage: 0
+    memoryUsage: 0,
   };
 
   private logs: DebugLogEntry[] = [];
@@ -167,7 +174,13 @@ export class DebugSystem {
     return this.enabledCategories.has(category);
   }
 
-  public drawLine(start: pc.Vec3, end: pc.Vec3, color: pc.Color = new pc.Color(1, 0, 0, 1), duration: number = 0, category: DebugCategory = 'render'): void {
+  public drawLine(
+    start: pc.Vec3,
+    end: pc.Vec3,
+    color: pc.Color = new pc.Color(1, 0, 0, 1),
+    duration: number = 0,
+    category: DebugCategory = 'render',
+  ): void {
     if (!this.isEnabled) return;
     if (!this.isCategoryEnabled(category)) return;
 
@@ -177,11 +190,17 @@ export class DebugSystem {
       color: color.clone(),
       duration,
       timestamp: performance.now(),
-      category
+      category,
     });
   }
 
-  public drawBox(center: pc.Vec3, size: pc.Vec3, color: pc.Color = new pc.Color(0, 1, 0, 1), duration: number = 0, category: DebugCategory = 'physics'): void {
+  public drawBox(
+    center: pc.Vec3,
+    size: pc.Vec3,
+    color: pc.Color = new pc.Color(0, 1, 0, 1),
+    duration: number = 0,
+    category: DebugCategory = 'physics',
+  ): void {
     if (!this.isEnabled) return;
     if (!this.isCategoryEnabled(category)) return;
 
@@ -192,11 +211,17 @@ export class DebugSystem {
       color: color.clone(),
       duration,
       timestamp: performance.now(),
-      category
+      category,
     });
   }
 
-  public drawSphere(center: pc.Vec3, radius: number, color: pc.Color = new pc.Color(0, 0, 1, 1), duration: number = 0, category: DebugCategory = 'physics'): void {
+  public drawSphere(
+    center: pc.Vec3,
+    radius: number,
+    color: pc.Color = new pc.Color(0, 0, 1, 1),
+    duration: number = 0,
+    category: DebugCategory = 'physics',
+  ): void {
     if (!this.isEnabled) return;
     if (!this.isCategoryEnabled(category)) return;
 
@@ -206,11 +231,17 @@ export class DebugSystem {
       color: color.clone(),
       duration,
       timestamp: performance.now(),
-      category
+      category,
     });
   }
 
-  public drawText(position: pc.Vec3, text: string, color: pc.Color = new pc.Color(1, 1, 1, 1), duration: number = 0, category: DebugCategory = 'system'): void {
+  public drawText(
+    position: pc.Vec3,
+    text: string,
+    color: pc.Color = new pc.Color(1, 1, 1, 1),
+    duration: number = 0,
+    category: DebugCategory = 'system',
+  ): void {
     if (!this.isEnabled) return;
     if (!this.isCategoryEnabled(category)) return;
 
@@ -220,7 +251,7 @@ export class DebugSystem {
       color: color.clone(),
       duration,
       timestamp: performance.now(),
-      category
+      category,
     });
   }
 
@@ -270,12 +301,12 @@ export class DebugSystem {
       this.stats.memoryUsage = performance.memory.usedJSHeapSize / 1024 / 1024;
     }
 
-    this.statsCallbacks.forEach(cb => cb(this.stats));
+    this.statsCallbacks.forEach((cb) => cb(this.stats));
   }
 
   private countEntities(entity: pc.Entity): number {
     let count = 1;
-    entity.children.forEach(child => {
+    entity.children.forEach((child) => {
       count += this.countEntities(child);
     });
     return count;
@@ -297,7 +328,7 @@ export class DebugSystem {
     if (!entity) return null;
 
     const components: string[] = [];
-    Object.keys(entity.c).forEach(key => {
+    Object.keys(entity.c).forEach((key) => {
       components.push(key);
     });
 
@@ -309,7 +340,7 @@ export class DebugSystem {
       components,
       enabled: entity.enabled,
       parent: entity.parent?.name,
-      children: entity.children.map(c => c.name)
+      children: entity.children.map((c) => c.name),
     };
   }
 
@@ -337,36 +368,41 @@ export class DebugSystem {
     if (entity.tags && entity.tags.has(tag)) {
       results.push(entity);
     }
-    entity.children.forEach(child => this.searchByTag(child, tag, results));
+    entity.children.forEach((child) => this.searchByTag(child, tag, results));
   }
 
-  public log(message: string, category: DebugCategory = 'system', data?: any): void {
+  public log(message: string, category: DebugCategory = 'system', data?: unknown): void {
     this.addLog('log', message, category, data);
   }
 
-  public info(message: string, category: DebugCategory = 'system', data?: any): void {
+  public info(message: string, category: DebugCategory = 'system', data?: unknown): void {
     this.addLog('info', message, category, data);
   }
 
-  public warn(message: string, category: DebugCategory = 'system', data?: any): void {
+  public warn(message: string, category: DebugCategory = 'system', data?: unknown): void {
     this.addLog('warn', message, category, data);
   }
 
-  public error(message: string, category: DebugCategory = 'system', data?: any): void {
+  public error(message: string, category: DebugCategory = 'system', data?: unknown): void {
     this.addLog('error', message, category, data);
   }
 
-  public debug(message: string, category: DebugCategory = 'system', data?: any): void {
+  public debug(message: string, category: DebugCategory = 'system', data?: unknown): void {
     this.addLog('debug', message, category, data);
   }
 
-  private addLog(level: DebugLogEntry['level'], message: string, category: DebugCategory, data?: any): void {
+  private addLog(
+    level: DebugLogEntry['level'],
+    message: string,
+    category: DebugCategory,
+    data?: unknown,
+  ): void {
     const entry: DebugLogEntry = {
       timestamp: Date.now(),
       level,
       message,
       category,
-      data
+      data,
     };
 
     this.logs.push(entry);
@@ -374,17 +410,20 @@ export class DebugSystem {
       this.logs.shift();
     }
 
-    this.logCallbacks.forEach(cb => cb(entry));
+    this.logCallbacks.forEach((cb) => cb(entry));
   }
 
-  public getLogs(filter?: { level?: DebugLogEntry['level']; category?: DebugCategory }): DebugLogEntry[] {
+  public getLogs(filter?: {
+    level?: DebugLogEntry['level'];
+    category?: DebugCategory;
+  }): DebugLogEntry[] {
     let filtered = this.logs;
 
     if (filter?.level) {
-      filtered = filtered.filter(l => l.level === filter.level);
+      filtered = filtered.filter((l) => l.level === filter.level);
     }
     if (filter?.category) {
-      filtered = filtered.filter(l => l.category === filter.category);
+      filtered = filtered.filter((l) => l.category === filter.category);
     }
 
     return [...filtered];
@@ -408,17 +447,32 @@ export class DebugSystem {
     this.consoleOriginalError = console.error;
 
     console.log = (...args: unknown[]) => {
-      this.addLog('log', args.map(a => String(a)).join(' '), 'system', args.length > 1 ? args : undefined);
+      this.addLog(
+        'log',
+        args.map((a) => String(a)).join(' '),
+        'system',
+        args.length > 1 ? args : undefined,
+      );
       this.consoleOriginalLog?.apply(console, args);
     };
 
     console.warn = (...args: unknown[]) => {
-      this.addLog('warn', args.map(a => String(a)).join(' '), 'system', args.length > 1 ? args : undefined);
+      this.addLog(
+        'warn',
+        args.map((a) => String(a)).join(' '),
+        'system',
+        args.length > 1 ? args : undefined,
+      );
       this.consoleOriginalWarn?.apply(console, args);
     };
 
     console.error = (...args: unknown[]) => {
-      this.addLog('error', args.map(a => String(a)).join(' '), 'system', args.length > 1 ? args : undefined);
+      this.addLog(
+        'error',
+        args.map((a) => String(a)).join(' '),
+        'system',
+        args.length > 1 ? args : undefined,
+      );
       this.consoleOriginalError?.apply(console, args);
     };
   }
@@ -523,17 +577,25 @@ export class DebugSystem {
   }
 
   private cleanupExpiredDrawings(now: number): void {
-    this.lines = this.lines.filter(l => l.duration === 0 || now - l.timestamp < l.duration * 1000);
-    this.boxes = this.boxes.filter(b => b.duration === 0 || now - b.timestamp < b.duration * 1000);
-    this.spheres = this.spheres.filter(s => s.duration === 0 || now - s.timestamp < s.duration * 1000);
-    this.texts = this.texts.filter(t => t.duration === 0 || now - t.timestamp < t.duration * 1000);
+    this.lines = this.lines.filter(
+      (l) => l.duration === 0 || now - l.timestamp < l.duration * 1000,
+    );
+    this.boxes = this.boxes.filter(
+      (b) => b.duration === 0 || now - b.timestamp < b.duration * 1000,
+    );
+    this.spheres = this.spheres.filter(
+      (s) => s.duration === 0 || now - s.timestamp < s.duration * 1000,
+    );
+    this.texts = this.texts.filter(
+      (t) => t.duration === 0 || now - t.timestamp < t.duration * 1000,
+    );
   }
 
   private renderDebugDrawings(): void {
     if (!this.app) return;
     if (!this.isEnabled) return;
 
-    this.boxes.forEach(box => {
+    this.boxes.forEach((box) => {
       this.drawBoxWireframe(box);
     });
   }
@@ -551,15 +613,24 @@ export class DebugSystem {
       new pc.Vec3(-halfX, -halfY, halfZ),
       new pc.Vec3(halfX, -halfY, halfZ),
       new pc.Vec3(halfX, halfY, halfZ),
-      new pc.Vec3(-halfX, halfY, halfZ)
+      new pc.Vec3(-halfX, halfY, halfZ),
     ];
 
-    corners.forEach(corner => corner.transformQuat(box.rotation).add(box.center));
+    corners.forEach((corner) => corner.transformQuat(box.rotation).add(box.center));
 
     const edges = [
-      [0, 1], [1, 2], [2, 3], [3, 0],
-      [4, 5], [5, 6], [6, 7], [7, 4],
-      [0, 4], [1, 5], [2, 6], [3, 7]
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [4, 5],
+      [5, 6],
+      [6, 7],
+      [7, 4],
+      [0, 4],
+      [1, 5],
+      [2, 6],
+      [3, 7],
     ];
 
     edges.forEach(([start, end]) => {
@@ -578,7 +649,13 @@ export class DebugSystem {
     if (this.showEntityBounds) {
       const aabb = entity.aabb;
       if (aabb && aabb.halfExtents.length() > 0) {
-        this.drawBox(aabb.center, aabb.halfExtents.scale(2), new pc.Color(1, 1, 0, 0.5), 0, 'entities');
+        this.drawBox(
+          aabb.center,
+          aabb.halfExtents.scale(2),
+          new pc.Color(1, 1, 0, 0.5),
+          0,
+          'entities',
+        );
       }
     }
 
@@ -586,7 +663,7 @@ export class DebugSystem {
       this.drawText(entity.getPosition(), entity.name, new pc.Color(0, 1, 1, 1), 0, 'entities');
     }
 
-    entity.children.forEach(child => this.traverseEntities(child));
+    entity.children.forEach((child) => this.traverseEntities(child));
   }
 
   public exportLogs(): string {
@@ -609,7 +686,7 @@ export class DebugSystem {
       triangles: 0,
       entities: 0,
       physicsBodies: 0,
-      memoryUsage: 0
+      memoryUsage: 0,
     };
   }
 

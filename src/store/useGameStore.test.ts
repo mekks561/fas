@@ -19,21 +19,21 @@ describe('useGameStore', () => {
         score: 0,
         level: 1,
         speed: 0,
-        isBoostActive: false
+        isBoostActive: false,
       },
       skills: {
         cooldowns: {
           skill1: 0,
           skill2: 0,
           skill3: 0,
-          skill4: 0
+          skill4: 0,
         },
         maxCooldowns: {
           skill1: 8,
           skill2: 10,
           skill3: 15,
-          skill4: 20
-        }
+          skill4: 20,
+        },
       },
       touchHandlers: null,
       currentWave: 1,
@@ -47,87 +47,102 @@ describe('useGameStore', () => {
       setError: (error: string | null) => set({ error }),
       setGamePaused: (paused: boolean) => set({ isGamePaused: paused }),
       setSceneReady: (ready: boolean) => set({ isSceneReady: ready }),
-      updatePlayerHealth: (health: number) => set((state: any) => ({
-        player: { ...state.player, health: Math.max(0, Math.min(state.player.maxHealth, health)) }
-      })),
-      updatePlayerShield: (shield: number) => set((state: any) => ({
-        player: { ...state.player, shield: Math.max(0, Math.min(state.player.maxShield, shield)) }
-      })),
-      addScore: (score: number) => set((state: any) => ({
-        player: { ...state.player, score: state.player.score + score }
-      })),
-      setPlayerLevel: (level: number) => set((state: any) => ({
-        player: { ...state.player, level }
-      })),
-      setSpeed: (speed: number) => set((state: any) => ({
-        player: { ...state.player, speed }
-      })),
-      setBoostActive: (active: boolean) => set((state: any) => ({
-        player: { ...state.player, isBoostActive: active }
-      })),
+      updatePlayerHealth: (health: number) =>
+        set((state: any) => ({
+          player: {
+            ...state.player,
+            health: Math.max(0, Math.min(state.player.maxHealth, health)),
+          },
+        })),
+      updatePlayerShield: (shield: number) =>
+        set((state: any) => ({
+          player: {
+            ...state.player,
+            shield: Math.max(0, Math.min(state.player.maxShield, shield)),
+          },
+        })),
+      addScore: (score: number) =>
+        set((state: any) => ({
+          player: { ...state.player, score: state.player.score + score },
+        })),
+      setPlayerLevel: (level: number) =>
+        set((state: any) => ({
+          player: { ...state.player, level },
+        })),
+      setSpeed: (speed: number) =>
+        set((state: any) => ({
+          player: { ...state.player, speed },
+        })),
+      setBoostActive: (active: boolean) =>
+        set((state: any) => ({
+          player: { ...state.player, isBoostActive: active },
+        })),
       setWave: (wave: number) => set({ currentWave: wave }),
       setWaveProgress: (progress: number) => set({ waveProgress: progress }),
       setEnemyCount: (count: number) => set({ enemyCount: count }),
       setProjectileCount: (count: number) => set({ projectileCount: count }),
       setFps: (fps: number) => set({ fps }),
-      setSkillCooldown: (skillId: string, cooldown: number) => set((state: any) => ({
-        skills: {
-          ...state.skills,
-          cooldowns: {
-            ...state.skills.cooldowns,
-            [skillId]: Math.max(0, cooldown)
-          }
-        }
-      })),
-      updateSkillCooldowns: (dt: number) => set((state: any) => ({
-        skills: {
-          ...state.skills,
-          cooldowns: {
-            skill1: Math.max(0, state.skills.cooldowns.skill1 - dt),
-            skill2: Math.max(0, state.skills.cooldowns.skill2 - dt),
-            skill3: Math.max(0, state.skills.cooldowns.skill3 - dt),
-            skill4: Math.max(0, state.skills.cooldowns.skill4 - dt)
-          }
-        }
-      })),
-      setTouchHandlers: (handlers: any) => set({ touchHandlers: handlers }),
-      resetGame: () => set({
-        isLoading: true,
-        loadingProgress: 0,
-        error: null,
-        isGamePaused: false,
-        isSceneReady: false,
-        player: {
-          health: 100,
-          maxHealth: 100,
-          shield: 50,
-          maxShield: 50,
-          score: 0,
-          level: 1,
-          speed: 0,
-          isBoostActive: false
-        },
-        skills: {
-          cooldowns: {
-            skill1: 0,
-            skill2: 0,
-            skill3: 0,
-            skill4: 0
+      setSkillCooldown: (skillId: string, cooldown: number) =>
+        set((state: any) => ({
+          skills: {
+            ...state.skills,
+            cooldowns: {
+              ...state.skills.cooldowns,
+              [skillId]: Math.max(0, cooldown),
+            },
           },
-          maxCooldowns: {
-            skill1: 8,
-            skill2: 10,
-            skill3: 15,
-            skill4: 20
-          }
-        },
-        touchHandlers: null,
-        currentWave: 1,
-        waveProgress: 0,
-        enemyCount: 0,
-        projectileCount: 0,
-        fps: 60
-      })
+        })),
+      updateSkillCooldowns: (dt: number) =>
+        set((state: any) => ({
+          skills: {
+            ...state.skills,
+            cooldowns: {
+              skill1: Math.max(0, state.skills.cooldowns.skill1 - dt),
+              skill2: Math.max(0, state.skills.cooldowns.skill2 - dt),
+              skill3: Math.max(0, state.skills.cooldowns.skill3 - dt),
+              skill4: Math.max(0, state.skills.cooldowns.skill4 - dt),
+            },
+          },
+        })),
+      setTouchHandlers: (handlers: any) => set({ touchHandlers: handlers }),
+      resetGame: () =>
+        set({
+          isLoading: true,
+          loadingProgress: 0,
+          error: null,
+          isGamePaused: false,
+          isSceneReady: false,
+          player: {
+            health: 100,
+            maxHealth: 100,
+            shield: 50,
+            maxShield: 50,
+            score: 0,
+            level: 1,
+            speed: 0,
+            isBoostActive: false,
+          },
+          skills: {
+            cooldowns: {
+              skill1: 0,
+              skill2: 0,
+              skill3: 0,
+              skill4: 0,
+            },
+            maxCooldowns: {
+              skill1: 8,
+              skill2: 10,
+              skill3: 15,
+              skill4: 20,
+            },
+          },
+          touchHandlers: null,
+          currentWave: 1,
+          waveProgress: 0,
+          enemyCount: 0,
+          projectileCount: 0,
+          fps: 60,
+        }),
     }));
   });
 
@@ -304,7 +319,7 @@ describe('useGameStore', () => {
         onSkill1: vi.fn(),
         onSkill2: vi.fn(),
         onSkill3: vi.fn(),
-        onSkill4: vi.fn()
+        onSkill4: vi.fn(),
       };
 
       store.getState().setTouchHandlers(handlers);

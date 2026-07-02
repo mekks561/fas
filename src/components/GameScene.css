@@ -280,7 +280,9 @@
 }
 
 /* 按钮样式 */
-.restart-button, .resume-button, .stats-toggle-button {
+.restart-button,
+.resume-button,
+.stats-toggle-button {
   background: linear-gradient(135deg, #00d4ff, #0080ff);
   color: white;
   border: none;
@@ -295,18 +297,24 @@
   margin: 0 10px;
 }
 
-.restart-button:hover, .resume-button:hover, .stats-toggle-button:hover {
+.restart-button:hover,
+.resume-button:hover,
+.stats-toggle-button:hover {
   background: linear-gradient(135deg, #0080ff, #00d4ff);
   box-shadow: 0 6px 20px rgba(0, 212, 255, 0.5);
   transform: translateY(-2px);
 }
 
-.restart-button:active, .resume-button:active, .stats-toggle-button:active {
+.restart-button:active,
+.resume-button:active,
+.stats-toggle-button:active {
   transform: translateY(0);
   box-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
 }
 
-.restart-button:focus, .resume-button:focus, .stats-toggle-button:focus {
+.restart-button:focus,
+.resume-button:focus,
+.stats-toggle-button:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.4);
 }

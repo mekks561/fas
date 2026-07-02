@@ -10,21 +10,21 @@ describe('TouchControlOverlay', () => {
     onSkill1: vi.fn(),
     onSkill2: vi.fn(),
     onSkill3: vi.fn(),
-    onSkill4: vi.fn()
+    onSkill4: vi.fn(),
   };
 
   const mockCooldowns = {
     skill1: 0,
     skill2: 0,
     skill3: 0,
-    skill4: 0
+    skill4: 0,
   };
 
   const mockMaxCooldowns = {
     skill1: 8,
     skill2: 10,
     skill3: 15,
-    skill4: 20
+    skill4: 20,
   };
 
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={mockCooldowns}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       expect(screen.getByRole('button', { name: /fire/i })).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe('TouchControlOverlay', () => {
           skillCooldowns={mockCooldowns}
           skillMaxCooldowns={mockMaxCooldowns}
           isVisible={false}
-        />
+        />,
       );
 
       expect(screen.queryByRole('button', { name: /fire/i })).not.toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={mockCooldowns}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       // 技能按钮应该存在
@@ -79,7 +79,7 @@ describe('TouchControlOverlay', () => {
         skill1: 5,
         skill2: 0,
         skill3: 10,
-        skill4: 0
+        skill4: 0,
       };
 
       render(
@@ -87,7 +87,7 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={cooldownsWithActive}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       // 检查冷却时间显示
@@ -101,7 +101,7 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={mockCooldowns}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       // 没有冷却时间数字显示
@@ -116,7 +116,7 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={mockCooldowns}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       const fireButton = screen.getByRole('button', { name: /fire/i });
@@ -134,7 +134,7 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={mockCooldowns}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       const boostButton = screen.getByRole('button', { name: /boost/i });
@@ -151,7 +151,7 @@ describe('TouchControlOverlay', () => {
         skill1: 5,
         skill2: 0,
         skill3: 0,
-        skill4: 0
+        skill4: 0,
       };
 
       render(
@@ -159,12 +159,12 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={cooldownsWithActive}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       // 找到技能1按钮并尝试触发
       const skillButtons = screen.getAllByRole('button');
-      const skill1Button = skillButtons.find(btn => btn.textContent?.includes('M'));
+      const skill1Button = skillButtons.find((btn) => btn.textContent?.includes('M'));
 
       if (skill1Button) {
         fireEvent.touchStart(skill1Button);
@@ -181,7 +181,7 @@ describe('TouchControlOverlay', () => {
           {...mockHandlers}
           skillCooldowns={mockCooldowns}
           skillMaxCooldowns={mockMaxCooldowns}
-        />
+        />,
       );
 
       const fireButton = screen.getByRole('button', { name: /fire/i });

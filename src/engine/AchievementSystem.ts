@@ -5,7 +5,7 @@ export enum AchievementCategory {
   SURVIVAL = 'survival',
   COLLECTION = 'collection',
   SKILL = 'skill',
-  SPECIAL = 'special'
+  SPECIAL = 'special',
 }
 
 export enum AchievementRarity {
@@ -13,7 +13,7 @@ export enum AchievementRarity {
   UNCOMMON = 'uncommon',
   RARE = 'rare',
   EPIC = 'epic',
-  LEGENDARY = 'legendary'
+  LEGENDARY = 'legendary',
 }
 
 export interface AchievementDefinition {
@@ -61,7 +61,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.COMMON,
     icon: '⚔️',
     requirement: 1,
-    reward: { score: 100 }
+    reward: { score: 100 },
   },
   {
     id: 'killer_10',
@@ -71,7 +71,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.COMMON,
     icon: '🗡️',
     requirement: 10,
-    reward: { score: 500 }
+    reward: { score: 500 },
   },
   {
     id: 'killer_50',
@@ -81,7 +81,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.UNCOMMON,
     icon: '⚔️',
     requirement: 50,
-    reward: { score: 2000 }
+    reward: { score: 2000 },
   },
   {
     id: 'killer_100',
@@ -91,7 +91,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.RARE,
     icon: '💀',
     requirement: 100,
-    reward: { score: 5000 }
+    reward: { score: 5000 },
   },
   {
     id: 'killer_500',
@@ -101,7 +101,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.EPIC,
     icon: '☠️',
     requirement: 500,
-    reward: { score: 20000 }
+    reward: { score: 20000 },
   },
   {
     id: 'elite_hunter',
@@ -111,7 +111,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.RARE,
     icon: '🏆',
     requirement: 10,
-    reward: { score: 3000 }
+    reward: { score: 3000 },
   },
   {
     id: 'boss_slayer',
@@ -121,7 +121,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.EPIC,
     icon: '👹',
     requirement: 5,
-    reward: { score: 10000 }
+    reward: { score: 10000 },
   },
 
   // Survival Achievements
@@ -133,7 +133,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.COMMON,
     icon: '⏱️',
     requirement: 30,
-    reward: { score: 100 }
+    reward: { score: 100 },
   },
   {
     id: 'survivor_5min',
@@ -143,7 +143,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.UNCOMMON,
     icon: '🛡️',
     requirement: 300,
-    reward: { score: 1000 }
+    reward: { score: 1000 },
   },
   {
     id: 'survivor_10min',
@@ -153,7 +153,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.RARE,
     icon: '🏰',
     requirement: 600,
-    reward: { score: 3000 }
+    reward: { score: 3000 },
   },
   {
     id: 'wave_5',
@@ -163,7 +163,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.UNCOMMON,
     icon: '🌊',
     requirement: 5,
-    reward: { score: 2000 }
+    reward: { score: 2000 },
   },
   {
     id: 'wave_10',
@@ -173,7 +173,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.RARE,
     icon: '👑',
     requirement: 10,
-    reward: { score: 5000 }
+    reward: { score: 5000 },
   },
 
   // Collection Achievements
@@ -185,7 +185,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.COMMON,
     icon: '📦',
     requirement: 10,
-    reward: { score: 500 }
+    reward: { score: 500 },
   },
   {
     id: 'collector_50',
@@ -195,7 +195,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.UNCOMMON,
     icon: '🎁',
     requirement: 50,
-    reward: { score: 2000 }
+    reward: { score: 2000 },
   },
   {
     id: 'health_collector',
@@ -205,7 +205,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.UNCOMMON,
     icon: '❤️',
     requirement: 100,
-    reward: { score: 1500 }
+    reward: { score: 1500 },
   },
 
   // Skill Achievements
@@ -217,7 +217,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.UNCOMMON,
     icon: '✨',
     requirement: 50,
-    reward: { score: 2500 }
+    reward: { score: 2500 },
   },
   {
     id: 'missile_master',
@@ -227,7 +227,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.RARE,
     icon: '🚀',
     requirement: 20,
-    reward: { score: 3000 }
+    reward: { score: 3000 },
   },
   {
     id: 'shield_master',
@@ -237,7 +237,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.RARE,
     icon: '🛡️',
     requirement: 30,
-    reward: { score: 3000 }
+    reward: { score: 3000 },
   },
 
   // Special Achievements
@@ -249,7 +249,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.COMMON,
     icon: '⭐',
     requirement: 1000,
-    reward: { score: 200 }
+    reward: { score: 200 },
   },
   {
     id: 'high_score_10000',
@@ -259,7 +259,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.UNCOMMON,
     icon: '🌟',
     requirement: 10000,
-    reward: { score: 1000 }
+    reward: { score: 1000 },
   },
   {
     id: 'high_score_50000',
@@ -269,7 +269,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.RARE,
     icon: '💫',
     requirement: 50000,
-    reward: { score: 5000 }
+    reward: { score: 5000 },
   },
   {
     id: 'high_score_100000',
@@ -279,7 +279,7 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.EPIC,
     icon: '🔥',
     requirement: 100000,
-    reward: { score: 10000 }
+    reward: { score: 10000 },
   },
   {
     id: 'perfectionist',
@@ -289,8 +289,8 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     rarity: AchievementRarity.LEGENDARY,
     icon: '🎯',
     requirement: 100,
-    reward: { score: 20000 }
-  }
+    reward: { score: 20000 },
+  },
 ];
 
 class AchievementSystem {
@@ -306,7 +306,7 @@ class AchievementSystem {
     skillsUsed: {},
     distanceTraveled: 0,
     shotsFired: 0,
-    shotsHit: 0
+    shotsHit: 0,
   };
   private listeners: ((achievement: AchievementDefinition) => void)[] = [];
   private initialized: boolean = false;
@@ -319,12 +319,12 @@ class AchievementSystem {
     if (this.initialized) return;
     this.initialized = true;
 
-    ACHIEVEMENT_DEFINITIONS.forEach(def => {
+    ACHIEVEMENT_DEFINITIONS.forEach((def) => {
       if (!this.achievements.has(def.id)) {
         this.achievements.set(def.id, {
           current: 0,
           isUnlocked: false,
-          notificationShown: false
+          notificationShown: false,
         });
       }
     });
@@ -334,8 +334,8 @@ class AchievementSystem {
 
   public updateStats(updates: Partial<AchievementStats>): void {
     const _oldStats = { ...this.stats };
-    
-    Object.keys(updates).forEach(key => {
+
+    Object.keys(updates).forEach((key) => {
       const k = key as keyof AchievementStats;
       const value = updates[k];
       if (typeof value === 'number') {
@@ -355,13 +355,13 @@ class AchievementSystem {
   }
 
   public setStats(updates: Partial<AchievementStats>): void {
-    Object.keys(updates).forEach(key => {
+    Object.keys(updates).forEach((key) => {
       const k = key as keyof AchievementStats;
       const value = updates[k];
       if (typeof value === 'number') {
         (this.stats[k] as number) = value;
       } else if (typeof value === 'object' && value !== null) {
-        this.stats[k] = value as any;
+        this.stats[k] = value as unknown as AchievementStats[keyof AchievementStats];
       }
     });
 
@@ -370,7 +370,7 @@ class AchievementSystem {
   }
 
   private checkAchievements(): void {
-    ACHIEVEMENT_DEFINITIONS.forEach(def => {
+    ACHIEVEMENT_DEFINITIONS.forEach((def) => {
       const progress = this.achievements.get(def.id);
       if (!progress || progress.isUnlocked) return;
 
@@ -449,7 +449,7 @@ class AchievementSystem {
     }
 
     // Notify listeners
-    this.listeners.forEach(listener => listener(definition));
+    this.listeners.forEach((listener) => listener(definition));
 
     this.saveProgress();
   }
@@ -465,7 +465,7 @@ class AchievementSystem {
   }
 
   public getAchievement(id: string): AchievementDefinition | undefined {
-    return ACHIEVEMENT_DEFINITIONS.find(a => a.id === id);
+    return ACHIEVEMENT_DEFINITIONS.find((a) => a.id === id);
   }
 
   public getAchievementProgress(id: string): AchievementProgress | undefined {
@@ -473,19 +473,21 @@ class AchievementSystem {
   }
 
   public getAllAchievements(): (AchievementDefinition & { progress: AchievementProgress })[] {
-    return ACHIEVEMENT_DEFINITIONS.map(def => ({
+    return ACHIEVEMENT_DEFINITIONS.map((def) => ({
       ...def,
-      progress: this.achievements.get(def.id) || { current: 0, isUnlocked: false }
+      progress: this.achievements.get(def.id) || { current: 0, isUnlocked: false },
     }));
   }
 
-  public getAchievementsByCategory(category: AchievementCategory): (AchievementDefinition & { progress: AchievementProgress })[] {
-    return this.getAllAchievements().filter(a => a.category === category);
+  public getAchievementsByCategory(
+    category: AchievementCategory,
+  ): (AchievementDefinition & { progress: AchievementProgress })[] {
+    return this.getAllAchievements().filter((a) => a.category === category);
   }
 
   public getUnlockedCount(): number {
     let count = 0;
-    this.achievements.forEach(progress => {
+    this.achievements.forEach((progress) => {
       if (progress.isUnlocked) count++;
     });
     return count;
@@ -516,7 +518,7 @@ class AchievementSystem {
       skillsUsed: {},
       distanceTraveled: 0,
       shotsFired: 0,
-      shotsHit: 0
+      shotsHit: 0,
     };
     this.initialize();
   }
@@ -524,7 +526,7 @@ class AchievementSystem {
   private saveProgress(): void {
     const data = {
       achievements: Array.from(this.achievements.entries()),
-      stats: this.stats
+      stats: this.stats,
     };
     localStorage.setItem('achievementProgress', JSON.stringify(data));
   }
@@ -536,7 +538,7 @@ class AchievementSystem {
         const data = JSON.parse(saved);
         this.achievements = new Map(data.achievements);
         this.stats = data.stats;
-      } catch (_e) {
+      } catch {
         console.warn('Failed to load achievement progress');
       }
     }
