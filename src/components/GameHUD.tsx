@@ -340,6 +340,6 @@ export const GameHUD: React.FC<HUDProps> = React.memo(({
       </div>
     </div>
   );
-};
+});
 
 export default GameHUD;
