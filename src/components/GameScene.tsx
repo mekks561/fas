@@ -1,13 +1,6 @@
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
-import * as pc from 'playcanvas';
-import { PlayCanvasGameEngine } from '../engine/PlayCanvasEngine';
-import { PlayerShip, PlayerControls } from '../engine/PlayerShip';
-import { EnemySystem } from '../engine/EnemySystem';
-import { WeaponSystem } from '../engine/WeaponSystem';
-import { SkillSystem, SkillType } from '../engine/SkillSystem';
-import { StoryMissionManager } from '../engine/StoryMissionManager';
+import type { PlayerControls } from '../engine/PlayerShip';
 import type { Dialogue } from '../engine/StoryMissionManager';
-import { AudioManager } from '../engine/AudioSystem';
 import { useGameStore } from '../store/useGameStore';
 import { GameHUD } from './GameHUD';
 import { LoadingOverlay } from './LoadingOverlay';
@@ -15,7 +8,34 @@ import { PauseOverlay } from './PauseOverlay';
 import { TouchControlOverlay } from './TouchControlOverlay';
 import { DialogueSystem } from './DialogueSystem';
 import { QuestTracker } from './QuestTracker';
+import { gameplayManager } from '../engine/GameplayManager';
+import type { GameplayEvents } from '../engine/GameplayManager';
+import { dailyChallengeManager } from '../engine/DailyChallengeManager';
 import './GameScene.css';
+
+type PlayCanvasGameEngine = import('../engine/PlayCanvasEngine').PlayCanvasGameEngine;
+type PlayerShip = import('../engine/PlayerShip').PlayerShip;
+type EnemySystem = import('../engine/EnemySystem').EnemySystem;
+type WeaponSystem = import('../engine/WeaponSystem').WeaponSystem;
+type SkillSystem = import('../engine/SkillSystem').SkillSystem;
+type SkillType = import('../engine/SkillSystem').SkillType;
+type StoryMissionManager = import('../engine/StoryMissionManager').StoryMissionManager;
+type PowerupSpawner = import('../engine/PowerupSystem').PowerupSpawner;
+
+const enginePowerupTypeToLua = (engineType: string): string | null => {
+  const mapping: Record<string, string> = {
+    health: 'health',
+    shield: 'shield',
+    speedBoost: 'speed',
+    weaponUpgrade: 'damage',
+    invincibility: 'invincible',
+    scoreBonus: 'damage',
+    missile: 'triple_shot',
+    laser: 'triple_shot',
+  };
+  return mapping[engineType] || null;
+};
+
 
 export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () => void }> =
   React.memo(({ onGameOver, onLevelComplete }) => {
@@ -26,6 +46,8 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const weaponSystemRef = useRef<WeaponSystem | null>(null);
     const skillSystemRef = useRef<SkillSystem | null>(null);
     const storyManagerRef = useRef<StoryMissionManager | null>(null);
+    const gameplayManagerRef = useRef<typeof gameplayManager | null>(null);
+    const powerupSpawnerRef = useRef<PowerupSpawner | null>(null);
 
     const [storyManager, setStoryManager] = useState<StoryMissionManager | null>(null);
     const [currentDialogue, setCurrentDialogue] = useState<Dialogue | null>(null);
@@ -40,11 +62,22 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const playerMaxShield = useGameStore((state) => state.player.maxShield);
     const playerScore = useGameStore((state) => state.player.score);
     const playerLevel = useGameStore((state) => state.player.level);
+    const playerSpeed = useGameStore((state) => state.player.speed);
+  const isBoostActive = useGameStore((state) => state.player.isBoostActive);
+  const playerBoostEnergy = useGameStore((state) => state.player.boostEnergy);
+  const playerMaxBoostEnergy = useGameStore((state) => state.player.maxBoostEnergy);
 
     const currentWave = useGameStore((state) => state.currentWave);
     const totalWaves = useGameStore((state) => state.totalWaves);
     const enemyCount = useGameStore((state) => state.enemyCount);
     const fps = useGameStore((state) => state.fps);
+    const combo = useGameStore((state) => state.combo);
+    const maxCombo = useGameStore((state) => state.maxCombo);
+    const rank = useGameStore((state) => state.rank);
+    const activePowerups = useGameStore((state) => state.activePowerups);
+    const isBossWave = useGameStore((state) => state.isBossWave);
+    const isEliteWave = useGameStore((state) => state.isEliteWave);
+    const killCount = useGameStore((state) => state.killCount);
 
     const skillCooldowns = useGameStore((state) => state.skills.cooldowns);
     const skillMaxCooldowns = useGameStore((state) => state.skills.maxCooldowns);
@@ -70,15 +103,15 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         if (canvas.width !== rect.width || canvas.height !== rect.height) {
           canvas.width = rect.width;
           canvas.height = rect.height;
-          console.log('[GameScene] Canvas resized to:', canvas.width, 'x', canvas.height);
         }
       };
 
       resizeCanvas();
-      setIsCanvasReady(true);
+      const readyTimer = setTimeout(() => setIsCanvasReady(true), 0);
       window.addEventListener('resize', resizeCanvas);
 
       return () => {
+        clearTimeout(readyTimer);
         window.removeEventListener('resize', resizeCanvas);
       };
     }, []);
@@ -106,33 +139,33 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
 
     const handleTouchSkill1 = useCallback(() => {
       if (skillSystemRef.current) {
-        skillSystemRef.current.activateSkill(SkillType.MISSILE_STRIKE);
+        skillSystemRef.current.activateSkill('missile_strike' as SkillType);
         useGameStore.getState().setSkillCooldown('skill1', 8);
       }
     }, []);
 
     const handleTouchSkill2 = useCallback(() => {
       if (skillSystemRef.current) {
-        skillSystemRef.current.activateSkill(SkillType.SHIELD_BURST);
+        skillSystemRef.current.activateSkill('shield_burst' as SkillType);
         useGameStore.getState().setSkillCooldown('skill2', 10);
       }
     }, []);
 
     const handleTouchSkill3 = useCallback(() => {
       if (skillSystemRef.current) {
-        skillSystemRef.current.activateSkill(SkillType.TIME_SLOW);
+        skillSystemRef.current.activateSkill('time_slow' as SkillType);
         useGameStore.getState().setSkillCooldown('skill3', 15);
       }
     }, []);
 
     const handleTouchSkill4 = useCallback(() => {
       if (skillSystemRef.current) {
-        skillSystemRef.current.activateSkill(SkillType.OVERDRIVE);
+        skillSystemRef.current.activateSkill('overdrive' as SkillType);
         useGameStore.getState().setSkillCooldown('skill4', 20);
       }
     }, []);
 
-    const initializeEngine = useCallback(() => {
+    const initializeEngine = useCallback(async () => {
       if (!canvasRef.current) {
         console.error('[GameScene] Canvas ref is null');
         return;
@@ -141,6 +174,20 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       console.log('[GameScene] Initializing game engine...');
 
       try {
+        const [pcModule, { PlayCanvasGameEngine }, { PlayerShip }, { EnemySystem }, { WeaponSystem }, { SkillSystem, SkillType }, { StoryMissionManager }, { AudioManager }, { PowerupSpawner, PowerupType: EnginePowerupType }] = await Promise.all([
+          import('playcanvas'),
+          import('../engine/PlayCanvasEngine'),
+          import('../engine/PlayerShip'),
+          import('../engine/EnemySystem'),
+          import('../engine/WeaponSystem'),
+          import('../engine/SkillSystem'),
+          import('../engine/StoryMissionManager'),
+          import('../engine/AudioSystem'),
+          import('../engine/PowerupSystem'),
+        ]);
+
+        const pc = pcModule;
+
         const engine = new PlayCanvasGameEngine({
           canvas: canvasRef.current,
           antialias: true,
@@ -149,7 +196,6 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         engineRef.current = engine;
         console.log('[GameScene] PlayCanvas engine created');
 
-        // 初始化音频系统
         AudioManager.initialize(engine.getApp());
         AudioManager.playMusic('gameMusic');
         console.log('[GameScene] Audio system initialized');
@@ -188,24 +234,159 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         weaponSystemRef.current = weaponSystem;
         console.log('[GameScene] Weapon system created');
 
+        const powerupSpawner = new PowerupSpawner(engine);
+        powerupSpawner.setSpawnInterval(8);
+        powerupSpawner.setMaxPowerups(6);
+        powerupSpawnerRef.current = powerupSpawner;
+        console.log('[GameScene] Powerup spawner created');
+
         const skillSystem = new SkillSystem(player, engine);
         skillSystemRef.current = skillSystem;
         console.log('[GameScene] Skill system created');
 
-        // 初始化剧情任务管理器
         const storyMgr = new StoryMissionManager();
         storyManagerRef.current = storyMgr;
         storyMgr.loadAll().then(() => {
           setStoryManager(storyMgr);
-          // 自动开始第一章剧情对话
           const startDialogue = storyMgr.getDialogueByTrigger('story', 'story-chapter-01', 'start');
           if (startDialogue) {
             setCurrentDialogue(startDialogue);
           }
-          // 自动开始第一个任务
           storyMgr.startMission('mission-01');
           console.log('[GameScene] Story mission manager initialized');
         });
+
+        gameplayManagerRef.current = gameplayManager;
+        const gameplayEvents: GameplayEvents = {
+          onWaveStart: (waveNumber) => {
+            useGameStore.getState().setWave(waveNumber);
+            const waveState = gameplayManager.getWaveState();
+            if (waveState) {
+              useGameStore.getState().setWaveInfo({
+                isBossWave: waveState.isBossWave,
+                isEliteWave: waveState.isEliteWave,
+                enemiesSpawned: waveState.enemiesSpawned,
+                enemiesDefeated: waveState.enemiesDefeated,
+                enemiesRemaining: waveState.enemiesRemaining,
+              });
+            }
+          },
+          onWaveComplete: (_waveNumber, _score) => {
+          },
+          onWaveReward: (reward) => {
+            useGameStore.getState().addScore(reward.totalScoreBonus);
+            useGameStore.getState().setWaveRewardNotification({
+              waveNumber: reward.waveNumber,
+              rewards: reward.rewards.map((r) => ({ label: r.label })),
+            });
+            for (const r of reward.rewards) {
+              if (r.type === 'heal' && playerRef.current) {
+                playerRef.current.heal(r.amount);
+              } else if (r.type === 'shield' && playerRef.current) {
+                playerRef.current.addShield(r.amount);
+              }
+            }
+          },
+          onEnemyKilled: (_enemyType, score) => {
+            useGameStore.getState().addScore(score);
+            useGameStore.getState().addKill();
+          },
+          onComboUpdate: (comboCurrent, comboMax) => {
+            const comboInfo = gameplayManager.getComboInfo();
+            useGameStore.getState().setCombo(
+              comboCurrent,
+              comboMax,
+              comboInfo?.comboTimer || 0,
+            );
+          },
+          onRankChange: (newRank) => {
+            useGameStore.getState().setRank(newRank);
+          },
+          onPowerupApplied: (powerupType) => {
+            useGameStore.getState().addPowerup();
+            const config = gameplayManager.getPowerupConfig(powerupType as Parameters<typeof gameplayManager.getPowerupConfig>[0]);
+            const active = gameplayManager.getActivePowerups();
+            const powerupData = active.find((p) => p.type === powerupType);
+            if (powerupData) {
+              useGameStore.getState().addActivePowerup({
+                type: powerupData.type,
+                name: powerupData.displayName || config?.name || powerupData.type,
+                remainingTime: powerupData.remainingDuration,
+                duration: powerupData.duration,
+                value: powerupData.multiplier || powerupData.stacks || 0,
+              });
+            }
+          },
+          onPowerupExpired: (powerupType) => {
+            useGameStore.getState().removeActivePowerup(powerupType);
+          },
+          onGameOver: (_finalScore, _rank) => {
+          },
+          onAchievementUnlocked: (achievement) => {
+            useGameStore.getState().addAchievementNotification({
+              id: achievement.id,
+              name: achievement.name,
+              description: achievement.description,
+              icon: achievement.icon,
+              rarity: achievement.rarity,
+              timestamp: Date.now(),
+            });
+          },
+        };
+        gameplayManager.setEventCallbacks(gameplayEvents);
+
+        // 读取难度设置（基础难度 + 自适应配置）
+        const savedSettings = localStorage.getItem('gameSettings');
+        let baseDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
+        let adaptiveEnabled = true;
+        let adaptiveIntensity: 'low' | 'medium' | 'high' = 'medium';
+        if (savedSettings) {
+          try {
+            const parsed = JSON.parse(savedSettings);
+            if (parsed.difficulty) baseDifficulty = parsed.difficulty;
+            if (parsed.adaptiveDifficulty !== undefined) adaptiveEnabled = parsed.adaptiveDifficulty;
+            if (parsed.adaptiveIntensity) adaptiveIntensity = parsed.adaptiveIntensity;
+          } catch {
+            // 忽略解析错误，使用默认值
+          }
+        }
+
+        // 每日挑战模式：覆盖基础难度为目标挑战难度，并关闭自适应（保证挑战条件一致）
+        const isDailyChallenge = dailyChallengeManager.isDailyChallengeActive();
+        if (isDailyChallenge) {
+          const challengeConfig = dailyChallengeManager.getActiveChallenge();
+          if (challengeConfig) {
+            baseDifficulty = challengeConfig.baseDifficulty;
+            adaptiveEnabled = false;
+            console.log(
+              `[GameScene] 每日挑战模式已启用：难度=${baseDifficulty}，目标波次=${challengeConfig.targetWaves}，倍率=${challengeConfig.totalScoreMultiplier.toFixed(2)}x，修饰器=${challengeConfig.modifiers.map((m) => m.type).join(',')}`,
+            );
+          }
+        }
+
+        // 将自适应配置同步到 DifficultyManager
+        gameplayManager.setAdaptiveConfig({ enabled: adaptiveEnabled, intensity: adaptiveIntensity });
+
+        await gameplayManager.initialize(baseDifficulty);
+        await gameplayManager.startGame(baseDifficulty);
+
+        if (enemySystemRef.current) {
+          const waveMgr = gameplayManager.getWaveManager();
+          if (waveMgr) {
+            enemySystemRef.current.setWaveManager(waveMgr);
+          }
+          enemySystemRef.current.startWave(1);
+          enemySystemRef.current.setPowerupDropCallback((position, _enemyType) => {
+            if (powerupSpawnerRef.current) {
+              const types = Object.values(EnginePowerupType);
+              const randomType = types[Math.floor(Math.random() * types.length)];
+              powerupSpawnerRef.current.addPowerup(randomType, new pc.Vec3(position.x, 0, position.z), 1, 8);
+            }
+          });
+        }
+
+        gameplayManager.startWave(1);
+        console.log('[GameScene] Gameplay manager initialized');
 
         let frameCount = 0;
         let lastFpsUpdate = Date.now();
@@ -214,11 +395,11 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           const gameState = useGameStore.getState();
 
           if (!gameState.isGamePaused && gameState.isSceneReady && playerRef.current) {
-            player.update(dt, controlsRef.current);
+            playerRef.current.update(dt, controlsRef.current);
 
             if (controlsRef.current.fire && weaponSystemRef.current) {
               weaponSystemRef.current.shoot();
-              AudioManager.playSound('playerShoot', player.getPosition());
+              AudioManager.playSound('playerShoot', playerRef.current.getPosition());
             }
 
             if (weaponSystemRef.current) {
@@ -237,9 +418,22 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               const enemies = enemySystemRef.current.getEnemies();
               const hits = weaponSystemRef.current.checkCollisions(enemies);
               if (hits > 0) {
-                useGameStore.getState().addScore(hits * 100);
+                const killedEnemies = enemies.slice(0, hits);
+                let totalScore = 0;
+                for (const enemy of killedEnemies) {
+                  const score = enemySystemRef.current.onEnemyKilled(enemy);
+                  totalScore += score;
+                  if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
+                    const type = enemy.getType();
+                    const isBoss = type.includes('boss') || type === 'boss';
+                    const isElite = type === 'elite';
+                    gameplayManagerRef.current.onEnemyKilled(type, isBoss, isElite);
+                  }
+                }
+                if (totalScore > 0) {
+                  useGameStore.getState().addScore(totalScore);
+                }
                 AudioManager.playSound('enemyHit');
-                // 更新任务目标进度
                 if (storyManagerRef.current) {
                   storyManagerRef.current.getActiveMissions().forEach((state) => {
                     storyManagerRef.current?.incrementObjective(state.mission.id, 'destroy', hits);
@@ -248,14 +442,69 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               }
             }
 
-            useGameStore.getState().updatePlayerHealth(player.getHealth());
-            useGameStore.getState().updatePlayerShield(player.getShield());
-            useGameStore.getState().setSpeed(player.getSpeed());
-            useGameStore.getState().setBoostActive(controlsRef.current.boost);
+            if (powerupSpawnerRef.current && playerRef.current) {
+              powerupSpawnerRef.current.update(dt);
+              const collected = powerupSpawnerRef.current.checkCollisions(playerRef.current, weaponSystemRef.current || undefined);
+              if (collected) {
+                AudioManager.playSound('powerup');
+
+                if (collected.getType() === 'scoreBonus') {
+                  useGameStore.getState().addScore(500);
+                }
+
+                if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
+                  const engineType = collected.getType();
+                  const luaType = enginePowerupTypeToLua(engineType);
+                  if (luaType) {
+                    gameplayManagerRef.current.applyPowerup(luaType as 'health' | 'shield' | 'speed' | 'damage' | 'triple_shot' | 'invincible' | 'magnet' | 'slow_time');
+                  }
+                }
+              }
+            }
+
+            if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
+              gameplayManagerRef.current.update(dt);
+              const activePowerups = gameplayManagerRef.current.getActivePowerups();
+              if (activePowerups.length > 0) {
+                const storePowerups = activePowerups.map((p) => ({
+                  type: p.type,
+                  name: p.displayName || p.type,
+                  remainingTime: p.remainingDuration,
+                  duration: p.duration,
+                  value: p.multiplier || p.stacks || 0,
+                }));
+                useGameStore.getState().setActivePowerups(storePowerups);
+              }
+            }
+
+            useGameStore.getState().updatePlayerHealth(playerRef.current.getHealth());
+            useGameStore.getState().updatePlayerShield(playerRef.current.getShield());
+            useGameStore.getState().setSpeed(playerRef.current.getSpeed());
+            useGameStore.getState().setBoostActive(playerRef.current.isBoostActive());
+            useGameStore.getState().setBoostEnergy(playerRef.current.getBoostEnergy());
+
+            // 难度自适应：上报玩家生命并将倍率同步到敌人系统
+            if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
+              gameplayManagerRef.current.reportPlayerHealth(
+                playerRef.current.getHealth(),
+                playerRef.current.getMaxHealth(),
+              );
+              const diffMultiplier = gameplayManagerRef.current.getDifficultyMultiplier();
+              if (enemySystemRef.current) {
+                enemySystemRef.current.setDifficultyMultiplier(diffMultiplier);
+              }
+              useGameStore.getState().setDifficultyInfo(gameplayManagerRef.current.getDifficultySnapshot());
+            }
 
             if (enemySystemRef.current) {
-              useGameStore.getState().setEnemyCount(enemySystemRef.current.getEnemies().length);
+              useGameStore.getState().setEnemyCount(enemySystemRef.current.getAliveCount());
               useGameStore.getState().setWave(enemySystemRef.current.getCurrentWave());
+              useGameStore.getState().setTotalWaves(enemySystemRef.current.getTotalWaves());
+              useGameStore.getState().setWaveInfo({
+                isBossWave: enemySystemRef.current.isBossWave(),
+                isEliteWave: enemySystemRef.current.isEliteWave(),
+                enemiesRemaining: enemySystemRef.current.getRemainingCount(),
+              });
             }
 
             useGameStore.getState().updateSkillCooldowns(dt);
@@ -269,8 +518,8 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               lastFpsUpdate = now;
             }
 
-            if (player.getHealth() <= 0) {
-              AudioManager.playSound('playerExplosion', player.getPosition());
+            if (playerRef.current.getHealth() <= 0) {
+              AudioManager.playSound('playerExplosion', playerRef.current.getPosition());
               AudioManager.stopMusic();
               onGameOver();
             }
@@ -296,24 +545,30 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             case 'KeyW':
             case 'ArrowUp':
               controlsRef.current.up = true;
+              e.preventDefault();
               break;
             case 'KeyS':
             case 'ArrowDown':
               controlsRef.current.down = true;
+              e.preventDefault();
               break;
             case 'KeyA':
             case 'ArrowLeft':
               controlsRef.current.left = true;
+              e.preventDefault();
               break;
             case 'KeyD':
             case 'ArrowRight':
               controlsRef.current.right = true;
+              e.preventDefault();
               break;
             case 'Space':
               controlsRef.current.boost = true;
+              e.preventDefault();
               break;
             case 'KeyJ':
               controlsRef.current.fire = true;
+              e.preventDefault();
               break;
             case 'KeyQ':
               if (skillSystemRef.current) {
@@ -384,7 +639,8 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           onSkill4: handleTouchSkill4,
         });
 
-        setTimeout(() => {
+        const initTimer = setTimeout(() => {
+          // eslint-disable-next-line @eslint-react/set-state-in-effect
           setIsEngineInitialized(true);
           useGameStore.getState().setSceneReady(true);
           useGameStore.getState().setLoading(false);
@@ -392,11 +648,17 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         }, 500);
 
         return () => {
+          clearTimeout(initTimer);
           window.removeEventListener('keydown', handleKeyDown);
           window.removeEventListener('keyup', handleKeyUp);
 
           AudioManager.stopMusic();
           AudioManager.destroy();
+
+          if (powerupSpawnerRef.current) {
+            powerupSpawnerRef.current.clearAll();
+            powerupSpawnerRef.current = null;
+          }
 
           if (engineRef.current) {
             engineRef.current.destroy();
@@ -409,18 +671,16 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         useGameStore.getState().setLoading(false);
         return () => {};
       }
-    }, [isCanvasReady, onGameOver]);
+    }, [onGameOver, onLevelComplete, handleTouchMove, handleTouchFire, handleTouchBoost, handleTouchSkill1, handleTouchSkill2, handleTouchSkill3, handleTouchSkill4]);
 
     useEffect(() => {
       if (isCanvasReady && !isEngineInitialized) {
-        const cleanup = initializeEngine();
-        return cleanup;
+        const cleanupPromise = initializeEngine();
+        return () => {
+          cleanupPromise?.then((cleanup) => cleanup?.());
+        };
       }
     }, [isCanvasReady, isEngineInitialized, initializeEngine]);
-
-    const enemiesRemaining = useMemo(() => {
-      return enemyCount;
-    }, [enemyCount]);
 
     const skills = useMemo(
       () => [
@@ -463,12 +723,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const handleSkillActivate = useCallback((index: number) => {
       if (!skillSystemRef.current) return;
 
-      const skillTypes = [
-        SkillType.MISSILE_STRIKE,
-        SkillType.SHIELD_BURST,
-        SkillType.TIME_SLOW,
-        SkillType.OVERDRIVE,
-      ];
+      const skillTypes: SkillType[] = ['missile_strike', 'shield_burst', 'time_slow', 'overdrive'] as SkillType[];
       const skillKeys = ['skill1', 'skill2', 'skill3', 'skill4'];
       const cooldowns = [8, 10, 15, 20];
 
@@ -486,10 +741,27 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         level: playerLevel,
         wave: currentWave,
         totalWaves: totalWaves,
-        enemiesRemaining: enemiesRemaining,
+        enemiesRemaining: enemyCount,
         fps: fps,
         skills,
         onSkillActivate: handleSkillActivate,
+        speed: playerSpeed,
+        isBoostActive: isBoostActive,
+        boostEnergy: playerBoostEnergy,
+        maxBoostEnergy: playerMaxBoostEnergy,
+        combo,
+        maxCombo,
+        rank,
+        killCount,
+        isBossWave,
+        isEliteWave,
+        activeEffects: activePowerups.map((p) => ({
+          type: p.type,
+          icon: p.type,
+          remainingTime: p.remainingTime,
+          duration: p.duration,
+          value: p.value,
+        })),
       }),
       [
         playerHealth,
@@ -500,16 +772,27 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         playerLevel,
         currentWave,
         totalWaves,
-        enemiesRemaining,
+        enemyCount,
         fps,
         skills,
         handleSkillActivate,
+        playerSpeed,
+        isBoostActive,
+        playerBoostEnergy,
+        playerMaxBoostEnergy,
+        combo,
+        maxCombo,
+        rank,
+        killCount,
+        isBossWave,
+        isEliteWave,
+        activePowerups,
       ],
     );
 
     return (
       <div className="game-scene">
-        <canvas ref={canvasRef} className="game-canvas" />
+        <canvas ref={canvasRef} className="game-canvas" tabIndex={0} onClick={(e) => e.currentTarget.focus()} />
 
         {isSceneReady && <GameHUD {...hudProps} />}
 

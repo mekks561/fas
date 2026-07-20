@@ -19,6 +19,13 @@ export interface InstanceMesh {
   instanceIdCounter: number;
 }
 
+export interface LODInstanceLevel {
+  level: number;
+  distance: number;
+  meshAssetId: string;
+  materialAssetId?: string;
+}
+
 export interface BatchGroup {
   id: string;
   meshAssetId: string;
@@ -27,15 +34,17 @@ export interface BatchGroup {
   instances: Map<string, InstanceData>;
   entity: pc.Entity;
   dirty: boolean;
-  instanceBuffer: pc.VertexBuffer | null; // NEW: batch vertex buffer
-  instanceIdCounter: number; // NEW: ID counter (already used but not declared)
+  instanceBuffer: pc.VertexBuffer | null;
+  instanceIdCounter: number;
+  lodLevels: LODInstanceLevel[];
+  currentLODLevel: number;
+  lastLODUpdate: number;
+  lodUpdateInterval: number;
 }
 
 export class InstancedRenderer {
   private app: pc.Application | null = null;
   private batchGroups: Map<string, BatchGroup> = new Map();
-  private instanceMatrixData: Float32Array = new Float32Array(0);
-  private instanceColorData: Float32Array = new Float32Array(0);
   private isEnabled: boolean = true;
   private maxTotalInstances: number = 50000;
   private totalInstances: number = 0;
@@ -43,9 +52,9 @@ export class InstancedRenderer {
   private cullingDistance: number = 200;
   private cameraPosition: pc.Vec3 = new pc.Vec3();
   private updateInterval: number = 0;
-  private lastUpdateTime: number = 0;
   private hiddenCount: number = 0;
   private visibleCount: number = 0;
+  private lodEnabled: boolean = true;
 
   constructor(app?: pc.Application) {
     this.app = app || null;
@@ -64,6 +73,7 @@ export class InstancedRenderer {
     meshAssetId: string;
     materialAssetId: string;
     maxInstances?: number;
+    lodLevels?: LODInstanceLevel[];
   }): BatchGroup | null {
     if (!this.app) {
       console.warn('App not set for InstancedRenderer');
@@ -83,10 +93,20 @@ export class InstancedRenderer {
     }
 
     const entity = new pc.Entity(config.id);
-    entity.addComponent('render', {
-      meshInstances: [meshAsset.resource],
-      material: materialAsset.resource,
+    entity.addComponent('model', {
+      type: 'box',
+      width: 0.1,
+      height: 0.1,
+      depth: 0.1,
     });
+    
+    if (entity.model && meshAsset.resource && materialAsset.resource) {
+      const typedModel = entity.model as unknown as { meshInstances?: pc.MeshInstance[] };
+      const mesh = meshAsset.resource as pc.Mesh;
+      const material = materialAsset.resource as pc.Material;
+      const meshInstance = new pc.MeshInstance(mesh, material);
+      typedModel.meshInstances = [meshInstance];
+    }
 
     this.app.root.addChild(entity);
 
@@ -98,12 +118,45 @@ export class InstancedRenderer {
       instances: new Map(),
       entity,
       dirty: true,
-      instanceBuffer: null, // NEW
-      instanceIdCounter: 0, // NEW
+      instanceBuffer: null,
+      instanceIdCounter: 0,
+      lodLevels: config.lodLevels || [],
+      currentLODLevel: 0,
+      lastLODUpdate: 0,
+      lodUpdateInterval: 0.5,
     };
 
     this.batchGroups.set(config.id, batchGroup);
     return batchGroup;
+  }
+
+  public addLODLevel(batchId: string, level: LODInstanceLevel): boolean {
+    const batch = this.batchGroups.get(batchId);
+    if (!batch) return false;
+
+    const existingIndex = batch.lodLevels.findIndex((l) => l.level === level.level);
+    if (existingIndex >= 0) {
+      batch.lodLevels[existingIndex] = level;
+    } else {
+      batch.lodLevels.push(level);
+    }
+
+    batch.lodLevels.sort((a, b) => a.distance - b.distance);
+    batch.dirty = true;
+    return true;
+  }
+
+  public removeLODLevel(batchId: string, level: number): boolean {
+    const batch = this.batchGroups.get(batchId);
+    if (!batch) return false;
+
+    const index = batch.lodLevels.findIndex((l) => l.level === level);
+    if (index >= 0) {
+      batch.lodLevels.splice(index, 1);
+      batch.dirty = true;
+      return true;
+    }
+    return false;
   }
 
   public addInstance(batchId: string, data: Omit<InstanceData, 'id'>): string | null {
@@ -205,7 +258,6 @@ export class InstancedRenderer {
 
     this.totalInstances -= batch.instances.size;
 
-    // Destroy instance buffer
     if (batch.instanceBuffer) {
       batch.instanceBuffer.destroy();
       batch.instanceBuffer = null;
@@ -247,7 +299,82 @@ export class InstancedRenderer {
       if (this.cullingEnabled) {
         this.performCulling(batch);
       }
+
+      if (this.lodEnabled && batch.lodLevels.length > 0) {
+        this.updateBatchLOD(batch, dt);
+      }
     });
+  }
+
+  private updateBatchLOD(batch: BatchGroup, dt: number): void {
+    batch.lastLODUpdate += dt;
+    if (batch.lastLODUpdate < batch.lodUpdateInterval) return;
+    batch.lastLODUpdate = 0;
+
+    if (batch.instances.size === 0) return;
+
+    let averageDistance = 0;
+    let count = 0;
+
+    batch.instances.forEach((instance) => {
+      if (instance.visible) {
+        averageDistance += this.cameraPosition.distance(instance.position);
+        count++;
+      }
+    });
+
+    if (count === 0) return;
+
+    averageDistance /= count;
+
+    const targetLevel = this.findAppropriateLODLevel(batch, averageDistance);
+    if (targetLevel !== batch.currentLODLevel) {
+      this.switchBatchLOD(batch, targetLevel);
+    }
+  }
+
+  private findAppropriateLODLevel(batch: BatchGroup, distance: number): number {
+    const levels = batch.lodLevels;
+    if (levels.length === 0) return 0;
+
+    for (let i = levels.length - 1; i >= 0; i--) {
+      if (distance >= levels[i].distance) {
+        return levels[i].level;
+      }
+    }
+
+    return 0;
+  }
+
+  private switchBatchLOD(batch: BatchGroup, level: number): void {
+    if (!this.app) return;
+
+    const lodLevel = batch.lodLevels.find((l) => l.level === level);
+    if (!lodLevel) return;
+
+    const meshAsset = this.app.assets.find(lodLevel.meshAssetId);
+    const materialAsset = lodLevel.materialAssetId
+      ? this.app.assets.find(lodLevel.materialAssetId)
+      : this.app.assets.find(batch.materialAssetId);
+
+    if (!meshAsset) return;
+
+    const render = batch.entity.render;
+    if (!render) return;
+
+    const meshInstances = (render as unknown as { meshInstances?: pc.MeshInstance[] })
+      .meshInstances;
+    if (!meshInstances || meshInstances.length === 0) return;
+
+    const meshInstance = meshInstances[0];
+    meshInstance.mesh = meshAsset.resource as pc.Mesh;
+
+    if (materialAsset) {
+      meshInstance.material = materialAsset.resource as pc.Material;
+    }
+
+    batch.currentLODLevel = level;
+    batch.dirty = true;
   }
 
   private rebuildBatch(batch: BatchGroup): void {
@@ -272,8 +399,7 @@ export class InstancedRenderer {
 
     const meshInstance = meshInstances[0];
 
-    // Collect visible instances into Float32Array
-    const matrixSize = 16; // 4x4 matrix = 16 floats
+    const matrixSize = 16;
     const visibleInstances: InstanceData[] = [];
 
     batch.instances.forEach((instance) => {
@@ -288,7 +414,6 @@ export class InstancedRenderer {
       return;
     }
 
-    // Build matrix data array (batch upload)
     const matrices = new Float32Array(visibleCount * matrixSize);
     const mat = new pc.Mat4();
     const quat = new pc.Quat();
@@ -303,7 +428,6 @@ export class InstancedRenderer {
       }
     }
 
-    // Create or resize vertex buffer if needed
     if (!batch.instanceBuffer || batch.instanceBuffer.numVertices < visibleCount) {
       if (batch.instanceBuffer) {
         batch.instanceBuffer.destroy();
@@ -315,13 +439,9 @@ export class InstancedRenderer {
       });
     }
 
-    // Batch upload all matrices at once
     batch.instanceBuffer.setData(matrices.buffer as ArrayBuffer);
-
-    // Enable instancing on mesh instance
     meshInstance.setInstancing(batch.instanceBuffer);
 
-    // Set visible instance count
     (meshInstance as unknown as { visibleInstanceCount: number }).visibleInstanceCount =
       visibleCount;
 
@@ -365,6 +485,10 @@ export class InstancedRenderer {
     this.cullingDistance = distance;
   }
 
+  public setLODEnabled(enabled: boolean): void {
+    this.lodEnabled = enabled;
+  }
+
   public setMaxTotalInstances(max: number): void {
     this.maxTotalInstances = max;
   }
@@ -375,13 +499,22 @@ export class InstancedRenderer {
     visibleInstances: number;
     hiddenInstances: number;
     maxInstances: number;
+    lodBatches: number;
   } {
+    let lodBatches = 0;
+    this.batchGroups.forEach((batch) => {
+      if (batch.lodLevels.length > 0) {
+        lodBatches++;
+      }
+    });
+
     return {
       totalBatches: this.batchGroups.size,
       totalInstances: this.totalInstances,
       visibleInstances: this.visibleCount,
       hiddenInstances: this.hiddenCount,
       maxInstances: this.maxTotalInstances,
+      lodBatches,
     };
   }
 
@@ -392,12 +525,16 @@ export class InstancedRenderer {
   public getBatchStats(batchId: string): {
     instanceCount: number;
     maxInstances: number;
+    lodLevels: number;
+    currentLOD: number;
   } | null {
     const batch = this.batchGroups.get(batchId);
     if (!batch) return null;
     return {
       instanceCount: batch.instances.size,
       maxInstances: batch.maxInstances,
+      lodLevels: batch.lodLevels.length,
+      currentLOD: batch.currentLODLevel,
     };
   }
 
@@ -416,16 +553,15 @@ export class InstancedRenderer {
       }
     });
     this.batchGroups.clear();
-    this.instanceMatrixData = new Float32Array(0);
-    this.instanceColorData = new Float32Array(0);
     this.totalInstances = 0;
   }
 
-  public getRendererInfo(): { webgpu: boolean; maxInstances: number; batches: number } {
+  public getRendererInfo(): { webgpu: boolean; maxInstances: number; batches: number; lodEnabled: boolean } {
     return {
       webgpu: this.isWebGPUAvailable,
       maxInstances: this.maxTotalInstances,
       batches: this.batchGroups.size,
+      lodEnabled: this.lodEnabled,
     };
   }
 }

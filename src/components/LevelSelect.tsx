@@ -173,7 +173,8 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
   }, [levels, selectedLevel, onSelectLevel, onBack]);
 
   useEffect(() => {
-    setShowAnimation(true);
+    const timer = setTimeout(() => setShowAnimation(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleLevelClick = useCallback(
@@ -244,6 +245,7 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
                   <div className="flex items-center justify-center gap-1">
                     {Array.from({ length: level.maxStars }).map((_, i) => (
                       <Star
+                        // eslint-disable-next-line @eslint-react/no-array-index-key
                         key={i}
                         className={`w-4 h-4 ${i < level.stars ? 'text-yellow-400 fill-yellow-400' : 'text-slate-700'}`}
                       />

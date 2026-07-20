@@ -5,15 +5,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [
-          ['babel-plugin-react-compiler', {
-            target: '19',
-          }]
-        ],
-      },
-    }),
+    react(),
     tailwindcss(),
   ],
   resolve: {
@@ -44,4 +36,5 @@ export default defineConfig({
       },
     },
   },
+  assetsInclude: ['**/*.lua'],
 });

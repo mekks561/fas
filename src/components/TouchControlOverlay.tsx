@@ -47,9 +47,28 @@ export const TouchControlOverlay: React.FC<TouchControlOverlayProps> = React.mem
 
     const joystickRadius = 60;
 
+    const handleJoystickMove = useCallback(
+      (clientX: number, clientY: number) => {
+        if (!joystickActive) return;
+
+        const dx = clientX - joystickStart.x;
+        const dy = clientY - joystickStart.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const normalizedDistance = Math.min(distance / joystickRadius, 1);
+        const angle = Math.atan2(dy, dx);
+
+        const x = Math.cos(angle) * normalizedDistance;
+        const y = Math.sin(angle) * normalizedDistance;
+
+        setKnobPosition({ x: x * joystickRadius, y: y * joystickRadius });
+        onMove(x, y);
+      },
+      [joystickActive, joystickStart, onMove],
+    );
+
     const handleTouchStart = useCallback(
       (
-        e: TouchEvent,
+        e: React.TouchEvent<Element>,
         type: 'joystick' | 'fire' | 'boost' | 'skill1' | 'skill2' | 'skill3' | 'skill4',
       ) => {
         e.preventDefault();
@@ -88,30 +107,11 @@ export const TouchControlOverlay: React.FC<TouchControlOverlayProps> = React.mem
             break;
         }
       },
-      [onFire, onBoost, onSkill1, onSkill2, onSkill3, onSkill4, skillCooldowns],
-    );
-
-    const handleJoystickMove = useCallback(
-      (clientX: number, clientY: number) => {
-        if (!joystickActive) return;
-
-        const dx = clientX - joystickStart.x;
-        const dy = clientY - joystickStart.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const normalizedDistance = Math.min(distance / joystickRadius, 1);
-        const angle = Math.atan2(dy, dx);
-
-        const x = Math.cos(angle) * normalizedDistance;
-        const y = Math.sin(angle) * normalizedDistance;
-
-        setKnobPosition({ x: x * joystickRadius, y: y * joystickRadius });
-        onMove(x, y);
-      },
-      [joystickActive, joystickStart, onMove],
+      [onFire, onBoost, onSkill1, onSkill2, onSkill3, onSkill4, skillCooldowns, handleJoystickMove],
     );
 
     const handleTouchMove = useCallback(
-      (e: TouchEvent) => {
+      (e: React.TouchEvent<Element>) => {
         e.preventDefault();
 
         for (let i = 0; i < e.touches.length; i++) {
@@ -126,7 +126,7 @@ export const TouchControlOverlay: React.FC<TouchControlOverlayProps> = React.mem
     );
 
     const handleTouchEnd = useCallback(
-      (e: TouchEvent, type: 'joystick' | 'fire' | 'boost') => {
+      (e: React.TouchEvent<Element>, type: 'joystick' | 'fire' | 'boost') => {
         e.preventDefault();
 
         switch (type) {

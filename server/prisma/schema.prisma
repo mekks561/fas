@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String   @unique @db.VarChar(20)
+  email      String   @unique @db.VarChar(255)
+  password   String   @db.VarChar(255)
+  avatar     String?  @db.VarChar(255)
+  level      Int      @default(1)
+  experience Int      @default(0)
+  credits    Int      @default(0)
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime @updatedAt @db.Timestamp(6)
+
+  leaderboardEntries   Leaderboard[]
+  achievements         Achievement[]
+  settings             UserSetting?
+  gameSessions         GameSession[]
+  playerProgress       PlayerProgress?
+  skillProgress        SkillProgress[]
+  weaponProgress       WeaponProgress[]
+  userLevels           UserLevel[]
+  userLevelStars       UserLevelStar[]
+  inventory            UserInventory[]
+  friendships          Friendship[] @relation("Friendship_userId")
+  receivedFriendships  Friendship[] @relation("Friendship_friendId")
+  gameEventLogs        GameEventLog[]
+
+  @@index([username])
+  @@index([email])
+}
+
+model Leaderboard {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  username    String   @db.VarChar(20)
+  score       Int      @default(0)
+  level       Int      @default(1)
+  wave        Int      @default(1)
+  kills       Int      @default(0)
+  gameDuration Int     @default(0)
+  difficulty  String   @db.VarChar(20) @default("NORMAL")
+  date        DateTime @default(now()) @db.Timestamp(6)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([score])
+  @@index([userId, score])
+  @@index([difficulty, score])
+}
+
+model Achievement {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  achievementId String   @db.VarChar(50)
+  name          String   @db.VarChar(100)
+  description   String   @db.VarChar(500)
+  unlockedAt    DateTime? @db.Timestamp(6)
+  progress      Int      @default(0)
+  total         Int      @default(1)
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model UserSetting {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  difficulty      String   @db.VarChar(20) @default("NORMAL")
+  soundEnabled    Boolean  @default(true)
+  musicEnabled    Boolean  @default(true)
+  graphicsQuality String   @db.VarChar(20) @default("HIGH")
+  fieldOfView     Int      @default(75)
+  sensitivity     Float    @default(0.8)
+  createdAt       DateTime @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime @updatedAt @db.Timestamp(6)
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model GameSession {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  startTime   DateTime @db.Timestamp(6)
+  endTime     DateTime? @db.Timestamp(6)
+  duration    Int      @default(0)
+  score       Int      @default(0)
+  wave        Int      @default(1)
+  kills       Int      @default(0)
+  deaths      Int      @default(0)
+  result      String   @db.VarChar(20) @default("QUIT")
+  difficulty  String   @db.VarChar(20) @default("NORMAL")
+  device      String?  @db.VarChar(100)
+  shipId      String   @db.VarChar(50) @default("ship-fighter")
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startTime])
+  @@index([startTime])
+}
+
+model PlayerProgress {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  totalScore      Int      @default(0)
+  highestScore    Int      @default(0)
+  highestWave     Int      @default(0)
+  totalPlayTime   Int      @default(0)
+  totalKills      Int      @default(0)
+  totalDeaths     Int      @default(0)
+  lastUpdated     DateTime @default(now()) @db.Timestamp(6)
+  version         String   @db.VarChar(20) @default("1.0.0")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserLevel {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  levelId     String   @db.VarChar(50)
+  unlockedAt  DateTime @default(now()) @db.Timestamp(6)
+  completed   Boolean  @default(false)
+  completedAt DateTime? @db.Timestamp(6)
+  bestScore   Int      @default(0)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, levelId])
+  @@index([userId])
+}
+
+model UserLevelStar {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  levelId     String   @db.VarChar(50)
+  stars       Int      @default(0)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, levelId])
+  @@index([userId])
+}
+
+model SkillProgress {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  skillId     String   @db.VarChar(50)
+  level       Int      @default(1)
+  experience  Int      @default(0)
+  unlocked    Boolean  @default(false)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([userId])
+}
+
+model WeaponProgress {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  weaponId    String   @db.VarChar(50)
+  level       Int      @default(1)
+  experience  Int      @default(0)
+  unlocked    Boolean  @default(false)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weaponId])
+  @@index([userId])
+}
+
+model Ship {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  type        String   @db.VarChar(20)
+  description String   @db.VarChar(500)
+  price       Int      @default(0)
+  speed       Float    @default(1.0)
+  armor       Float    @default(100.0)
+  shield      Float    @default(50.0)
+  fireRate    Float    @default(1.0)
+  damage      Float    @default(10.0)
+  energy      Int      @default(100)
+  unlocked    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([type])
+  @@index([price])
+}
+
+model Weapon {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  type        String   @db.VarChar(20)
+  description String   @db.VarChar(500)
+  price       Int      @default(0)
+  damage      Float    @default(10.0)
+  fireRate    Float    @default(1.0)
+  range       Float    @default(100.0)
+  energyCost  Int      @default(5)
+  ammo        Int      @default(20)
+  maxAmmo     Int      @default(20)
+  unlocked    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([type])
+  @@index([price])
+}
+
+model Skill {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  type        String   @db.VarChar(20)
+  description String   @db.VarChar(500)
+  price       Int      @default(0)
+  cooldown    Float    @default(10.0)
+  duration    Float    @default(5.0)
+  energyCost  Int      @default(20)
+  maxLevel    Int      @default(5)
+  unlocked    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([type])
+  @@index([price])
+}
+
+model ShopItem {
+  id          String   @id @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  type        String   @db.VarChar(20)
+  description String   @db.VarChar(500)
+  price       Int      @default(0)
+  itemId      String   @db.VarChar(50)
+  category    String   @db.VarChar(20) @default("SHIP")
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+
+  @@index([type])
+  @@index([category])
+  @@index([price])
+}
+
+model UserInventory {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  itemType    String   @db.VarChar(20)
+  itemId      String   @db.VarChar(50)
+  quantity    Int      @default(1)
+  equipped    Boolean  @default(false)
+  acquiredAt  DateTime @default(now()) @db.Timestamp(6)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemType, itemId])
+  @@index([userId])
+  @@index([itemType])
+}
+
+model Friendship {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  friendId    Int
+  status      String   @db.VarChar(20) @default("PENDING")
+  createdAt   DateTime @default(now()) @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @db.Timestamp(6)
+
+  user        User     @relation(name: "Friendship_userId", fields: [userId], references: [id], onDelete: Cascade)
+  friend      User     @relation(name: "Friendship_friendId", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([userId])
+  @@index([friendId])
+}
+
+model GameEventLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  eventType   String   @db.VarChar(50)
+  eventData   String   @db.Text
+  timestamp   DateTime @default(now()) @db.Timestamp(6)
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([timestamp])
+}
+
+model GameResource {
+  id          String   @id @db.VarChar(100)
+  filename    String   @db.VarChar(200)
+  data        String   @db.LongText
+  type        String   @db.VarChar(50)
+  size        Int      @default(0)
+  timestamp   DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([filename])
+  @@index([timestamp])
+}

@@ -2,20 +2,22 @@
  * 游戏核心模块导出
  */
 
-export { GameState, GameStateMachine } from './GameStateMachine';
-export {
-  CombatSystem,
+export type { GameState } from './GameStateMachine';
+export { GameStateMachine } from './GameStateMachine';
+export type {
   DamageType,
   StatusEffect,
   StatusEffectType,
   DamageResult,
   CombatEntity,
 } from './CombatSystem';
-export {
-  AchievementSystem,
+export { CombatSystem } from './CombatSystem';
+export type {
   Achievement,
   AchievementCategory,
   AchievementReward,
   AchievementProgress,
 } from './AchievementSystem';
-export { GameEventBus, gameEventBus, GameEvent, GameEventData, useGameEvent } from './GameEventBus';
+export { AchievementSystem } from './AchievementSystem';
+export type { GameEvent, GameEventData } from './GameEventBus';
+export { GameEventBus, gameEventBus, createGameEventSubscription } from './GameEventBus';

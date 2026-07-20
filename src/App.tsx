@@ -7,7 +7,14 @@ import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react
 import { MainMenu } from './components/MainMenu';
 import { useGameStore } from './store/useGameStore';
 import { GameState } from './game/GameStateMachine';
+import { LeaderboardService } from './engine/LeaderboardService';
+import { FriendService } from './engine/FriendService';
+import { gameplayManager } from './engine/GameplayManager';
+import { dailyChallengeManager } from './engine/DailyChallengeManager';
 import './App.css';
+
+const leaderboardService = new LeaderboardService();
+const friendService = new FriendService();
 
 const GameScene = lazy(() =>
   import('./components/GameScene').then((m) => ({ default: m.GameScene })),
@@ -25,6 +32,15 @@ const AchievementPanel = lazy(() =>
 );
 const ShopPanel = lazy(() =>
   import('./components/ShopPanel').then((m) => ({ default: m.ShopPanel })),
+);
+const LeaderboardPanel = lazy(() =>
+  import('./components/LeaderboardPanel').then((m) => ({ default: m.LeaderboardPanel })),
+);
+const FriendPanel = lazy(() =>
+  import('./components/FriendPanel').then((m) => ({ default: m.FriendPanel })),
+);
+const DailyChallengePanel = lazy(() =>
+  import('./components/DailyChallengePanel').then((m) => ({ default: m.DailyChallengePanel })),
 );
 
 const PageLoader = () => (
@@ -46,7 +62,6 @@ function App() {
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [isPaused, setIsPaused] = useState(false);
 
-  const isSceneReady = useGameStore((state) => state.isSceneReady);
   const isVictory = useGameStore((state) => state.isVictory);
   const setSceneReady = useGameStore((state) => state.setSceneReady);
   const setVictory = useGameStore((state) => state.setVictory);
@@ -85,7 +100,7 @@ function App() {
     (levelId: number) => {
       setSelectedLevel(levelId);
       resetGame();
-      setSceneReady(true);
+      setSceneReady(false);
       setGameState(GameState.PLAYING);
     },
     [resetGame, setSceneReady],
@@ -112,6 +127,29 @@ function App() {
     setGameState(GameState.SHOP);
   }, []);
 
+  // 打开排行榜
+  const handleLeaderboard = useCallback(() => {
+    setGameState(GameState.LEADERBOARD);
+  }, []);
+
+  // 打开好友
+  const handleFriends = useCallback(() => {
+    setGameState(GameState.FRIENDS);
+  }, []);
+
+  // 打开每日挑战面板
+  const handleDailyChallenge = useCallback(() => {
+    setGameState(GameState.DAILY_CHALLENGE);
+  }, []);
+
+  // 从每日挑战面板开始挑战
+  const handleStartDailyChallenge = useCallback(() => {
+    dailyChallengeManager.startDailyChallenge();
+    resetGame();
+    setSceneReady(false);
+    setGameState(GameState.PLAYING);
+  }, [resetGame, setSceneReady]);
+
   // 关闭设置
   const handleCloseSettings = useCallback(() => {
     if (gameState === GameState.SETTINGS) {
@@ -121,6 +159,10 @@ function App() {
 
   // 返回主菜单
   const handleBackToMenu = useCallback(() => {
+    // 若处于每日挑战模式中途退出，清理挑战状态
+    if (dailyChallengeManager.isDailyChallengeActive()) {
+      dailyChallengeManager.stopDailyChallenge();
+    }
     setGameState(GameState.MENU);
     setSceneReady(false);
     setIsPaused(false);
@@ -142,6 +184,42 @@ function App() {
   const handleGameOver = useCallback(() => {
     setIsPaused(false);
     setGameState(GameState.GAME_OVER);
+
+    const stats = gameplayManager.getStats();
+    if (stats && stats.score > 0) {
+      leaderboardService.submitScore(
+        stats.score,
+        stats.wavesCompleted || 0,
+        stats.kills || 0,
+        {
+          accuracy: stats.accuracy,
+          maxCombo: stats.comboMax,
+          bossesKilled: stats.bossesKilled,
+          elitesKilled: stats.elitesKilled,
+          playTime: stats.playTime,
+          powerupsCollected: stats.powerupsCollected,
+          damageDealt: Math.round(stats.damageDealt),
+          damageTaken: Math.round(stats.damageTaken),
+          rankGrade: stats.rank,
+        },
+      );
+    }
+
+    // 若处于每日挑战模式，提交挑战结果并退出挑战模式
+    if (dailyChallengeManager.isDailyChallengeActive()) {
+      const challengeConfig = dailyChallengeManager.getActiveChallenge();
+      const victory = useGameStore.getState().isVictory;
+      // 挑战完成判定：游戏胜利 或 达到目标波次
+      const reachedTargetWaves =
+        challengeConfig !== null &&
+        (stats?.wavesCompleted || 0) >= challengeConfig.targetWaves;
+      dailyChallengeManager.submitResult(
+        stats?.score || 0,
+        stats?.wavesCompleted || 0,
+        victory || reachedTargetWaves,
+      );
+      dailyChallengeManager.stopDailyChallenge();
+    }
   }, []);
 
   // 关卡完成
@@ -160,6 +238,31 @@ function App() {
     setGameState(GameState.PLAYING);
   }, [selectedLevel, resetGame, setSceneReady]);
 
+  // 从 GameplayManager 获取战斗详细统计
+  const combatStats = useMemo(() => {
+    return gameplayManager.getStats();
+  }, []);
+
+  // 从 GameplayManager 获取分数明细
+  const scoreBreakdown = useMemo(() => {
+    return gameplayManager.getScoreBreakdown();
+  }, []);
+
+  // 从 GameplayManager 获取排名
+  const finalRank = useMemo(() => {
+    return gameplayManager.getStats()?.rank || null;
+  }, []);
+
+  // 从 GameplayManager 获取本局解锁的成就
+  const unlockedAchievements = useMemo(() => {
+    const achievements = gameplayManager.getUnlockedAchievementsThisSession();
+    return achievements.map((a) => ({
+      id: a.id,
+      name: a.name,
+      icon: a.icon,
+    }));
+  }, []);
+
   // 统计数据
   const gameStats = useMemo(
     () => ({
@@ -168,10 +271,10 @@ function App() {
       wave: currentWave,
       level: playerLevel,
       enemiesDefeated: enemiesDefeated,
-      timeElapsed: 0, // TODO: 从游戏状态获取
-      accuracy: 0.85, // TODO: 从游戏状态获取
+      timeElapsed: combatStats?.playTime || 0,
+      accuracy: combatStats?.accuracy || 0,
     }),
-    [playerScore, currentWave, playerLevel, enemiesDefeated],
+    [playerScore, currentWave, playerLevel, enemiesDefeated, combatStats],
   );
 
   // 暂停菜单统计
@@ -196,6 +299,9 @@ function App() {
           onSettings={handleSettings}
           onAchievements={handleAchievements}
           onShop={handleShop}
+          onLeaderboard={handleLeaderboard}
+          onFriends={handleFriends}
+          onDailyChallenge={handleDailyChallenge}
           hasSavedGame={hasSavedGame}
         />
       )}
@@ -232,8 +338,32 @@ function App() {
         </Suspense>
       )}
 
+      {/* 排行榜面板 */}
+      {gameState === GameState.LEADERBOARD && (
+        <Suspense fallback={<PageLoader />}>
+          <LeaderboardPanel onBack={handleBackToMenu} service={leaderboardService} />
+        </Suspense>
+      )}
+
+      {/* 好友面板 */}
+      {gameState === GameState.FRIENDS && (
+        <Suspense fallback={<PageLoader />}>
+          <FriendPanel onBack={handleBackToMenu} service={friendService} />
+        </Suspense>
+      )}
+
+      {/* 每日挑战面板 */}
+      {gameState === GameState.DAILY_CHALLENGE && (
+        <Suspense fallback={<PageLoader />}>
+          <DailyChallengePanel
+            onBack={handleBackToMenu}
+            onStartChallenge={handleStartDailyChallenge}
+          />
+        </Suspense>
+      )}
+
       {/* 游戏场景 */}
-      {gameState === GameState.PLAYING && isSceneReady && (
+      {gameState === GameState.PLAYING && (
         <>
           <Suspense fallback={<PageLoader />}>
             <GameScene onGameOver={handleGameOver} onLevelComplete={handleLevelComplete} />
@@ -260,9 +390,14 @@ function App() {
           <GameOver
             isVictory={isVictory}
             stats={gameStats}
+            combatStats={combatStats}
+            scoreBreakdown={scoreBreakdown}
+            finalRank={finalRank || undefined}
+            unlockedAchievements={unlockedAchievements}
             onRestart={handleRestart}
             onMainMenu={handleBackToMenu}
             onNextLevel={selectedLevel < 5 ? handleNextLevel : undefined}
+            onLeaderboard={handleLeaderboard}
           />
         </Suspense>
       )}

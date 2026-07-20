@@ -50,3 +50,5 @@ export interface GameConfig {
   playerSpeed: number;
   playerHealth: number;
 }
+
+export type DifficultyLevel = 'easy' | 'normal' | 'hard' | 'nightmare';

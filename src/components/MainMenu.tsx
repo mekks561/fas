@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from './ui/shadcn';
 import { Card, CardContent, CardFooter } from './ui/shadcn';
 import { Badge } from './ui/shadcn';
-import { Play, ArrowRight, Settings, Star, Trophy, Medal, ShoppingBag, Award } from 'lucide-react';
+import { Play, ArrowRight, Settings, Star, Trophy, Medal, ShoppingBag, Award, Users, Calendar } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +13,9 @@ interface MainMenuProps {
   onCredits?: () => void;
   onAchievements?: () => void;
   onShop?: () => void;
+  onLeaderboard?: () => void;
+  onFriends?: () => void;
+  onDailyChallenge?: () => void;
   hasSavedGame?: boolean;
 }
 
@@ -23,6 +26,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onCredits,
   onAchievements,
   onShop,
+  onLeaderboard,
+  onFriends,
+  onDailyChallenge,
   hasSavedGame = false,
 }) => {
   const [selectedOption, setSelectedOption] = useState(0);
@@ -46,6 +52,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           ]
         : []),
       ...(onShop ? [{ id: 'shop', label: '商店', icon: ShoppingBag, action: onShop }] : []),
+      ...(onLeaderboard ? [{ id: 'leaderboard', label: '排行榜', icon: Trophy, action: onLeaderboard }] : []),
+      ...(onFriends ? [{ id: 'friends', label: '好友', icon: Users, action: onFriends }] : []),
+      ...(onDailyChallenge
+        ? [{ id: 'daily_challenge', label: '每日挑战', icon: Calendar, action: onDailyChallenge }]
+        : []),
       ...(onAchievements
         ? [{ id: 'achievements', label: '成就', icon: Award, action: onAchievements }]
         : []),
@@ -54,7 +65,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         ? [{ id: 'credits', label: t('menu.credits'), icon: Star, action: onCredits }]
         : []),
     ],
-    [hasSavedGame, onStartGame, onContinueGame, onSettings, onCredits, onAchievements, onShop, t],
+    [hasSavedGame, onStartGame, onContinueGame, onSettings, onCredits, onAchievements, onShop, onLeaderboard, onFriends, onDailyChallenge, t],
   );
 
   useEffect(() => {
@@ -81,7 +92,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   }, [menuOptions, selectedOption]);
 
   useEffect(() => {
-    setShowAnimation(true);
+    const timer = setTimeout(() => setShowAnimation(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleClick = useCallback((index: number, action?: () => void) => {

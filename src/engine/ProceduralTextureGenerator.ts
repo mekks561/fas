@@ -473,10 +473,10 @@ export class ProceduralTextureGenerator {
         this.generateExplosion(config.options, config.seed);
         break;
       case 'starfield':
-        this.generateStarfield(config.options, config.seed);
+        this.generateStarfield(config.options as Record<string, unknown>, config.seed);
         break;
       case 'grid':
-        this.generateGrid(config.options, config.seed);
+        this.generateGrid(config.options as Record<string, unknown>, config.seed);
         break;
     }
 
@@ -659,7 +659,7 @@ export class ProceduralTextureGenerator {
   private generateStarfield(options: Record<string, unknown>, _seed?: number): void {
     const width = this.canvas.width;
     const height = this.canvas.height;
-    const starCount = options?.starCount || 200;
+    const starCount = (options?.['starCount'] as number) || 200;
 
     this.ctx.fillStyle = '#000000';
     this.ctx.fillRect(0, 0, width, height);
@@ -680,7 +680,7 @@ export class ProceduralTextureGenerator {
   private generateGrid(options: Record<string, unknown>, _seed?: number): void {
     const width = this.canvas.width;
     const height = this.canvas.height;
-    const gridSize = options?.gridSize || 50;
+    const gridSize = (options?.['gridSize'] as number) || 50;
 
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, width, height);

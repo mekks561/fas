@@ -106,6 +106,7 @@ export const ResourceTestUI: React.FC<ResourceTestUIProps> = ({ onTestsComplete 
               <div className="text-gray-500">点击"运行所有测试"开始测试...</div>
             ) : (
               testOutput.map((line, index) => (
+                // eslint-disable-next-line @eslint-react/no-array-index-key
                 <div key={index} className="mb-1 whitespace-pre-wrap">
                   {line}
                 </div>

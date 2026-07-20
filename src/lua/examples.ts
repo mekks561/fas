@@ -57,10 +57,7 @@ export function enemyExample(): void {
       console.log(`[Example] Enemy action: ${action.action}`, action);
     }
 
-    // 更新位置
-    if (enemy.x !== undefined && enemy.y !== undefined) {
-      console.log(`[Example] Enemy position: (${enemy.x}, ${enemy.y})`);
-    }
+    
   }
 }
 

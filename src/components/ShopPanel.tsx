@@ -55,7 +55,7 @@ const attrLabels: Record<string, string> = {
 
 export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
   const [items, setItems] = useState<ShopItem[]>([]);
-  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
+  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState(0);
@@ -154,7 +154,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
         {filteredItems.map((item) => {
           const isPurchased = purchasedIds.has(item.id);
           const canAfford = credits >= item.price;
-          const rarity = rarityConfig[item.rarity] || rarityConfig.common;
+          const rarity = rarityConfig[item.rarity] || rarityConfig['common'];
           return (
             <div
               key={item.id}

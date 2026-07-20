@@ -98,7 +98,7 @@ export class EnhancedWeaponSystem {
     if (!upgrade) return;
 
     const now = Date.now();
-    const cooldown = this.player.getWeaponCooldowns?.()[weaponType] || 0;
+    const cooldown = this.player.getWeaponCooldowns().get(weaponType) || 0;
     if (now < cooldown) return;
 
     const projectile = this.getProjectileFromPool();
@@ -129,12 +129,9 @@ export class EnhancedWeaponSystem {
       weaponType,
     });
 
-    if (this.player.setWeaponCooldowns) {
-      this.player.setWeaponCooldowns({
-        ...(this.player.getWeaponCooldowns?.() || {}),
-        [weaponType]: now + adjustedCooldown,
-      });
-    }
+    const newCooldowns = new Map(this.player.getWeaponCooldowns());
+    newCooldowns.set(weaponType, now + adjustedCooldown);
+    this.player.setWeaponCooldowns(newCooldowns);
   }
 
   private getProjectileFromPool(): pc.Entity | null {

@@ -35,8 +35,8 @@ export const useWaveState = () => {
 
 export const usePerformanceState = () => {
   const fps = useGameStore((state) => state.fps);
-  const speed = useGameStore((state) => state.speed);
-  const isBoostActive = useGameStore((state) => state.isBoostActive);
+  const speed = useGameStore((state) => state.player.speed);
+  const isBoostActive = useGameStore((state) => state.player.isBoostActive);
 
   return { fps, speed, isBoostActive };
 };

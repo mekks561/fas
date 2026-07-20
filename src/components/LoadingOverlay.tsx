@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Progress } from './ui/shadcn';
 
 interface LoadingOverlayProps {
-  progress: number;
+  progress?: number;
 }
 
 export const LoadingOverlay: React.FC<LoadingOverlayProps> = React.memo(({ progress }) => {

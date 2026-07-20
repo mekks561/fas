@@ -1,15 +1,59 @@
-import { createClient, RedisClientType } from 'redis';
+import Redis from 'ioredis';
+
+interface CacheConfig {
+  useSentinel: boolean;
+  sentinels: { host: string; port: number }[];
+  sentinelName: string;
+  sentinelPassword?: string;
+  redisUrl: string;
+  redisPassword?: string;
+  maxRetriesPerRequest: number;
+  retryDelayOnFailover: number;
+}
 
 class CacheService {
-  private client: RedisClientType | null = null;
+  private client: Redis | null = null;
   private isConnected: boolean = false;
   private localCache: Map<string, { value: string; expiry: number }> = new Map();
+  private config: CacheConfig;
+
+  constructor() {
+    this.config = this.parseConfig();
+  }
+
+  private parseConfig(): CacheConfig {
+    return {
+      useSentinel: process.env.REDIS_USE_SENTINEL === 'true',
+      sentinels: process.env.REDIS_SENTINELS
+        ? JSON.parse(process.env.REDIS_SENTINELS)
+        : [{ host: 'localhost', port: 26379 }],
+      sentinelName: process.env.REDIS_SENTINEL_NAME || 'mymaster',
+      sentinelPassword: process.env.REDIS_SENTINEL_PASSWORD,
+      redisUrl: process.env.REDIS_URI || 'redis://localhost:6379',
+      redisPassword: process.env.REDIS_PASSWORD,
+      maxRetriesPerRequest: parseInt(process.env.REDIS_MAX_RETRIES || '3'),
+      retryDelayOnFailover: parseInt(process.env.REDIS_RETRY_DELAY || '100'),
+    };
+  }
 
   async connect(): Promise<void> {
     try {
-      const redisUrl = process.env.REDIS_URI || 'redis://localhost:6379';
-
-      this.client = createClient({ url: redisUrl });
+      if (this.config.useSentinel) {
+        this.client = new Redis({
+          sentinels: this.config.sentinels,
+          name: this.config.sentinelName,
+          password: this.config.redisPassword,
+          sentinelPassword: this.config.sentinelPassword,
+          maxRetriesPerRequest: this.config.maxRetriesPerRequest,
+          enableReadyCheck: true,
+          lazyConnect: false,
+        });
+      } else {
+        this.client = new Redis(this.config.redisUrl, {
+          password: this.config.redisPassword,
+          maxRetriesPerRequest: this.config.maxRetriesPerRequest,
+        });
+      }
 
       this.client.on('error', (err) => {
         console.error('[Redis] 连接错误:', err);
@@ -21,6 +65,19 @@ class CacheService {
         this.isConnected = true;
       });
 
+      this.client.on('ready', () => {
+        console.log('[Redis] 准备就绪');
+      });
+
+      this.client.on('reconnecting', () => {
+        console.log('[Redis] 正在重新连接...');
+      });
+
+      this.client.on('end', () => {
+        console.log('[Redis] 连接已关闭');
+        this.isConnected = false;
+      });
+
       await this.client.connect();
     } catch (error) {
       console.error('[Redis] 连接失败，使用本地缓存:', error);
@@ -29,33 +86,30 @@ class CacheService {
   }
 
   async disconnect(): Promise<void> {
-    if (this.client && this.isConnected) {
+    if (this.client) {
       await this.client.disconnect();
       this.isConnected = false;
     }
   }
 
-  // 设置缓存
   async set(key: string, value: unknown, ttlSeconds: number = 3600): Promise<void> {
     const serialized = JSON.stringify(value);
 
     if (this.isConnected && this.client) {
       try {
-        await this.client.setEx(key, ttlSeconds, serialized);
+        await this.client.set(key, serialized, 'EX', ttlSeconds);
         return;
       } catch (error) {
         console.error('[Redis] 设置缓存失败:', error);
       }
     }
 
-    // 回退到本地缓存
     this.localCache.set(key, {
       value: serialized,
       expiry: Date.now() + ttlSeconds * 1000
     });
   }
 
-  // 获取缓存
   async get<T = unknown>(key: string): Promise<T | null> {
     if (this.isConnected && this.client) {
       try {
@@ -66,7 +120,6 @@ class CacheService {
       }
     }
 
-    // 回退到本地缓存
     const cached = this.localCache.get(key);
     if (cached) {
       if (Date.now() > cached.expiry) {
@@ -79,7 +132,6 @@ class CacheService {
     return null;
   }
 
-  // 删除缓存
   async del(key: string): Promise<void> {
     if (this.isConnected && this.client) {
       try {
@@ -92,7 +144,6 @@ class CacheService {
     this.localCache.delete(key);
   }
 
-  // 删除匹配的缓存（模式）
   async delPattern(pattern: string): Promise<void> {
     if (this.isConnected && this.client) {
       try {
@@ -105,7 +156,6 @@ class CacheService {
       }
     }
 
-    // 清理本地缓存
     const regex = new RegExp(pattern.replace('*', '.*'));
     for (const key of this.localCache.keys()) {
       if (regex.test(key)) {
@@ -114,7 +164,6 @@ class CacheService {
     }
   }
 
-  // 排行榜缓存
   async getLeaderboard(page: number, difficulty?: string): Promise<unknown> {
     const key = difficulty
       ? `leaderboard:${difficulty}:page:${page}`
@@ -138,20 +187,18 @@ class CacheService {
     await this.delPattern('leaderboard:*');
   }
 
-  // 用户缓存
-  async getUser(userId: string): Promise<unknown> {
+  async getUser(userId: number): Promise<unknown> {
     return this.get(`user:${userId}`);
   }
 
-  async setUser(userId: string, data: unknown, ttlSeconds: number = 600): Promise<void> {
+  async setUser(userId: number, data: unknown, ttlSeconds: number = 600): Promise<void> {
     await this.set(`user:${userId}`, data, ttlSeconds);
   }
 
-  async invalidateUser(userId: string): Promise<void> {
+  async invalidateUser(userId: number): Promise<void> {
     await this.del(`user:${userId}`);
   }
 
-  // 设置带锁（防止缓存击穿）
   async setWithLock(
     key: string,
     value: unknown,
@@ -162,23 +209,59 @@ class CacheService {
 
     if (this.isConnected && this.client) {
       try {
-        // 尝试获取锁
-        const locked = await this.client.setNX(lockKey, '1');
-        if (locked) {
-          // 设置锁过期
-          await this.client.expire(lockKey, lockTtlSeconds);
-        }
+        const _locked = await this.client.set(lockKey, '1', 'PX', lockTtlSeconds * 1000, 'NX');
       } catch (error) {
         console.error('[Redis] 获取锁失败:', error);
       }
     }
 
-    // 设置缓存
     await this.set(key, value, ttlSeconds);
 
-    // 释放锁
     if (this.isConnected && this.client) {
       await this.del(lockKey);
+    }
+  }
+
+  async getStats(): Promise<{
+    connected: boolean;
+    mode: string;
+    clientType: string;
+  }> {
+    return {
+      connected: this.isConnected,
+      mode: this.config.useSentinel ? 'sentinel' : 'standalone',
+      clientType: 'ioredis',
+    };
+  }
+
+  async healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    message: string;
+  }> {
+    if (!this.isConnected || !this.client) {
+      return {
+        status: 'unhealthy',
+        message: 'Redis not connected',
+      };
+    }
+
+    try {
+      const result = await this.client.ping();
+      if (result === 'PONG') {
+        return {
+          status: 'healthy',
+          message: 'Redis connection healthy',
+        };
+      }
+      return {
+        status: 'unhealthy',
+        message: 'Redis ping failed',
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        message: `Redis health check failed: ${error}`,
+      };
     }
   }
 }

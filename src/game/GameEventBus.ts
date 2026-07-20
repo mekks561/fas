@@ -122,7 +122,7 @@ export class GameEventBus {
 
 export const gameEventBus = new GameEventBus();
 
-export const useGameEvent = (event: GameEvent, handler: GameEventListener) => {
+export const createGameEventSubscription = (event: GameEvent, handler: GameEventListener) => {
   const subscriptionRef = { id: null as symbol | null };
 
   const subscribe = () => {

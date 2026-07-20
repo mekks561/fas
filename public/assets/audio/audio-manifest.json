@@ -1,0 +1,417 @@
+{
+  "version": "1.1.0",
+  "categories": [
+    {
+      "id": "audio-bgm",
+      "name": "Background Music",
+      "description": "背景音乐",
+      "assets": [
+        {
+          "id": "bgm-mainmenu",
+          "name": "Main Menu",
+          "type": "audio",
+          "url": "/assets/audio/bgm/bgm-mainmenu.mp3",
+          "size": 0,
+          "format": "mp3",
+          "duration": 60,
+          "tags": ["bgm", "menu"],
+          "generated": true
+        },
+        {
+          "id": "bgm-gameplay",
+          "name": "Gameplay",
+          "type": "audio",
+          "url": "/assets/audio/bgm/bgm-gameplay.mp3",
+          "size": 0,
+          "format": "mp3",
+          "duration": 90,
+          "tags": ["bgm", "game"],
+          "generated": true
+        },
+        {
+          "id": "bgm-boss",
+          "name": "Boss Battle",
+          "type": "audio",
+          "url": "/assets/audio/bgm/bgm-boss.mp3",
+          "size": 0,
+          "format": "mp3",
+          "duration": 60,
+          "tags": ["bgm", "boss"],
+          "generated": true
+        },
+        {
+          "id": "bgm-story",
+          "name": "Story",
+          "type": "audio",
+          "url": "/assets/audio/bgm/bgm-story.mp3",
+          "size": 0,
+          "format": "mp3",
+          "duration": 45,
+          "tags": ["bgm", "story"],
+          "generated": true
+        },
+        {
+          "id": "bgm-victory",
+          "name": "Victory",
+          "type": "audio",
+          "url": "/assets/audio/bgm/bgm-victory.mp3",
+          "size": 0,
+          "format": "mp3",
+          "duration": 30,
+          "tags": ["bgm", "victory"],
+          "generated": true
+        }
+      ],
+      "totalSize": 0
+    },
+    {
+      "id": "audio-effects",
+      "name": "Sound Effects",
+      "description": "音效",
+      "assets": [
+        {
+          "id": "sfx-laser",
+          "name": "Laser Shot",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-laser.wav",
+          "size": 13271,
+          "format": "wav",
+          "duration": 0.15,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        },
+        {
+          "id": "sfx-missile",
+          "name": "Missile Launch",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-missile.wav",
+          "size": 70604,
+          "format": "wav",
+          "duration": 0.8,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        },
+        {
+          "id": "sfx-explosion",
+          "name": "Explosion",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-explosion.wav",
+          "size": 70604,
+          "format": "wav",
+          "duration": 0.8,
+          "tags": ["sfx", "explosion"],
+          "generated": true
+        },
+        {
+          "id": "sfx-shield",
+          "name": "Shield Activate",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-shield.wav",
+          "size": 52954,
+          "format": "wav",
+          "duration": 0.6,
+          "tags": ["sfx", "skill"],
+          "generated": true
+        },
+        {
+          "id": "sfx-heal",
+          "name": "Heal",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-heal.wav",
+          "size": 44164,
+          "format": "wav",
+          "duration": 0.5,
+          "tags": ["sfx", "powerup"],
+          "generated": true
+        },
+        {
+          "id": "sfx-powerup",
+          "name": "Powerup Collect",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-powerup.wav",
+          "size": 35314,
+          "format": "wav",
+          "duration": 0.4,
+          "tags": ["sfx", "powerup"],
+          "generated": true
+        },
+        {
+          "id": "sfx-damage",
+          "name": "Damage",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-damage.wav",
+          "size": 26424,
+          "format": "wav",
+          "duration": 0.3,
+          "tags": ["sfx", "damage"],
+          "generated": true
+        },
+        {
+          "id": "sfx-death",
+          "name": "Death",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-death.wav",
+          "size": 88264,
+          "format": "wav",
+          "duration": 1.0,
+          "tags": ["sfx", "death"],
+          "generated": true
+        },
+        {
+          "id": "sfx-powerup-spawn",
+          "name": "Powerup Spawn",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-powerup-spawn.wav",
+          "size": 17624,
+          "format": "wav",
+          "duration": 0.2,
+          "tags": ["sfx", "powerup"],
+          "generated": true
+        },
+        {
+          "id": "sfx-boss-roar",
+          "name": "Boss Roar",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-boss-roar.wav",
+          "size": 132264,
+          "format": "wav",
+          "duration": 1.5,
+          "tags": ["sfx", "boss"],
+          "generated": true
+        },
+        {
+          "id": "sfx-wave-start",
+          "name": "Wave Start",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-wave-start.wav",
+          "size": 44164,
+          "format": "wav",
+          "duration": 0.5,
+          "tags": ["sfx", "wave"],
+          "generated": true
+        },
+        {
+          "id": "sfx-level-complete",
+          "name": "Level Complete",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-level-complete.wav",
+          "size": 88264,
+          "format": "wav",
+          "duration": 1.0,
+          "tags": ["sfx", "level"],
+          "generated": true
+        },
+        {
+          "id": "sfx-nuke",
+          "name": "Nuke",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-nuke.wav",
+          "size": 220664,
+          "format": "wav",
+          "duration": 2.5,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        },
+        {
+          "id": "sfx-blackhole",
+          "name": "Black Hole",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-blackhole.wav",
+          "size": 176564,
+          "format": "wav",
+          "duration": 2.0,
+          "tags": ["sfx", "skill"],
+          "generated": true
+        },
+        {
+          "id": "sfx-plasma",
+          "name": "Plasma Shot",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-plasma.wav",
+          "size": 44164,
+          "format": "wav",
+          "duration": 0.5,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        },
+        {
+          "id": "sfx-shotgun",
+          "name": "Shotgun",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-shotgun.wav",
+          "size": 52954,
+          "format": "wav",
+          "duration": 0.6,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        },
+        {
+          "id": "sfx-sniper",
+          "name": "Sniper",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-sniper.wav",
+          "size": 61654,
+          "format": "wav",
+          "duration": 0.7,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        },
+        {
+          "id": "sfx-turret",
+          "name": "Turret",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-turret.wav",
+          "size": 26424,
+          "format": "wav",
+          "duration": 0.3,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        },
+        {
+          "id": "sfx-gravity",
+          "name": "Gravity",
+          "type": "audio",
+          "url": "/assets/audio/effects/sfx-gravity.wav",
+          "size": 132264,
+          "format": "wav",
+          "duration": 1.5,
+          "tags": ["sfx", "weapon"],
+          "generated": true
+        }
+      ],
+      "totalSize": 1508518
+    },
+    {
+      "id": "audio-ui",
+      "name": "UI Sounds",
+      "description": "界面音效",
+      "assets": [
+        {
+          "id": "ui-click",
+          "name": "Click",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-click.wav",
+          "size": 7094,
+          "format": "wav",
+          "duration": 0.08,
+          "tags": ["ui", "click"],
+          "generated": true
+        },
+        {
+          "id": "ui-hover",
+          "name": "Hover",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-hover.wav",
+          "size": 4444,
+          "format": "wav",
+          "duration": 0.05,
+          "tags": ["ui", "hover"],
+          "generated": true
+        },
+        {
+          "id": "ui-select",
+          "name": "Select",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-select.wav",
+          "size": 10614,
+          "format": "wav",
+          "duration": 0.12,
+          "tags": ["ui", "select"],
+          "generated": true
+        },
+        {
+          "id": "ui-open",
+          "name": "Open",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-open.wav",
+          "size": 17624,
+          "format": "wav",
+          "duration": 0.2,
+          "tags": ["ui", "open"],
+          "generated": true
+        },
+        {
+          "id": "ui-close",
+          "name": "Close",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-close.wav",
+          "size": 15834,
+          "format": "wav",
+          "duration": 0.18,
+          "tags": ["ui", "close"],
+          "generated": true
+        },
+        {
+          "id": "ui-success",
+          "name": "Success",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-success.wav",
+          "size": 35314,
+          "format": "wav",
+          "duration": 0.4,
+          "tags": ["ui", "success"],
+          "generated": true
+        },
+        {
+          "id": "ui-error",
+          "name": "Error",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-error.wav",
+          "size": 26424,
+          "format": "wav",
+          "duration": 0.3,
+          "tags": ["ui", "error"],
+          "generated": true
+        },
+        {
+          "id": "ui-buy",
+          "name": "Buy",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-buy.wav",
+          "size": 21934,
+          "format": "wav",
+          "duration": 0.25,
+          "tags": ["ui", "buy"],
+          "generated": true
+        },
+        {
+          "id": "ui-levelup",
+          "name": "Level Up",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-levelup.wav",
+          "size": 61654,
+          "format": "wav",
+          "duration": 0.7,
+          "tags": ["ui", "levelup"],
+          "generated": true
+        },
+        {
+          "id": "ui-achievement",
+          "name": "Achievement Unlock",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-achievement.wav",
+          "size": 79404,
+          "format": "wav",
+          "duration": 0.9,
+          "tags": ["ui", "achievement"],
+          "generated": true
+        },
+        {
+          "id": "ui-countdown",
+          "name": "Countdown",
+          "type": "audio",
+          "url": "/assets/audio/ui/ui-countdown.wav",
+          "size": 21934,
+          "format": "wav",
+          "duration": 0.25,
+          "tags": ["ui", "countdown"],
+          "generated": true
+        }
+      ],
+      "totalSize": 302374
+    }
+  ],
+  "totalSize": 1810892,
+  "assetCount": 35,
+  "generatedAssets": 30
+}

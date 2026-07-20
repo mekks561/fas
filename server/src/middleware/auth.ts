@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
   user?: {
-    userId: string;
+    userId: number;
     email?: string;
   };
 }
@@ -32,7 +32,7 @@ export const authenticate = (
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'your-secret-key'
-    ) as { userId: string; email?: string };
+    ) as { userId: number; email?: string };
 
     req.user = decoded;
     next();
@@ -86,7 +86,7 @@ export const optionalAuth = (
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'your-secret-key'
-    ) as { userId: string; email?: string };
+    ) as { userId: number; email?: string };
 
     req.user = decoded;
   } catch {

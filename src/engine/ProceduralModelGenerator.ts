@@ -31,11 +31,7 @@ export interface ModelOptions {
 }
 
 export class ProceduralModelGenerator {
-  private app: pc.Application;
-
-  constructor(app: pc.Application) {
-    this.app = app;
-  }
+  constructor(_app: pc.Application) {}
 
   // ============ 飞船模型 ============
 

@@ -202,8 +202,6 @@ export class CameraSystem {
     const decayFactor = 1 - Math.pow(progress, this.currentShake.decay || 1);
     const intensity = this.currentShake.intensity * decayFactor;
 
-    const _time = this.shakeTime * this.currentShake.frequency || 20;
-
     this.shakeOffset.x = (Math.random() * 2 - 1) * intensity;
     this.shakeOffset.y = (Math.random() * 2 - 1) * intensity;
     this.shakeOffset.z = (Math.random() * 2 - 1) * intensity;
@@ -246,7 +244,6 @@ export class CameraSystem {
     if (!this.target || !this.camera || this.isCinematic) return;
 
     const targetPos = this.target.getPosition();
-    const _targetRot = this.target.getEulerAngles();
 
     let desiredPos = new pc.Vec3();
 
@@ -259,14 +256,14 @@ export class CameraSystem {
         );
 
         const forward = new pc.Vec3(0, 0, -1);
-        forward.transformQuat(this.target.getRotation());
+        this.target.getRotation().transformVector(forward);
 
         const right = new pc.Vec3(1, 0, 0);
-        right.transformQuat(this.target.getRotation());
+        this.target.getRotation().transformVector(right);
 
         desiredPos.copy(targetPos);
-        desiredPos.add(forward.scale(-offset.z));
-        desiredPos.add(right.scale(offset.x));
+        desiredPos.add(forward.mulScalar(-offset.z));
+        desiredPos.add(right.mulScalar(offset.x));
         desiredPos.y += offset.y;
 
         const distance = desiredPos.distance(targetPos);
@@ -274,7 +271,7 @@ export class CameraSystem {
           this.constraints.minDistance || 5,
           Math.min(this.constraints.maxDistance || 20, distance),
         );
-        desiredPos.sub(targetPos).normalize().scale(clampedDistance).add(targetPos);
+        desiredPos.sub(targetPos).normalize().mulScalar(clampedDistance).add(targetPos);
 
         break;
       }
@@ -282,10 +279,10 @@ export class CameraSystem {
         const offset = this.firstPersonOffset.clone();
 
         const forward = new pc.Vec3(0, 0, 1);
-        forward.transformQuat(this.target.getRotation());
+        this.target.getRotation().transformVector(forward);
 
         desiredPos.copy(targetPos);
-        desiredPos.add(forward.scale(offset.z));
+        desiredPos.add(forward.mulScalar(offset.z));
         desiredPos.y += offset.y;
 
         break;

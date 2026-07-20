@@ -1,7 +1,16 @@
 import '@testing-library/jest-dom';
 
+interface MockSkill {
+  id: string;
+  state: string;
+  currentCooldown: number;
+  level: number;
+  maxLevel: number;
+  cooldown: number;
+}
+
 vi.mock('wasmoon', () => {
-  const learnedSkills: Record<string, unknown> = {};
+  const learnedSkills: Record<string, MockSkill> = {};
   const activeCombo: { currentSequence: string[]; startTime: number; lastSkillTime: number } = {
     currentSequence: [],
     startTime: 0,
@@ -140,10 +149,13 @@ vi.mock('wasmoon', () => {
     global: {
       get: vi.fn().mockImplementation((name: string) => {
         const parts = name.split('.');
-        let result = luaGlobals;
+        let result: unknown = luaGlobals;
         for (const part of parts) {
-          result = result?.[part];
-          if (result === undefined) break;
+          if (result !== undefined && typeof result === 'object') {
+            result = (result as Record<string, unknown>)[part];
+          } else {
+            break;
+          }
         }
         return result || (() => {});
       }),

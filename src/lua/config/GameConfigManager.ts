@@ -1,8 +1,6 @@
 import { luaEngine } from '../LuaEngine';
+import type { DifficultyLevel } from '../types';
 
-/**
- * 游戏配置类型
- */
 export interface DifficultyConfig {
   waveInterval: number;
   enemySpawnRate: number;
@@ -18,44 +16,22 @@ export interface WeaponConfig {
   bulletCount?: number;
 }
 
-export interface PowerupConfig {
+export interface GamePowerupConfig {
   value?: number;
   multiplier?: number;
   duration: number;
 }
 
-export type DifficultyLevel = 'easy' | 'normal' | 'hard' | 'nightmare';
 export type WeaponType = 'basic' | 'rapid' | 'heavy' | 'spread';
 
-/**
- * 游戏配置管理器
- *
- * 使用 Lua 脚本管理游戏配置，支持热更新
- *
- * @example
- * ```typescript
- * const configManager = new GameConfigManager();
- * await configManager.initialize();
- *
- * // 获取难度配置
- * const config = configManager.getDifficultyConfig('hard');
- *
- * // 计算伤害
- * const damage = configManager.calculateDamage(100, 0.5, 1.2);
- * ```
- */
 export class GameConfigManager {
   private initialized = false;
 
-  /**
-   * 初始化配置管理器
-   */
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
     await luaEngine.initialize();
 
-    // 注册配置脚本
     const configScript = await this.loadConfigScript();
     luaEngine.registerModule({
       name: 'game_config',
@@ -66,37 +42,100 @@ export class GameConfigManager {
     console.log('[GameConfigManager] Initialized');
   }
 
-  /**
-   * 加载配置脚本
-   */
   private async loadConfigScript(): Promise<string> {
-    return `
+    try {
+      const response = await fetch('/src/lua/config/game-config.lua');
+      if (!response.ok) {
+        throw new Error(`Failed to load game-config.lua: ${response.status}`);
+      }
+      const luaCode = await response.text();
+      
+      return `
+${luaCode}
+
+local GameConfig = require("game_config_module")
+
+function getDifficultyConfig(level)
+  local result = GameConfig.getDifficultyConfig(level)
+  if result.success then
+    return result.config
+  end
+  return { waveInterval = 7.0, enemySpawnRate = 1.5, enemySpeedMultiplier = 1.0, scoreMultiplier = 1.5 }
+end
+
+function getWeaponConfig(weaponType)
+  local result = GameConfig.getWeaponConfig(weaponType)
+  if result.success then
+    return result.config
+  end
+  return nil
+end
+
+function calculateDamage(baseDamage, playerBonus, difficultyMultiplier)
+  local result = GameConfig.calculateDamage(baseDamage, playerBonus, difficultyMultiplier)
+  if result.success then
+    return result.damage
+  end
+  return math.floor(baseDamage * (1 + (playerBonus or 0)) * (difficultyMultiplier or 1))
+end
+
+function calculateScore(enemyType, difficultyLevel, comboMultiplier)
+  local result = GameConfig.calculateScore(enemyType, difficultyLevel, comboMultiplier)
+  if result.success then
+    return result.score
+  end
+  return 100
+end
+
+function checkCircleCollision(x1, y1, r1, x2, y2, r2)
+  local result = GameConfig.checkCircleCollision(x1, y1, r1, x2, y2, r2)
+  if result.success then
+    return result.collided
+  end
+  return false
+end
+
+function lerp(start, endVal, t)
+  local result = GameConfig.lerp(start, endVal, t)
+  if result.success then
+    return result.value
+  end
+  return start
+end
+
+function getWaveEnemyCount(waveNumber)
+  local result = GameConfig.getWaveEnemyCount(waveNumber)
+  if result.success then
+    return result.count
+  end
+  return 5
+end
+
+function isBossWave(waveNumber)
+  local result = GameConfig.isBossWave(waveNumber)
+  if result.success then
+    return result.isBoss
+  end
+  return false
+end
+
+function isEliteWave(waveNumber)
+  local result = GameConfig.isEliteWave(waveNumber)
+  if result.success then
+    return result.isElite
+  end
+  return false
+end
+      `;
+    } catch (error) {
+      console.warn('[GameConfigManager] Failed to load external lua file, using fallback:', error);
+      return `
 GameConfig = {
   difficulty = {
-    easy = {
-      waveInterval = 10.0,
-      enemySpawnRate = 1.0,
-      enemySpeedMultiplier = 0.8,
-      scoreMultiplier = 1.0
-    },
-    normal = {
-      waveInterval = 7.0,
-      enemySpawnRate = 1.5,
-      enemySpeedMultiplier = 1.0,
-      scoreMultiplier = 1.5
-    },
-    hard = {
-      waveInterval = 5.0,
-      enemySpawnRate = 2.0,
-      enemySpeedMultiplier = 1.2,
-      scoreMultiplier = 2.0
-    },
-    nightmare = {
-      waveInterval = 3.0,
-      enemySpawnRate = 3.0,
-      enemySpeedMultiplier = 1.5,
-      scoreMultiplier = 3.0
-    }
+    easy = { waveInterval = 10.0, enemySpawnRate = 1.0, enemySpeedMultiplier = 0.8, scoreMultiplier = 1.0 },
+    normal = { waveInterval = 7.0, enemySpawnRate = 1.5, enemySpeedMultiplier = 1.0, scoreMultiplier = 1.5 },
+    hard = { waveInterval = 5.0, enemySpawnRate = 2.0, enemySpeedMultiplier = 1.2, scoreMultiplier = 2.0 },
+    nightmare = { waveInterval = 3.0, enemySpawnRate = 3.0, enemySpeedMultiplier = 1.5, scoreMultiplier = 3.0 }
   },
   weapons = {
     basic = { damage = 10, fireRate = 0.5, projectileSpeed = 10.0, range = 100.0 },
@@ -111,17 +150,11 @@ GameConfig = {
     damage = { multiplier = 2.0, duration = 8.0 },
     tripleShot = { multiplier = 3, duration = 10.0 }
   },
-  waves = {
-    enemiesPerWave = 5,
-    waveHealthMultiplier = 1.2,
-    bossEveryNWaves = 5,
-    eliteEveryNWaves = 3
-  }
+  waves = { enemiesPerWave = 5, waveHealthMultiplier = 1.2, bossEveryNWaves = 5, eliteEveryNWaves = 3 }
 }
 
 function getDifficultyConfig(level)
-  local config = GameConfig.difficulty[level]
-  return config or GameConfig.difficulty.normal
+  return GameConfig.difficulty[level] or GameConfig.difficulty.normal
 end
 
 function getWeaponConfig(weaponType)
@@ -150,39 +183,24 @@ end
 function isEliteWave(waveNumber)
   return waveNumber % GameConfig.waves.eliteEveryNWaves == 0
 end
-    `;
+      `;
+    }
   }
 
-  /**
-   * 获取难度配置
-   */
   getDifficultyConfig(level: DifficultyLevel): DifficultyConfig {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
-      return {
-        waveInterval: 7,
-        enemySpawnRate: 1.5,
-        enemySpeedMultiplier: 1,
-        scoreMultiplier: 1.5,
-      };
+      return { waveInterval: 7, enemySpawnRate: 1.5, enemySpeedMultiplier: 1, scoreMultiplier: 1.5 };
     }
 
     try {
       return luaEngine.call<DifficultyConfig>('getDifficultyConfig', level);
     } catch (error) {
       console.error('[GameConfigManager] Failed to get difficulty config:', error);
-      return {
-        waveInterval: 7,
-        enemySpawnRate: 1.5,
-        enemySpeedMultiplier: 1,
-        scoreMultiplier: 1.5,
-      };
+      return { waveInterval: 7, enemySpawnRate: 1.5, enemySpeedMultiplier: 1, scoreMultiplier: 1.5 };
     }
   }
 
-  /**
-   * 获取武器配置
-   */
   getWeaponConfig(weaponType: WeaponType): WeaponConfig {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
@@ -197,40 +215,21 @@ end
     }
   }
 
-  /**
-   * 计算伤害
-   */
-  calculateDamage(
-    baseDamage: number,
-    playerBonus: number = 0,
-    difficultyMultiplier: number = 1,
-  ): number {
+  calculateDamage(baseDamage: number, playerBonus: number = 0, difficultyMultiplier: number = 1): number {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
       return baseDamage;
     }
 
     try {
-      return luaEngine.call<number>(
-        'calculateDamage',
-        baseDamage,
-        playerBonus,
-        difficultyMultiplier,
-      );
+      return luaEngine.call<number>('calculateDamage', baseDamage, playerBonus, difficultyMultiplier);
     } catch (error) {
       console.error('[GameConfigManager] Failed to calculate damage:', error);
       return baseDamage;
     }
   }
 
-  /**
-   * 计算分数
-   */
-  calculateScore(
-    enemyType: string,
-    difficultyLevel: DifficultyLevel,
-    comboMultiplier: number = 1,
-  ): number {
+  calculateScore(enemyType: string, difficultyLevel: DifficultyLevel, comboMultiplier: number = 1): number {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
       return 100;
@@ -244,9 +243,6 @@ end
     }
   }
 
-  /**
-   * 获取波次敌人数量
-   */
   getWaveEnemyCount(waveNumber: number): number {
     if (!this.initialized) return 5;
 
@@ -257,9 +253,6 @@ end
     }
   }
 
-  /**
-   * 检查是否是 Boss 波次
-   */
   isBossWave(waveNumber: number): boolean {
     if (!this.initialized) return false;
 
@@ -270,9 +263,6 @@ end
     }
   }
 
-  /**
-   * 检查是否是精英波次
-   */
   isEliteWave(waveNumber: number): boolean {
     if (!this.initialized) return false;
 
@@ -283,27 +273,17 @@ end
     }
   }
 
-  /**
-   * 重新加载配置（热更新）
-   */
   async reloadConfig(): Promise<void> {
     console.log('[GameConfigManager] Reloading config...');
     const newScript = await this.loadConfigScript();
-    luaEngine.registerModule({
-      name: 'game_config',
-      script: newScript,
-    });
+    luaEngine.registerModule({ name: 'game_config', script: newScript });
     console.log('[GameConfigManager] Config reloaded');
   }
 
-  /**
-   * 销毁管理器
-   */
   destroy(): void {
     this.initialized = false;
     console.log('[GameConfigManager] Destroyed');
   }
 }
 
-// 导出单例
 export const gameConfigManager = new GameConfigManager();

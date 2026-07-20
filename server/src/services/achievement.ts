@@ -1,7 +1,6 @@
-import mongoose, { Document, Schema } from 'mongoose';
 import { cacheService } from './cache';
+import { prisma } from '../lib/prisma';
 
-// 游戏统计数据类型
 interface GameStats {
   kills?: number;
   maxWave?: number;
@@ -11,7 +10,6 @@ interface GameStats {
   gamesWon?: number;
 }
 
-// 已解锁的成就记录
 interface UnlockedAchievementRecord {
   id: string;
   name: string;
@@ -19,7 +17,6 @@ interface UnlockedAchievementRecord {
   unlockedAt: Date;
 }
 
-// 用户成就（包含解锁状态）
 interface UserAchievement {
   id: string;
   name: string;
@@ -29,7 +26,6 @@ interface UserAchievement {
   unlockedAt: Date | null;
 }
 
-// 成就统计
 interface AchievementStats {
   total: number;
   unlocked: number;
@@ -37,7 +33,6 @@ interface AchievementStats {
   percentage: number;
 }
 
-// 成就定义
 export const ACHIEVEMENTS = {
   first_kill: {
     id: 'first_kill',
@@ -131,72 +126,19 @@ export const ACHIEVEMENTS = {
   }
 };
 
-// 成就接口
-export interface IAchievement extends Document {
-  userId: mongoose.Types.ObjectId;
-  achievements: Array<{
-    id: string;
-    name: string;
-    description: string;
-    unlockedAt: Date;
-  }>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// 成就Schema
-const achievementSchema = new Schema<IAchievement>(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      unique: true
-    },
-    achievements: [
-      {
-        id: String,
-        name: String,
-        description: String,
-        unlockedAt: {
-          type: Date,
-          default: Date.now
-        }
-      }
-    ]
-  },
-  {
-    timestamps: true
-  }
-);
-
-// 成就模型
-export const Achievement = mongoose.model<IAchievement>(
-  'Achievement',
-  achievementSchema
-);
-
-// 成就服务
 export class AchievementService {
-  // 获取用户成就
-  async getUserAchievements(userId: string): Promise<UserAchievement[]> {
-    // 尝试从缓存获取
+  async getUserAchievements(userId: number): Promise<UserAchievement[]> {
     const cached = await cacheService.get<UserAchievement[]>(`achievements:${userId}`);
     if (cached) {
       return cached;
     }
 
-    // 从数据库获取
-    let userAchievement = await Achievement.findOne({ userId });
+    const userAchievements = await prisma.achievement.findMany({
+      where: { userId }
+    });
 
-    if (!userAchievement) {
-      // 创建新的成就记录
-      userAchievement = await Achievement.create({ userId, achievements: [] });
-    }
-
-    // 合并已解锁和未解锁的成就
     const unlockedMap = new Map(
-      userAchievement.achievements.map(a => [a.id, a])
+      userAchievements.map(a => [a.achievementId, a])
     );
 
     const result = Object.values(ACHIEVEMENTS).map(achievement => ({
@@ -205,65 +147,57 @@ export class AchievementService {
       unlockedAt: unlockedMap.get(achievement.id)?.unlockedAt || null
     }));
 
-    // 缓存结果
     await cacheService.set(`achievements:${userId}`, result, 300);
 
     return result;
   }
 
-  // 解锁成就
   async unlockAchievement(
-    userId: string,
+    userId: number,
     achievementId: string
   ): Promise<{ success: boolean; achievement?: UnlockedAchievementRecord; alreadyUnlocked?: boolean }> {
-    // 验证成就是否存在
     const achievementDef = ACHIEVEMENTS[achievementId as keyof typeof ACHIEVEMENTS];
     if (!achievementDef) {
       return { success: false };
     }
 
-    // 查找或创建用户成就记录
-    let userAchievement = await Achievement.findOne({ userId });
+    const existing = await prisma.achievement.findUnique({
+      where: { userId_achievementId: { userId, achievementId } }
+    });
 
-    if (!userAchievement) {
-      userAchievement = await Achievement.create({ userId, achievements: [] });
-    }
-
-    // 检查是否已解锁
-    const alreadyUnlocked = userAchievement.achievements.some(
-      a => a.id === achievementId
-    );
-
-    if (alreadyUnlocked) {
+    if (existing) {
       return { success: true, alreadyUnlocked: true };
     }
 
-    // 解锁成就
-    userAchievement.achievements.push({
-      id: achievementId,
-      name: achievementDef.name,
-      description: achievementDef.description,
-      unlockedAt: new Date()
+    const unlockedAt = new Date();
+
+    const achievement = await prisma.achievement.create({
+      data: {
+        userId,
+        achievementId,
+        name: achievementDef.name,
+        description: achievementDef.description,
+        unlockedAt
+      }
     });
 
-    await userAchievement.save();
-
-    // 清除缓存
     await cacheService.del(`achievements:${userId}`);
 
     return {
       success: true,
-      achievement: userAchievement.achievements[
-        userAchievement.achievements.length - 1
-      ]
+      achievement: {
+        id: achievement.achievementId,
+        name: achievement.name,
+        description: achievement.description,
+        unlockedAt: achievement.unlockedAt as Date
+      }
     };
   }
 
-  // 检查并自动解锁成就
-  async checkAndUnlockAchievements(userId: string, _gameStats: GameStats): Promise<string[]> {
+  async checkAndUnlockAchievements(userId: number, _gameStats: GameStats): Promise<string[]> {
     const unlockedIds: string[] = [];
 
-    for (const [id, _def] of Object.entries(ACHIEVEMENTS)) {
+    for (const [id] of Object.entries(ACHIEVEMENTS)) {
       const result = await this.unlockAchievement(userId, id);
       if (result.success && result.achievement) {
         unlockedIds.push(id);
@@ -273,8 +207,7 @@ export class AchievementService {
     return unlockedIds;
   }
 
-  // 获取用户成就统计
-  async getAchievementStats(userId: string): Promise<AchievementStats> {
+  async getAchievementStats(userId: number): Promise<AchievementStats> {
     const achievements = await this.getUserAchievements(userId);
 
     const total = achievements.length;

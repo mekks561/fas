@@ -1,20 +1,18 @@
 import * as pc from 'playcanvas';
+import { InstancedRenderer } from './InstancedRenderer';
+import { GameEngineConfig, LightConfig, CameraConfig, GameEngine } from './GameEngine';
+import { PluginSystem, Plugin, PluginConfig } from './PluginSystem';
 
-export interface GameConfig {
-  canvas: HTMLCanvasElement;
-  width?: number;
-  height?: number;
-  antialias?: boolean;
-  enablePostEffects?: boolean;
-  enablePhysics?: boolean;
-}
+export type GameConfig = GameEngineConfig;
 
-export class PlayCanvasGameEngine {
+export class PlayCanvasGameEngine implements GameEngine {
   private app: pc.Application;
   private camera: pc.Entity;
-  private assets: pc.AssetRegistry;
   private isStarted: boolean = false;
   private physicsEnabled: boolean = false;
+  private onResize: () => void;
+  private instancedRenderer: InstancedRenderer | null = null;
+  private pluginSystem: PluginSystem | null = null;
 
   constructor(config: GameConfig) {
     const { canvas, antialias = true, enablePhysics = true } = config;
@@ -54,19 +52,17 @@ export class PlayCanvasGameEngine {
 
     console.log('[PlayCanvasEngine] Camera created at position (0, 0, 0)');
 
-    this.assets = this.app.assets;
-
     if (enablePhysics) {
       this.enablePhysics();
     }
 
-    window.addEventListener('resize', () => this.onResize());
+    this.onResize = () => this.app.resizeCanvas();
+    window.addEventListener('resize', this.onResize);
+
+    this.instancedRenderer = new InstancedRenderer(this.app);
+    this.pluginSystem = new PluginSystem(this.app, this);
 
     console.log('[PlayCanvasEngine] Engine initialization complete');
-  }
-
-  private onResize(): void {
-    this.app.resizeCanvas();
   }
 
   private enablePhysics(): void {
@@ -111,14 +107,31 @@ export class PlayCanvasGameEngine {
     this.camera.lookAt(target);
   }
 
-  public addLight(name: string, position: pc.Vec3, color: pc.Color, intensity: number): pc.Entity {
+  public addLight(name: string, config: LightConfig): pc.Entity;
+  public addLight(name: string, position: pc.Vec3, color: pc.Color, intensity: number): pc.Entity;
+  public addLight(name: string, configOrPosition: LightConfig | pc.Vec3, color?: pc.Color, intensity?: number): pc.Entity {
     const light = new pc.Entity(name);
-    light.setPosition(position);
-    light.addComponent('light', {
-      type: 'point',
-      color,
-      intensity,
-    });
+    
+    if ('type' in configOrPosition) {
+      const config = configOrPosition as LightConfig;
+      light.setPosition(config.position || new pc.Vec3(0, 10, 0));
+      light.addComponent('light', {
+        type: config.type,
+        color: config.color || new pc.Color(1, 1, 1),
+        intensity: config.intensity || 1,
+        range: config.range || 100,
+        castShadows: config.castShadows || false,
+      });
+    } else {
+      const position = configOrPosition as pc.Vec3;
+      light.setPosition(position);
+      light.addComponent('light', {
+        type: 'point',
+        color: color || new pc.Color(1, 1, 1),
+        intensity: intensity || 1,
+      });
+    }
+    
     this.app.root.addChild(light);
     return light;
   }
@@ -168,7 +181,7 @@ export class PlayCanvasGameEngine {
       (material as unknown as { shininess: number }).shininess = options.shininess;
     }
     if (options.transparency !== undefined) {
-      material.transparency = options.transparency;
+      (material as unknown as { opacity: number }).opacity = options.transparency;
     }
     if (options.blendType !== undefined) {
       material.blendType = options.blendType;
@@ -236,18 +249,28 @@ export class PlayCanvasGameEngine {
       specular: new pc.Color(0, 0, 0),
     });
 
+    const container = new pc.Entity('starField');
+    this.app.root.addChild(container);
+
     for (let i = 0; i < count; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
       const size = 0.05 + Math.random() * 0.15;
 
-      const star = this.createSphere(`star_${i}`, size, starMaterial);
+      const star = new pc.Entity(`star_${i}`);
+      star.addComponent('model', { type: 'sphere', radius: size });
+      if (star.model) {
+        star.model.material = starMaterial;
+      }
+      
       star.setPosition(
         radius * Math.sin(phi) * Math.cos(theta),
         radius * Math.sin(phi) * Math.sin(theta),
         radius * Math.cos(phi),
       );
+      
+      container.addChild(star);
     }
 
     console.log('[PlayCanvasEngine] Star field created with', count, 'stars');
@@ -310,10 +333,102 @@ export class PlayCanvasGameEngine {
   }
 
   public destroy(): void {
+    window.removeEventListener('resize', this.onResize);
+    this.instancedRenderer?.destroy();
+    this.pluginSystem?.unloadAll();
     this.app.destroy();
   }
 
   public isPhysicsEnabled(): boolean {
     return this.physicsEnabled;
+  }
+
+  public getInstancedRenderer(): InstancedRenderer | null {
+    return this.instancedRenderer;
+  }
+
+  public getPluginSystem(): PluginSystem | null {
+    return this.pluginSystem;
+  }
+
+  public registerPlugin(plugin: Plugin, config?: PluginConfig): boolean {
+    if (!this.pluginSystem) return false;
+    return this.pluginSystem.register(plugin, config || {});
+  }
+
+  public async loadPlugin(name: string): Promise<boolean> {
+    if (!this.pluginSystem) return false;
+    return this.pluginSystem.load(name);
+  }
+
+  public async unloadPlugin(name: string): Promise<boolean> {
+    if (!this.pluginSystem) return false;
+    return this.pluginSystem.unload(name);
+  }
+
+  public async loadAllPlugins(): Promise<void> {
+    if (!this.pluginSystem) return;
+    await this.pluginSystem.loadAll();
+  }
+
+  public setCamera(config: CameraConfig): void {
+    this.camera.setPosition(config.position);
+    if (config.target) {
+      this.camera.lookAt(config.target);
+    }
+    const cameraComp = this.camera.camera;
+    if (cameraComp) {
+      if (config.fov !== undefined) cameraComp.fov = config.fov;
+      if (config.nearClip !== undefined) cameraComp.nearClip = config.nearClip;
+      if (config.farClip !== undefined) cameraComp.farClip = config.farClip;
+      if (config.clearColor !== undefined) cameraComp.clearColor = config.clearColor;
+    }
+  }
+
+  public createTorus(name: string, radius: number, tubeRadius: number, material: pc.Material): pc.Entity {
+    const torus = new pc.Entity(name);
+    torus.addComponent('model', { type: 'torus', radius, tubeRadius });
+    if (torus.model) torus.model.material = material;
+    this.app.root.addChild(torus);
+    return torus;
+  }
+
+  public createPlane(name: string, width: number, height: number, material: pc.Material): pc.Entity {
+    const plane = new pc.Entity(name);
+    plane.addComponent('model', { type: 'plane', width, height });
+    if (plane.model) plane.model.material = material;
+    this.app.root.addChild(plane);
+    return plane;
+  }
+
+  public setFixedUpdateCallback(callback: (dt: number) => void): void {
+    this.app.on('fixedUpdate', callback);
+  }
+
+  public addRigidBody(entity: pc.Entity, type: 'dynamic' | 'static' | 'kinematic', options?: {
+    mass?: number;
+    linearDamping?: number;
+    angularDamping?: number;
+    gravity?: pc.Vec3;
+  }): void {
+    entity.addComponent('rigidbody', {
+      type,
+      mass: options?.mass,
+      linearDamping: options?.linearDamping,
+      angularDamping: options?.angularDamping,
+    });
+  }
+
+  public addCollision(entity: pc.Entity, type: 'box' | 'sphere' | 'cylinder' | 'capsule', options?: {
+    halfExtents?: pc.Vec3;
+    radius?: number;
+    height?: number;
+  }): void {
+    entity.addComponent('collision', {
+      type,
+      halfExtents: options?.halfExtents,
+      radius: options?.radius,
+      height: options?.height,
+    });
   }
 }

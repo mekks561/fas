@@ -52,7 +52,15 @@
     "saveSettings": "Save Settings",
     "language": "Language",
     "languageZh": "简体中文",
-    "languageEn": "English"
+    "languageEn": "English",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System",
+    "currentTheme": "Current Theme",
+    "themeDarkDesc": "Dark theme, perfect for night gaming, easy on the eyes",
+    "themeLightDesc": "Light theme, bright and clear, ideal for daytime gaming",
+    "themeSystemDesc": "Follow system theme, automatically switches between dark/light mode"
   },
   "levelSelect": {
     "title": "Select Level",

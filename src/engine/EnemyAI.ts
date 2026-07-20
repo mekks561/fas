@@ -71,8 +71,6 @@ export abstract class EnemyAI {
   protected abstract executeBehavior(dt: number): void;
 
   protected updateStatusEffects(dt: number): void {
-    const _now = Date.now();
-
     this.statusEffects = this.statusEffects.filter((effect) => {
       effect.remainingTime -= dt * 1000;
 
@@ -177,7 +175,6 @@ export class ScoutAI extends EnemyAI {
 
   protected executeBehavior(dt: number): void {
     const distance = this.getDistanceToPlayer();
-    const _direction = this.getDirectionToPlayer();
 
     if (distance > this.aiConfig.chaseRadius) {
       this.aiConfig.state = AIState.PATROL;
@@ -389,8 +386,6 @@ export class TankAI extends EnemyAI {
 }
 
 export class EliteAI extends EnemyAI {
-  private teleportCooldown: number = 0;
-  private lastTeleportTime: number = 0;
 
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     super(entity, player, initialPosition);
@@ -400,7 +395,6 @@ export class EliteAI extends EnemyAI {
   }
 
   protected executeBehavior(dt: number): void {
-    const _now = Date.now();
     const distance = this.getDistanceToPlayer();
 
     if (distance > this.aiConfig.chaseRadius) {

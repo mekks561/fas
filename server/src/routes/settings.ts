@@ -3,10 +3,10 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate, updateSettingsSchema } from '../middleware/validation';
 import { logger } from '../middleware/logger';
 import { cacheService } from '../services/cache';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
 
-// 默认设置
 const DEFAULT_SETTINGS = {
   difficulty: 'NORMAL',
   soundEnabled: true,
@@ -16,11 +16,6 @@ const DEFAULT_SETTINGS = {
   sensitivity: 0.5
 };
 
-/**
- * @route GET /api/settings
- * @desc 获取用户设置
- * @access Private
- */
 router.get(
   '/',
   authenticate,
@@ -39,7 +34,6 @@ router.get(
 
       logger.info('获取用户设置', { userId });
 
-      // 尝试从缓存获取
       const cached = await cacheService.get(`settings:${userId}`);
       if (cached) {
         logger.debug('从缓存获取设置', { userId });
@@ -49,11 +43,21 @@ router.get(
         });
       }
 
-      // TODO: 从数据库获取用户设置
-      // 这里简化处理，返回默认设置
-      const settings = { ...DEFAULT_SETTINGS };
+      const userSetting = await prisma.userSetting.findUnique({
+        where: { userId }
+      });
 
-      // 缓存设置
+      const settings = userSetting
+        ? {
+            difficulty: userSetting.difficulty,
+            soundEnabled: userSetting.soundEnabled,
+            musicEnabled: userSetting.musicEnabled,
+            graphicsQuality: userSetting.graphicsQuality,
+            fieldOfView: userSetting.fieldOfView,
+            sensitivity: userSetting.sensitivity
+          }
+        : { ...DEFAULT_SETTINGS };
+
       await cacheService.set(`settings:${userId}`, settings, 600);
 
       logger.info('设置获取成功', { userId });
@@ -69,11 +73,6 @@ router.get(
   }
 );
 
-/**
- * @route PUT /api/settings
- * @desc 更新用户设置
- * @access Private
- */
 router.put(
   '/',
   authenticate,
@@ -94,17 +93,15 @@ router.put(
 
       logger.info('更新用户设置', { userId, updates });
 
-      // TODO: 保存到数据库
-      // 这里简化处理，返回更新后的设置
-      const settings = {
-        ...DEFAULT_SETTINGS,
-        ...updates
-      };
+      await prisma.userSetting.upsert({
+        where: { userId },
+        update: updates,
+        create: { userId, ...DEFAULT_SETTINGS, ...updates }
+      });
 
-      // 清除缓存
       await cacheService.del(`settings:${userId}`);
 
-      // 缓存新设置
+      const settings = { ...DEFAULT_SETTINGS, ...updates };
       await cacheService.set(`settings:${userId}`, settings, 600);
 
       logger.info('设置更新成功', { userId });
@@ -120,11 +117,6 @@ router.put(
   }
 );
 
-/**
- * @route POST /api/settings/reset
- * @desc 重置设置
- * @access Private
- */
 router.post(
   '/reset',
   authenticate,
@@ -143,10 +135,13 @@ router.post(
 
       logger.info('重置用户设置', { userId });
 
-      // 清除缓存
-      await cacheService.del(`settings:${userId}`);
+      await prisma.userSetting.upsert({
+        where: { userId },
+        update: DEFAULT_SETTINGS,
+        create: { userId, ...DEFAULT_SETTINGS }
+      });
 
-      // 缓存默认设置
+      await cacheService.del(`settings:${userId}`);
       await cacheService.set(`settings:${userId}`, DEFAULT_SETTINGS, 600);
 
       logger.info('设置重置成功', { userId });

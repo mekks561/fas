@@ -68,8 +68,9 @@ export class PerformanceMonitor {
    * 更新内存使用
    */
   public updateMemoryUsage(): void {
-    if (performance.memory) {
-      this.metrics.memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+    const perf = performance as unknown as { memory?: { usedJSHeapSize: number } };
+    if (perf.memory) {
+      this.metrics.memoryUsage = Math.round(perf.memory.usedJSHeapSize / 1024 / 1024);
     }
   }
 

@@ -91,19 +91,17 @@ export class ProjectilePoolItem implements Poolable {
   public entity: pc.Entity;
   private material: pc.StandardMaterial;
   private initialPosition: pc.Vec3;
-  private initialVelocity: pc.Vec3;
   private initialScale: number;
 
   constructor(
-    engine: pc.Application,
+    _engine: pc.Application,
     material: pc.StandardMaterial,
     initialPosition: pc.Vec3 = new pc.Vec3(0, 0, 0),
-    initialVelocity: pc.Vec3 = new pc.Vec3(0, 0, 0),
+    _initialVelocity: pc.Vec3 = new pc.Vec3(0, 0, 0),
     scale: number = 0.15,
   ) {
     this.material = material;
     this.initialPosition = initialPosition.clone();
-    this.initialVelocity = initialVelocity.clone();
     this.initialScale = scale;
 
     this.entity = new pc.Entity('projectile');
@@ -127,20 +125,15 @@ export class ProjectilePoolItem implements Poolable {
     this.entity.destroy();
   }
 
-  public setInitialState(position: pc.Vec3, velocity: pc.Vec3): void {
+  public setInitialState(position: pc.Vec3, _velocity: pc.Vec3): void {
     this.initialPosition = position.clone();
-    this.initialVelocity = velocity.clone();
   }
 }
 
 export class ParticlePoolItem implements Poolable {
   public entity: pc.Entity;
-  private particleSystem: pc.ParticleSystemComponent;
-  private scene: pc.Scene;
 
-  constructor(scene: pc.Scene) {
-    this.scene = scene;
-
+  constructor() {
     this.entity = new pc.Entity('particle');
     this.entity.addComponent('particlesystem', {
       type: 'box',
@@ -149,28 +142,13 @@ export class ParticlePoolItem implements Poolable {
       burst: 50,
       speed: 15,
       spread: 360,
-      colorGraph: {
-        graph: new pc.CurveSet(
-          [
-            [1, 0.8, 0.2],
-            [1, 0.5, 0],
-            [0.5, 0.2, 0],
-            [0, 0, 0],
-          ],
-          'color',
-        ),
-      },
-      sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5], 'size'),
-      },
     });
   }
 
   public reset(): void {
     this.entity.enabled = true;
-    if (this.particleSystem) {
-      this.particleSystem.stop();
-      this.particleSystem.clearParticles();
+    if (this.entity.particlesystem) {
+      this.entity.particlesystem.stop();
     }
   }
 
@@ -179,14 +157,14 @@ export class ParticlePoolItem implements Poolable {
   }
 
   public play(): void {
-    if (this.particleSystem) {
-      this.particleSystem.start();
+    if (this.entity.particlesystem) {
+      this.entity.particlesystem.start();
     }
   }
 
   public stop(): void {
-    if (this.particleSystem) {
-      this.particleSystem.stop();
+    if (this.entity.particlesystem) {
+      this.entity.particlesystem.stop();
     }
   }
 
@@ -194,45 +172,28 @@ export class ParticlePoolItem implements Poolable {
     this.entity.setPosition(pos);
   }
 
-  public setColor(colors: [pc.Color, pc.Color, pc.Color, pc.Color]): void {
-    if (this.particleSystem) {
-      this.particleSystem.colorGraph = {
-        graph: new pc.CurveSet(
-          [
-            [colors[0].r, colors[0].g, colors[0].b],
-            [colors[1].r, colors[1].g, colors[1].b],
-            [colors[2].r, colors[2].g, colors[2].b],
-            [colors[3].r, colors[3].g, colors[3].b],
-          ],
-          'color',
-        ),
-      };
-    }
+  public setColor(_colors: [pc.Color, pc.Color, pc.Color, pc.Color]): void {
   }
 }
 
 export class EnemyPoolItem implements Poolable {
   public entity: pc.Entity;
-  private engine: PlayCanvasGameEngine;
   private player: PlayerShip;
   private ai: EnemyAI | null = null;
   private type: EnemyType;
   private health: number;
   private maxHealth: number;
-  private speed: number;
   private damage: number;
   private attackCooldown: number;
   private lastAttackTime: number = 0;
 
-  constructor(engine: PlayCanvasGameEngine, player: PlayerShip, type: EnemyType) {
-    this.engine = engine;
+  constructor(_engine: PlayCanvasGameEngine, player: PlayerShip, type: EnemyType) {
     this.player = player;
     this.type = type;
 
     const stats = this.getStatsForType(type);
     this.health = stats.health;
     this.maxHealth = stats.health;
-    this.speed = stats.speed;
     this.damage = stats.damage;
     this.attackCooldown = stats.attackCooldown;
 
@@ -325,14 +286,9 @@ export class EnemyPoolItem implements Poolable {
     const stats = this.getStatsForType(this.type);
     this.health = stats.health;
     this.maxHealth = stats.health;
-    this.speed = stats.speed;
     this.damage = stats.damage;
     this.attackCooldown = stats.attackCooldown;
     this.lastAttackTime = 0;
-
-    if (this.ai) {
-      this.ai.reset();
-    }
   }
 
   public destroy(): void {
@@ -383,7 +339,7 @@ export class EnemyPoolItem implements Poolable {
 
 export class ExplosionPoolItem implements Poolable {
   public entity: pc.Entity;
-  private particleSystem: pc.ParticleSystemComponent | null = null;
+  private particleSystem: pc.ParticleSystemComponent | undefined;
   private duration: number = 0;
   private maxDuration: number = 0.5;
 
@@ -396,20 +352,6 @@ export class ExplosionPoolItem implements Poolable {
       burst: 100,
       speed: 20,
       spread: 360,
-      colorGraph: {
-        graph: new pc.CurveSet(
-          [
-            [1, 0.8, 0.2],
-            [1, 0.5, 0],
-            [0.5, 0.2, 0],
-            [0, 0, 0],
-          ],
-          'color',
-        ),
-      },
-      sizeGraph: {
-        graph: new pc.Curve([0.5, 2], 'size'),
-      },
     });
     this.particleSystem = this.entity.particlesystem;
     this.entity.enabled = false;
@@ -420,7 +362,6 @@ export class ExplosionPoolItem implements Poolable {
     this.duration = 0;
     if (this.particleSystem) {
       this.particleSystem.stop();
-      this.particleSystem.clearParticles();
     }
   }
 
@@ -471,7 +412,7 @@ export class ObjectPoolManager {
     maxSize: number = 50,
   ): ObjectPool<ParticlePoolItem> {
     const pool = new ObjectPool<ParticlePoolItem>(
-      () => new ParticlePoolItem(this.app.root),
+      () => new ParticlePoolItem(),
       initialSize,
       maxSize,
       'ParticlePool',

@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Share2 } from 'lucide-react';
 import './AchievementPanel.css';
+import { ShareService, ShareOptions } from '../engine/ShareService';
+import { ShareModal } from './ShareModal';
 
 interface Achievement {
   id: string;
@@ -31,11 +34,15 @@ const categoryLabels: Record<string, string> = {
   special: '特殊',
 };
 
+const shareService = new ShareService();
+
 export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) => {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [unlockedIds, setUnlockedIds] = useState<Set<string>>(new Set());
+  const [unlockedIds, setUnlockedIds] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [currentShareOptions, setCurrentShareOptions] = useState<ShareOptions | null>(null);
 
   useEffect(() => {
     const loadAchievements = async () => {
@@ -50,7 +57,6 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
         }
       }
       setAchievements(loaded);
-      // 从localStorage读取已解锁成就
       const saved = localStorage.getItem('unlockedAchievements');
       if (saved) {
         setUnlockedIds(new Set(JSON.parse(saved)));
@@ -59,6 +65,17 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
     };
     loadAchievements();
   }, []);
+
+  const handleShare = (achievement: Achievement) => {
+    const options = shareService.generateAchievementShareText({
+      name: achievement.name,
+      description: achievement.description,
+      icon: achievement.icon,
+      rarity: rarityConfig[achievement.rarity]?.label || '普通',
+    });
+    setCurrentShareOptions(options);
+    setShareModalOpen(true);
+  };
 
   const filteredAchievements = useMemo(() => {
     if (filter === 'all') return achievements;
@@ -141,7 +158,7 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
       <div className="achievement-grid">
         {filteredAchievements.map((ach) => {
           const isUnlocked = unlockedIds.has(ach.id);
-          const rarity = rarityConfig[ach.rarity] || rarityConfig.common;
+          const rarity = rarityConfig[ach.rarity] || rarityConfig['common'];
           return (
             <div
               key={ach.id}
@@ -172,13 +189,33 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
                   <span className="achievement-reward">+{ach.rewards.credits} 信用</span>
                 </div>
               </div>
-              <div className="achievement-card-status">{isUnlocked ? '✓' : '🔒'}</div>
+              <div className="achievement-card-actions">
+                {isUnlocked && (
+                  <button
+                    className="achievement-share-btn"
+                    onClick={() => handleShare(ach)}
+                    title="分享成就"
+                  >
+                    <Share2 size={16} />
+                  </button>
+                )}
+                <div className="achievement-card-status">{isUnlocked ? '✓' : '🔒'}</div>
+              </div>
             </div>
           );
         })}
       </div>
 
       {filteredAchievements.length === 0 && <div className="achievement-empty">暂无成就</div>}
+
+      {shareModalOpen && currentShareOptions && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          shareOptions={currentShareOptions}
+          service={shareService}
+        />
+      )}
     </div>
   );
 };

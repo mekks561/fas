@@ -39,6 +39,11 @@ export class PlayerShip {
   private deceleration: number = 5;
   private boostMultiplier: number = 2.5;
 
+  private boostEnergy: number = 100;
+  private maxBoostEnergy: number = 100;
+  private boostEnergyConsumptionRate: number = 30;
+  private boostEnergyRechargeRate: number = 15;
+
   private rotationSpeed: number = 3;
   private rollSpeed: number = 5;
 
@@ -100,8 +105,15 @@ export class PlayerShip {
       }
     }
 
-    const finalSpeed =
-      controls.boost && this.speed > 0 ? this.speed * this.boostMultiplier : this.speed;
+    const canBoost = controls.boost && this.speed > 0 && this.boostEnergy > 0;
+
+    if (canBoost) {
+      this.boostEnergy = Math.max(0, this.boostEnergy - this.boostEnergyConsumptionRate * dt);
+    } else if (!controls.boost && this.boostEnergy < this.maxBoostEnergy) {
+      this.boostEnergy = Math.min(this.maxBoostEnergy, this.boostEnergy + this.boostEnergyRechargeRate * dt);
+    }
+
+    const finalSpeed = canBoost ? this.speed * this.boostMultiplier : this.speed;
 
     let currentRotation = this.entity.getEulerAngles();
 
@@ -212,6 +224,18 @@ export class PlayerShip {
 
   public getSpeed(): number {
     return this.speed;
+  }
+
+  public getBoostEnergy(): number {
+    return this.boostEnergy;
+  }
+
+  public getMaxBoostEnergy(): number {
+    return this.maxBoostEnergy;
+  }
+
+  public isBoostActive(): boolean {
+    return this.boostEnergy < this.maxBoostEnergy && this.speed > 0;
   }
 
   public getPosition(): pc.Vec3 {

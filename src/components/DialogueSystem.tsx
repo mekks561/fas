@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Card, CardContent, CardHeader, Progress } from './ui/shadcn';
 import type { Dialogue, DialogueLine } from '../engine/StoryMissionManager';
-import './DialogueSystem.css';
 
 interface DialogueSystemProps {
   dialogue: Dialogue | null;
@@ -48,14 +48,18 @@ export const DialogueSystem: React.FC<DialogueSystemProps> = ({ dialogue, onComp
 
   const startTypewriter = useCallback((text: string) => {
     if (typewriterRef.current) clearInterval(typewriterRef.current);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setDisplayedText('');
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setIsTyping(true);
     let i = 0;
     typewriterRef.current = setInterval(() => {
       if (i < text.length) {
+        // eslint-disable-next-line @eslint-react/set-state-in-effect
         setDisplayedText(text.substring(0, i + 1));
         i++;
       } else {
+        // eslint-disable-next-line @eslint-react/set-state-in-effect
         setIsTyping(false);
         if (typewriterRef.current) clearInterval(typewriterRef.current);
       }
@@ -71,17 +75,16 @@ export const DialogueSystem: React.FC<DialogueSystemProps> = ({ dialogue, onComp
     };
   }, [lineIndex, currentLine, startTypewriter]);
 
-  // 重置当对话切换时
   useEffect(() => {
     if (dialogue) {
-      setLineIndex(0);
+      const timer = setTimeout(() => setLineIndex(0), 0);
+      return () => clearTimeout(timer);
     }
   }, [dialogue]);
 
   const handleNext = useCallback(() => {
     if (!dialogue) return;
 
-    // 如果正在打字，直接显示全部文字
     if (isTyping && currentLine) {
       if (typewriterRef.current) clearInterval(typewriterRef.current);
       setDisplayedText(currentLine.text);
@@ -96,7 +99,6 @@ export const DialogueSystem: React.FC<DialogueSystemProps> = ({ dialogue, onComp
     }
   }, [dialogue, isTyping, lineIndex, currentLine, onComplete]);
 
-  // 键盘控制
   useEffect(() => {
     if (!dialogue) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -115,52 +117,63 @@ export const DialogueSystem: React.FC<DialogueSystemProps> = ({ dialogue, onComp
   const speakerColor = speakerColors[currentLine.speaker] || '#ffffff';
   const emotionIcon = emotionIcons[currentLine.emotion] || '  ';
   const isLastLine = lineIndex === dialogue.lines.length - 1;
+  const progress = ((lineIndex + 1) / dialogue.lines.length) * 100;
 
   return (
-    <div className="dialogue-overlay" onClick={handleNext}>
-      <div className="dialogue-container">
-        {/* 角色头像区域 */}
-        <div className="dialogue-portrait-area">
-          <div className="dialogue-portrait" style={{ borderColor: speakerColor }}>
-            <div className="dialogue-portrait-icon" style={{ color: speakerColor }}>
-              {currentLine.speaker.charAt(0).toUpperCase()}
+    <div
+      className="fixed inset-0 bg-black/60 flex items-end justify-center pb-8 cursor-pointer z-50"
+      onClick={handleNext}
+    >
+      <Card className="w-full max-w-2xl bg-gradient-to-b from-black/90 to-black/70 border-gray-700">
+        <CardHeader className="pb-0">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-16 h-16 rounded-full border-4 flex items-center justify-center relative"
+              style={{ borderColor: speakerColor }}
+            >
+              <div
+                className="text-2xl font-bold"
+                style={{ color: speakerColor }}
+              >
+                {currentLine.speaker.charAt(0).toUpperCase()}
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-black/80 rounded-full flex items-center justify-center text-xs font-bold">
+                {emotionIcon}
+              </div>
             </div>
-            <div className="dialogue-emotion-icon">{emotionIcon}</div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-bold" style={{ color: speakerColor }}>
+                  {speakerName}
+                </span>
+                <span className="text-gray-400 text-sm">
+                  {lineIndex + 1} / {dialogue.lines.length}
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* 对话内容区域 */}
-        <div className="dialogue-content">
-          <div className="dialogue-speaker-bar" style={{ color: speakerColor }}>
-            <span className="dialogue-speaker-name">{speakerName}</span>
-            <span className="dialogue-line-counter">
-              {lineIndex + 1} / {dialogue.lines.length}
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="text-white text-lg leading-relaxed min-h-[60px]">
+            {displayedText}
+            {isTyping && <span className="animate-pulse">_</span>}
+          </div>
+          <div className="mt-4 text-center">
+            <span className="text-gray-400 text-sm">
+              {isLastLine ? '[点击结束]' : '[点击继续 ▶]'}
             </span>
           </div>
-          <div className="dialogue-text-area">
-            <p className="dialogue-text">{displayedText}</p>
-            {isTyping && <span className="dialogue-cursor">_</span>}
+          <div className="mt-4">
+            <Progress
+              value={progress}
+              className="h-1"
+              style={{
+                '--progress-color': speakerColor,
+              } as React.CSSProperties}
+            />
           </div>
-          <div className="dialogue-footer">
-            {isLastLine ? (
-              <span className="dialogue-end-hint">[点击结束]</span>
-            ) : (
-              <span className="dialogue-next-hint">[点击继续 ▶]</span>
-            )}
-          </div>
-        </div>
-
-        {/* 进度条 */}
-        <div className="dialogue-progress-bar">
-          <div
-            className="dialogue-progress-fill"
-            style={{
-              width: `${((lineIndex + 1) / dialogue.lines.length) * 100}%`,
-              backgroundColor: speakerColor,
-            }}
-          />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

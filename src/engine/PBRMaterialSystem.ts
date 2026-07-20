@@ -16,12 +16,9 @@ export interface MaterialConfig {
 }
 
 export class PBRMaterialSystem {
-  private app: pc.Application;
   private materials: Map<string, pc.StandardMaterial> = new Map();
 
-  constructor(app: pc.Application) {
-    this.app = app;
-  }
+  constructor(_app: pc.Application) {}
 
   public createMaterial(
     name: string,
@@ -65,10 +62,6 @@ export class PBRMaterialSystem {
       config?.baseColor?.b || 0.7,
     );
     material.specular.set(0.9, 0.9, 0.9);
-    // @ts-expect-error - shininess 可能不在类型定义中但在实际 API 中存在
-    material.shininess = config?.metalness !== undefined ? 50 + config.metalness * 50 : 80;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.gloss = config?.roughness !== undefined ? 1 - config.roughness : 0.8;
     material.emissive.set(
       config?.emissive?.r || 0.1,
       config?.emissive?.g || 0.1,
@@ -76,8 +69,7 @@ export class PBRMaterialSystem {
     );
 
     if (config?.emissiveIntensity !== undefined) {
-      // @ts-expect-error - playcanvas API property not in type definitions
-      material.emissiveIntensity = config.emissiveIntensity;
+      (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config.emissiveIntensity;
     }
   }
 
@@ -88,17 +80,12 @@ export class PBRMaterialSystem {
       config?.baseColor?.b || 1.0,
     );
     material.specular.set(1.0, 1.0, 1.0);
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.shininess = 100;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.gloss = 1.0;
     material.emissive.set(
       config?.emissive?.r || 0.3,
       config?.emissive?.g || 0.7,
       config?.emissive?.b || 1.0,
     );
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.emissiveIntensity = config?.emissiveIntensity || 2.0;
+    (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config?.emissiveIntensity || 2.0;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }
 
@@ -109,18 +96,12 @@ export class PBRMaterialSystem {
       config?.baseColor?.b || 0.5,
     );
     material.specular.set(0.9, 0.9, 0.9);
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.shininess = 100;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.gloss = 0.9;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.opacity = config?.transparency || 0.4;
+    (material as unknown as { opacity: number }).opacity = config?.transparency || 0.4;
     material.emissive.set(
       config?.emissive?.r || 0.1,
       config?.emissive?.g || 0.2,
       config?.emissive?.b || 0.4,
     );
-    // @ts-expect-error - playcanvas API property not in type definitions
     material.cull = pc.CULLFACE_NONE;
     material.blendType = pc.BLEND_NORMAL;
   }
@@ -132,10 +113,6 @@ export class PBRMaterialSystem {
       config?.baseColor?.b || 0.7,
     );
     material.specular.set(0.5, 0.5, 0.5);
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.shininess = 60;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.gloss = 0.6;
     material.emissive.set(0, 0, 0);
   }
 
@@ -146,17 +123,12 @@ export class PBRMaterialSystem {
       config?.baseColor?.b || 0.2,
     );
     material.specular.set(1.0, 1.0, 1.0);
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.shininess = 100;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.gloss = 1.0;
     material.emissive.set(
       config?.emissive?.r || 1.0,
       config?.emissive?.g || 0.8,
       config?.emissive?.b || 0.2,
     );
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.emissiveIntensity = config?.emissiveIntensity || 3.0;
+    (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config?.emissiveIntensity || 3.0;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }
 
@@ -167,20 +139,13 @@ export class PBRMaterialSystem {
       config?.baseColor?.b || 0.8,
     );
     material.specular.set(1.0, 1.0, 1.0);
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.shininess = 100;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.gloss = 1.0;
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.opacity = config?.transparency || 0.3;
+    (material as unknown as { opacity: number }).opacity = config?.transparency || 0.3;
     material.emissive.set(
       config?.emissive?.r || 0.2,
       config?.emissive?.g || 0.6,
       config?.emissive?.b || 1.0,
     );
-    // @ts-expect-error - playcanvas API property not in type definitions
-    material.emissiveIntensity = config?.emissiveIntensity || 1.5;
-    // @ts-expect-error - playcanvas API property not in type definitions
+    (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config?.emissiveIntensity || 1.5;
     material.cull = pc.CULLFACE_NONE;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }

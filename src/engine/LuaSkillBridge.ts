@@ -19,17 +19,13 @@
  * ```
  */
 
-import { Game } from './Game';
 import { skillSystemManager } from '../lua';
 import type { CastResult } from '../lua';
 
 export class LuaSkillBridge {
-  private game: Game;
   private initialized = false;
 
-  constructor(game: Game) {
-    this.game = game;
-  }
+  constructor() {}
 
   /**
    * 初始化 Lua 技能系统

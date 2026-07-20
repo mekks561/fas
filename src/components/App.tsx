@@ -13,6 +13,10 @@ export const App: React.FC = () => {
     setGameStarted(true);
   };
 
+  const handleGameOver = () => {
+    setGameStarted(false);
+  };
+
   return (
     <div className="w-screen h-screen m-0 p-0 overflow-hidden bg-black font-sans">
       {!gameStarted ? (
@@ -41,7 +45,7 @@ export const App: React.FC = () => {
           </Card>
         </div>
       ) : (
-        <GameScene />
+        <GameScene onGameOver={handleGameOver} />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
+import type { WeaponSystem } from './WeaponSystem';
 
 export enum PowerupType {
   HEALTH = 'health',
@@ -113,7 +114,6 @@ export class Powerup {
     }
 
     material.specular.set(1, 1, 1);
-    material.shininess = 100;
     material.update();
 
     return material;
@@ -211,7 +211,7 @@ export class Powerup {
         graph: this.getColorCurve(),
       },
       sizeGraph: {
-        graph: new pc.Curve([0.3, 0.8, 1], 'size'),
+        graph: new pc.Curve([0.3, 0.8, 1]),
       },
     });
 
@@ -340,7 +340,7 @@ export class Powerup {
     this.entity.enabled = true;
   }
 
-  public apply(player: PlayerShip): void {
+  public apply(player: PlayerShip, weaponSystem?: WeaponSystem): void {
     switch (this.type) {
       case PowerupType.HEALTH:
         player.heal(this.value * 20);
@@ -349,8 +349,13 @@ export class Powerup {
         player.addShield(this.value * 30);
         break;
       case PowerupType.WEAPON_UPGRADE:
+        if (weaponSystem) {
+          weaponSystem.upgradeWeapon();
+        }
         break;
       case PowerupType.SPEED_BOOST:
+        player.setSpeedMultiplier(2.0);
+        setTimeout(() => player.resetSpeed(), (this.duration || 10) * 1000);
         break;
       case PowerupType.SCORE_BONUS:
         break;
@@ -358,8 +363,18 @@ export class Powerup {
         player.setInvincible(this.duration);
         break;
       case PowerupType.MISSILE:
+        if (weaponSystem) {
+          const previousWeapon = weaponSystem.getCurrentWeapon();
+          weaponSystem.setWeaponType('missile');
+          setTimeout(() => weaponSystem.setWeaponType(previousWeapon), (this.duration || 8) * 1000);
+        }
         break;
       case PowerupType.LASER:
+        if (weaponSystem) {
+          const previousWeapon = weaponSystem.getCurrentWeapon();
+          weaponSystem.setWeaponType('laser');
+          setTimeout(() => weaponSystem.setWeaponType(previousWeapon), (this.duration || 8) * 1000);
+        }
         break;
     }
   }
@@ -424,10 +439,10 @@ export class PowerupSpawner {
     this.powerups.push(powerup);
   }
 
-  public checkCollisions(player: PlayerShip): Powerup | null {
+  public checkCollisions(player: PlayerShip, weaponSystem?: WeaponSystem): Powerup | null {
     for (const powerup of this.powerups) {
       if (powerup.checkCollection(player)) {
-        powerup.apply(player);
+        powerup.apply(player, weaponSystem);
         return powerup;
       }
     }

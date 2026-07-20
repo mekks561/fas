@@ -4,7 +4,14 @@
  * 测试 Lua 脚本系统的功能完整性、边界条件和稳定性
  */
 
+import { vi } from 'vitest';
+
+vi.mock('wasmoon', () => ({
+  factory: undefined,
+}));
+
 import { SkillSystemManager } from './SkillSystemManager';
+import { luaEngine } from '../LuaEngine';
 
 // 模拟施放者数据
 const mockCaster = {
@@ -45,6 +52,7 @@ describe('SkillSystemManager', () => {
   // 每个测试后清理
   afterEach(() => {
     skillManager.destroy();
+    luaEngine.destroy();
   });
 
   // ==========================================

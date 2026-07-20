@@ -114,12 +114,9 @@ export class DebugSystem {
   private statsCallbacks: StatsCallback[] = [];
   private logCallbacks: LogCallback[] = [];
 
-  private frameStartTime: number = 0;
+  
   private updateStartTime: number = 0;
   private renderStartTime: number = 0;
-
-  private lineMaterial: pc.Material | null = null;
-  private debugEntity: pc.Entity | null = null;
 
   private showEntityBounds: boolean = false;
   private showEntityNames: boolean = false;
@@ -287,10 +284,11 @@ export class DebugSystem {
   public updateStats(): void {
     if (!this.app) return;
 
-    this.stats.fps = this.app.stats?.fps || 0;
-    this.stats.frameTime = this.app.stats?.frameTime || 0;
-    this.stats.drawCalls = this.app.stats?.drawCalls?.count || 0;
-    this.stats.triangles = this.app.stats?.triangles?.count || 0;
+    const appStats = this.app.stats as unknown as { fps?: number; frameTime?: number; drawCalls?: { count: number }; triangles?: { count: number } };
+    this.stats.fps = appStats?.fps || 0;
+    this.stats.frameTime = appStats?.frameTime || 0;
+    this.stats.drawCalls = appStats?.drawCalls?.count || 0;
+    this.stats.triangles = appStats?.triangles?.count || 0;
 
     if (this.app.scene) {
       this.stats.entities = this.countEntities(this.app.root);
@@ -307,7 +305,7 @@ export class DebugSystem {
   private countEntities(entity: pc.Entity): number {
     let count = 1;
     entity.children.forEach((child) => {
-      count += this.countEntities(child);
+      count += this.countEntities(child as pc.Entity);
     });
     return count;
   }
@@ -340,7 +338,7 @@ export class DebugSystem {
       components,
       enabled: entity.enabled,
       parent: entity.parent?.name,
-      children: entity.children.map((c) => c.name),
+      children: (entity.children as pc.Entity[]).map((c) => c.name),
     };
   }
 
@@ -368,7 +366,7 @@ export class DebugSystem {
     if (entity.tags && entity.tags.has(tag)) {
       results.push(entity);
     }
-    entity.children.forEach((child) => this.searchByTag(child, tag, results));
+    entity.children.forEach((child) => this.searchByTag(child as pc.Entity, tag, results));
   }
 
   public log(message: string, category: DebugCategory = 'system', data?: unknown): void {
@@ -568,7 +566,6 @@ export class DebugSystem {
     if (!this.isEnabled) return;
 
     const now = performance.now();
-    this.frameStartTime = now;
 
     this.cleanupExpiredDrawings(now);
     this.updateStats();
@@ -663,7 +660,7 @@ export class DebugSystem {
       this.drawText(entity.getPosition(), entity.name, new pc.Color(0, 1, 1, 1), 0, 'entities');
     }
 
-    entity.children.forEach((child) => this.traverseEntities(child));
+    entity.children.forEach((child) => this.traverseEntities(child as pc.Entity));
   }
 
   public exportLogs(): string {

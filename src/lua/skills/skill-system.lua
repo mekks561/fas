@@ -704,7 +704,7 @@ function SkillSystem.getSkillStatus(skillId)
         cooldownPercent = (skill.cooldown > 0) and (skill.currentCooldown / skill.cooldown * 100) or 0,
         cost = skill.cost,
         effects = skill.effects
-    end
+    }
 end
 
 --[[

@@ -15,7 +15,6 @@ export class InputManager {
     up: false,
     down: false,
   };
-  private comboKeys: Set<string> = new Set();
   private comboTimeout: number | null = null;
   private isDebugMode = false;
 

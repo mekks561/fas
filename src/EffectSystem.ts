@@ -1,5 +1,3 @@
-import { POWERUP_CONFIGS } from './PowerUpSystem';
-
 export enum EffectType {
   WEAPON_UPGRADE = 2,
   SPEED_BOOST = 3,
@@ -8,6 +6,15 @@ export enum EffectType {
   MAGNET = 6,
   SLOW_TIME = 7,
 }
+
+export const POWERUP_CONFIGS: Record<EffectType, Record<string, unknown>> = {
+  [EffectType.WEAPON_UPGRADE]: { damageMultiplier: 1.5, fireRate: 0.8 },
+  [EffectType.SPEED_BOOST]: { speedMultiplier: 1.5 },
+  [EffectType.INVINCIBILITY]: { duration: 5000 },
+  [EffectType.DAMAGE_BOOST]: { multiplier: 1.5 },
+  [EffectType.MAGNET]: { radius: 150 },
+  [EffectType.SLOW_TIME]: { factor: 0.5 },
+};
 
 export interface ActiveEffect {
   type: EffectType;

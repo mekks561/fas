@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from './ui/shadcn';
 
 interface PauseOverlayProps {
-  onResume: () => void;
+  onResume?: () => void;
 }
 
 export const PauseOverlay: React.FC<PauseOverlayProps> = React.memo(({ onResume }) => (

@@ -3,12 +3,10 @@ import { ResourceInfo } from './types/resource-types';
 export class FileStorageManager {
   private basePath: string;
   private cache: Map<string, ArrayBuffer> = new Map();
-  private metadataPath: string;
   private usePersistentStorage: boolean;
 
   constructor(basePath: string = 'game_assets') {
     this.basePath = basePath;
-    this.metadataPath = `${basePath}/metadata.json`;
     this.usePersistentStorage = 'indexedDB' in window;
   }
 

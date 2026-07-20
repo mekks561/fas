@@ -30,7 +30,7 @@ export type GameEventType =
 export interface EventData {
   type: GameEventType;
   timestamp: number;
-  data?: Record<string, unknown>;
+  data?: unknown;
 }
 
 export interface PlayerDamageData {
@@ -173,7 +173,7 @@ export class EventSystem {
     }
   }
 
-  public emit(type: GameEventType, data?: Record<string, unknown>): void {
+  public emit(type: GameEventType, data?: unknown): void {
     if (!this.isEnabled) return;
 
     const event: EventData = {

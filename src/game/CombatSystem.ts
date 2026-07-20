@@ -45,7 +45,7 @@ export class CombatSystem {
   private static CRIT_MULTIPLIER = 2.0;
 
   public static calculateDamage(
-    attacker: CombatEntity,
+    _attacker: CombatEntity,
     target: CombatEntity,
     baseDamage: number,
     damageType: DamageType = 'physical',

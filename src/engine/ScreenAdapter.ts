@@ -67,14 +67,6 @@ const QUALITY_PRESETS: Record<
   },
 };
 
-const RESOLUTION_PRESETS: Record<ResolutionPreset, { width: number; height: number }> = {
-  auto: { width: window.innerWidth, height: window.innerHeight },
-  '720p': { width: 1280, height: 720 },
-  '1080p': { width: 1920, height: 1080 },
-  '1440p': { width: 2560, height: 1440 },
-  '4k': { width: 3840, height: 2160 },
-};
-
 export class ScreenAdapter {
   private app: pc.Application;
   private config: ScreenConfig;
@@ -134,8 +126,6 @@ export class ScreenAdapter {
   }
 
   private applyConfig(): void {
-    const _resolution = RESOLUTION_PRESETS[this.config.resolution];
-
     if (this.config.resolution === 'auto') {
       this.app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);
     } else {
@@ -145,10 +135,6 @@ export class ScreenAdapter {
     this.app.setCanvasResolution(pc.RESOLUTION_AUTO);
 
     this.app.graphicsDevice.maxPixelRatio = this.metrics.devicePixelRatio;
-
-    this.app.graphicsDevice.requestion = this.config.vsync ? 'FILL_MANUAL' : 'FILL_RACE';
-
-    const _qualityPreset = QUALITY_PRESETS[this.config.quality];
 
     if (this.metrics.deviceType === 'mobile') {
       this.app.graphicsDevice.maxPixelRatio = Math.min(this.metrics.devicePixelRatio, 2);
@@ -189,7 +175,6 @@ export class ScreenAdapter {
 
   public setVSync(enabled: boolean): void {
     this.config.vsync = enabled;
-    this.app.graphicsDevice.requestion = enabled ? 'FILL_MANUAL' : 'FILL_RACE';
   }
 
   public setAntiAliasing(enabled: boolean): void {
@@ -267,10 +252,9 @@ export class ScreenAdapter {
   }
 
   public autoDetectQuality(): QualityLevel {
-    const gpu = this.app.graphicsDevice;
+    const gpu = this.app.graphicsDevice as unknown as { renderer?: string };
 
     const renderer = gpu?.renderer || '';
-    const _vendor = gpu?.vendor || '';
 
     const isLowEndDevice =
       this.metrics.deviceType === 'mobile' ||

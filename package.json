@@ -1,7 +1,8 @@
 {
   "name": "fighter-game-playcanvas",
-  "version": "1.0.0",
+  "version": "2.6.0",
   "description": "3D Fighter Game using PlayCanvas",
+  "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "dev": "vite",
@@ -10,10 +11,15 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+    "generate:models": "node scripts/generate-models.js",
+    "download:models": "node scripts/download-models.js"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.15",
@@ -47,7 +53,9 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@eslint-react/eslint-plugin": "^5.9.2",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.15",
@@ -55,15 +63,17 @@
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^29.1.1",
+    "playwright": "^1.61.1",
+    "pngjs": "^7.0.0",
     "prettier": "^3.9.4",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",

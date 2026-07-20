@@ -52,7 +52,15 @@
     "saveSettings": "保存设置",
     "language": "语言",
     "languageZh": "简体中文",
-    "languageEn": "English"
+    "languageEn": "English",
+    "theme": "主题",
+    "dark": "深色",
+    "light": "浅色",
+    "system": "跟随系统",
+    "currentTheme": "当前主题",
+    "themeDarkDesc": "深色主题，适合夜间游戏，保护眼睛",
+    "themeLightDesc": "浅色主题，明亮清晰，适合白天游戏",
+    "themeSystemDesc": "跟随系统主题，自动切换深色/浅色模式"
   },
   "levelSelect": {
     "title": "选择关卡",

@@ -161,7 +161,7 @@ export class MissileStrikeSkill extends Skill {
     });
   }
 
-  protected executeSkillEffect(_dt: number): void {
+  protected override executeSkillEffect(_dt: number): void {
     if (this.missiles.length > 0) return;
 
     const missileCount = 5 + this.state.level * 2;
@@ -178,7 +178,7 @@ export class MissileStrikeSkill extends Skill {
 
   private createMissile(index: number, total: number): pc.Entity {
     const playerPos = this.player.getPosition();
-    const playerForward = this.getPlayerForward();
+    const playerForward = new pc.Vec3(0, 0, -1);
 
     const spread = 10;
     const angle = (index / total) * Math.PI - Math.PI / 2;
@@ -256,7 +256,7 @@ export class MissileStrikeSkill extends Skill {
         ),
       },
       sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5, 2], 'size'),
+        graph: new pc.Curve([0.5, 1.5, 2]),
       },
     });
 
@@ -273,7 +273,7 @@ export class MissileStrikeSkill extends Skill {
     missile.destroy();
   }
 
-  protected endSkill(): void {
+  protected override endSkill(): void {
     super.endSkill();
     this.missiles.forEach((m) => m.destroy());
     this.missiles = [];
@@ -296,7 +296,7 @@ export class ShieldBurstSkill extends Skill {
     });
   }
 
-  protected executeSkillEffect(_dt: number): void {
+  protected override executeSkillEffect(_dt: number): void {
     if (!this.shieldPulse) {
       this.player.addShield(50 + this.state.level * 25);
       this.createShieldPulse();
@@ -323,7 +323,7 @@ export class ShieldBurstSkill extends Skill {
     this.engine.addToScene(this.shieldPulse);
   }
 
-  protected endSkill(): void {
+  protected override endSkill(): void {
     super.endSkill();
     if (this.shieldPulse) {
       this.shieldPulse.destroy();
@@ -345,7 +345,7 @@ export class TimeSlowSkill extends Skill {
     });
   }
 
-  protected executeSkillEffect(_dt: number): void {
+  protected override executeSkillEffect(_dt: number): void {
     // Time slow effect is handled by the game speed modifier
   }
 
@@ -356,8 +356,6 @@ export class TimeSlowSkill extends Skill {
 }
 
 export class OverdriveSkill extends Skill {
-  private originalSpeed: number = 0;
-
   constructor(player: PlayerShip, engine: PlayCanvasGameEngine) {
     super(player, engine, {
       type: SkillType.OVERDRIVE,
@@ -370,7 +368,7 @@ export class OverdriveSkill extends Skill {
     });
   }
 
-  protected executeSkillEffect(_dt: number): void {
+  protected override executeSkillEffect(_dt: number): void {
     // Speed boost is handled by the player
   }
 
@@ -384,7 +382,7 @@ export class OverdriveSkill extends Skill {
     return 1.5 + (this.state.level - 1) * 0.25;
   }
 
-  protected onUpgrade(): void {
+  protected override onUpgrade(): void {
     // Recalculate multipliers
   }
 }

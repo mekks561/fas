@@ -1,17 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/User';
+import { prisma } from '../lib/prisma';
 import { validate, registerSchema, loginSchema } from '../middleware/validation';
 import { logger } from '../middleware/logger';
 
 const router = Router();
 
-/**
- * @route POST /api/auth/register
- * @desc 注册新用户
- * @access Public
- */
 router.post(
   '/register',
   validate(registerSchema),
@@ -21,9 +16,10 @@ router.post(
 
       logger.info('用户注册尝试', { username, email });
 
-      // 检查用户是否已存在
-      const existingUser = await User.findOne({
-        $or: [{ email }, { username }]
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [{ email }, { username }]
+        }
       });
 
       if (existingUser) {
@@ -38,33 +34,31 @@ router.post(
         });
       }
 
-      // 加密密码
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
-      // 创建用户
-      const user = new User({
-        username,
-        email,
-        password: hashedPassword
+      const user = await prisma.user.create({
+        data: {
+          username,
+          email,
+          password: hashedPassword
+        }
       });
 
-      await user.save();
-
-      // 生成token
+      const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
       const token = jwt.sign(
-        { userId: user._id, email: user.email },
-        process.env.JWT_SECRET || 'your-secret-key',
+        { userId: user.id, email: user.email },
+        jwtSecret,
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
 
-      logger.info('用户注册成功', { userId: user._id, username });
+      logger.info('用户注册成功', { userId: user.id, username });
 
       res.status(201).json({
         success: true,
         data: {
           user: {
-            id: user._id,
+            id: user.id,
             username: user.username,
             email: user.email,
             level: user.level,
@@ -80,11 +74,6 @@ router.post(
   }
 );
 
-/**
- * @route POST /api/auth/login
- * @desc 用户登录
- * @access Public
- */
 router.post(
   '/login',
   validate(loginSchema),
@@ -94,8 +83,9 @@ router.post(
 
       logger.info('用户登录尝试', { email });
 
-      // 查找用户
-      const user = await User.findOne({ email }).select('+password');
+      const user = await prisma.user.findUnique({
+        where: { email }
+      });
 
       if (!user) {
         logger.warn('登录失败：用户不存在', { email });
@@ -108,7 +98,6 @@ router.post(
         });
       }
 
-      // 验证密码
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
@@ -122,20 +111,20 @@ router.post(
         });
       }
 
-      // 生成token
+      const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
       const token = jwt.sign(
-        { userId: user._id, email: user.email },
-        process.env.JWT_SECRET || 'your-secret-key',
+        { userId: user.id, email: user.email },
+        jwtSecret,
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
 
-      logger.info('用户登录成功', { userId: user._id, username: user.username });
+      logger.info('用户登录成功', { userId: user.id, username: user.username });
 
       res.json({
         success: true,
         data: {
           user: {
-            id: user._id,
+            id: user.id,
             username: user.username,
             email: user.email,
             level: user.level,
@@ -152,11 +141,6 @@ router.post(
   }
 );
 
-/**
- * @route GET /api/auth/me
- * @desc 获取当前用户信息
- * @access Private
- */
 router.get('/me', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
@@ -175,9 +159,11 @@ router.get('/me', async (req: Request, res: Response, next: NextFunction) => {
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET || 'your-secret-key'
-    ) as { userId: string };
+    ) as { userId: number };
 
-    const user = await User.findById(decoded.userId);
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId }
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -192,7 +178,7 @@ router.get('/me', async (req: Request, res: Response, next: NextFunction) => {
     res.json({
       success: true,
       data: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         level: user.level,
@@ -206,11 +192,6 @@ router.get('/me', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-/**
- * @route POST /api/auth/refresh
- * @desc 刷新token
- * @access Private
- */
 router.post(
   '/refresh',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -231,9 +212,8 @@ router.post(
       const decoded = jwt.verify(
         token,
         process.env.JWT_SECRET || 'your-secret-key'
-      ) as { userId: string; email: string };
+      ) as { userId: number; email: string };
 
-      // 生成新token
       const newToken = jwt.sign(
         { userId: decoded.userId, email: decoded.email },
         process.env.JWT_SECRET || 'your-secret-key',

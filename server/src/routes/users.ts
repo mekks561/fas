@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { User } from '../models/User';
+import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate, updateUserSchema } from '../middleware/validation';
 import { logger } from '../middleware/logger';
@@ -7,11 +7,6 @@ import { cacheService } from '../services/cache';
 
 const router = Router();
 
-/**
- * @route GET /api/users/me
- * @desc 获取当前用户信息
- * @access Private
- */
 router.get(
   '/me',
   authenticate,
@@ -28,7 +23,6 @@ router.get(
       }
       const userId = req.user.userId;
 
-      // 尝试从缓存获取
       const cached = await cacheService.getUser(userId);
       if (cached) {
         logger.debug('从缓存获取用户信息', { userId });
@@ -38,8 +32,9 @@ router.get(
         });
       }
 
-      // 从数据库获取
-      const user = await User.findById(userId);
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
 
       if (!user) {
         logger.warn('用户不存在', { userId });
@@ -53,7 +48,7 @@ router.get(
       }
 
       const userData = {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         level: user.level,
@@ -62,7 +57,6 @@ router.get(
         createdAt: user.createdAt
       };
 
-      // 缓存用户信息
       await cacheService.setUser(userId, userData);
 
       logger.info('获取用户信息成功', { userId });
@@ -78,11 +72,6 @@ router.get(
   }
 );
 
-/**
- * @route PUT /api/users/me
- * @desc 更新当前用户信息
- * @access Private
- */
 router.put(
   '/me',
   authenticate,
@@ -103,11 +92,12 @@ router.put(
 
       logger.info('更新用户信息', { userId, updates });
 
-      // 检查用户名是否被占用
       if (updates.username) {
-        const existingUser = await User.findOne({
-          username: updates.username,
-          _id: { $ne: userId }
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            username: updates.username,
+            id: { not: userId }
+          }
         });
 
         if (existingUser) {
@@ -122,12 +112,10 @@ router.put(
         }
       }
 
-      // 更新用户
-      const user = await User.findByIdAndUpdate(
-        userId,
-        { $set: updates },
-        { new: true, runValidators: true }
-      );
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: updates,
+      });
 
       if (!user) {
         logger.warn('用户不存在', { userId });
@@ -140,11 +128,10 @@ router.put(
         });
       }
 
-      // 清除缓存
       await cacheService.invalidateUser(userId);
 
       const userData = {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         level: user.level,
@@ -166,21 +153,19 @@ router.put(
   }
 );
 
-/**
- * @route GET /api/users/:id
- * @desc 获取指定用户信息（公开信息）
- * @access Public
- */
 router.get(
   '/:id',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      const userId = parseInt(id);
 
-      const user = await User.findById(id);
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
 
       if (!user) {
-        logger.warn('用户不存在', { userId: id });
+        logger.warn('用户不存在', { userId });
         return res.status(404).json({
           success: false,
           error: {
@@ -190,9 +175,8 @@ router.get(
         });
       }
 
-      // 只返回公开信息
       const publicData = {
-        id: user._id,
+        id: user.id,
         username: user.username,
         level: user.level,
         avatar: user.avatar
@@ -209,33 +193,30 @@ router.get(
   }
 );
 
-/**
- * @route GET /api/users/:id/stats
- * @desc 获取用户游戏统计
- * @access Public
- */
 router.get(
   '/:id/stats',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      const userId = parseInt(id);
 
-      // 尝试从缓存获取
-      const cacheKey = `user_stats:${id}`;
+      const cacheKey = `user_stats:${userId}`;
       const cached = await cacheService.get(cacheKey);
 
       if (cached) {
-        logger.debug('从缓存获取用户统计', { userId: id });
+        logger.debug('从缓存获取用户统计', { userId });
         return res.json({
           success: true,
           data: cached
         });
       }
 
-      const user = await User.findById(id);
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
 
       if (!user) {
-        logger.warn('用户不存在', { userId: id });
+        logger.warn('用户不存在', { userId });
         return res.status(404).json({
           success: false,
           error: {
@@ -245,17 +226,13 @@ router.get(
         });
       }
 
-      // 返回用户等级和经验
       const stats = {
-        userId: user._id,
+        userId: user.id,
         username: user.username,
         level: user.level,
         experience: user.experience,
-        // 可以从Leaderboard聚合获取更多统计
-        // 这里简化处理
       };
 
-      // 缓存5分钟
       await cacheService.set(cacheKey, stats, 300);
 
       res.json({

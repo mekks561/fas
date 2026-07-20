@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Card, CardHeader, CardContent, Badge, Progress, Button } from './ui/shadcn';
 import type { StoryMissionManager, MissionState } from '../engine/StoryMissionManager';
-import './QuestTracker.css';
 
 interface QuestTrackerProps {
   manager: StoryMissionManager | null;
@@ -27,29 +27,29 @@ const missionTypeLabels: Record<string, string> = {
 };
 
 export const QuestTracker: React.FC<QuestTrackerProps> = ({ manager }) => {
-  const [, forceUpdate] = useState({});
+  const [_updateTrigger, setUpdateTrigger] = useState({});
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAllMissions, setShowAllMissions] = useState(false);
 
   useEffect(() => {
     if (!manager) return;
-    const unsub = manager.subscribe(() => forceUpdate({}));
+    const unsub = manager.subscribe(() => setUpdateTrigger({}));
     return unsub;
   }, [manager]);
 
   const activeMissions = useMemo<MissionState[]>(() => {
     if (!manager) return [];
     return manager.getActiveMissions();
-  }, [manager, manager?.getActiveMissions().length]);
+  }, [manager]);
 
   const availableMissions = useMemo<MissionState[]>(() => {
     if (!manager) return [];
     return manager.getAvailableMissions();
-  }, [manager, manager?.getAvailableMissions().length]);
+  }, [manager]);
 
   const stats = useMemo(() => {
     return manager?.getProgressStats() || { total: 0, completed: 0, active: 0, available: 0 };
-  }, [manager, activeMissions.length, availableMissions.length]);
+  }, [manager]);
 
   if (!manager) return null;
 
@@ -59,44 +59,55 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({ manager }) => {
 
   if (displayMissions.length === 0 && !showAllMissions) {
     return (
-      <div className="quest-tracker quest-tracker-collapsed">
-        <div className="quest-tracker-header" onClick={() => setShowAllMissions(!showAllMissions)}>
-          <span className="quest-tracker-icon">!</span>
-          <span className="quest-tracker-title">任务</span>
-          {stats.available > 0 && (
-            <span className="quest-tracker-badge quest-tracker-badge-available">
-              {stats.available}个可接
-            </span>
-          )}
-        </div>
-      </div>
+      <Card className="bg-black/70 border-gray-700">
+        <CardHeader
+          onClick={() => setShowAllMissions(!showAllMissions)}
+          className="cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
+                !
+              </span>
+              <span className="text-white font-semibold">任务</span>
+            </div>
+            {stats.available > 0 && (
+              <Badge variant="secondary" className="bg-green-600/30 text-green-400 border-green-600">
+                {stats.available}个可接
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+      </Card>
     );
   }
 
   return (
-    <div className={`quest-tracker ${isExpanded ? '' : 'quest-tracker-collapsed'}`}>
-      <div className="quest-tracker-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <span className="quest-tracker-icon">!</span>
-        <span className="quest-tracker-title">任务追踪</span>
-        <div className="quest-tracker-stats">
-          <span className="quest-tracker-stat quest-tracker-stat-active">
-            {stats.active} 进行中
-          </span>
-          {stats.available > 0 && (
-            <span className="quest-tracker-stat quest-tracker-stat-available">
-              {stats.available} 可接
+    <Card className="bg-black/70 border-gray-700">
+      <CardHeader onClick={() => setIsExpanded(!isExpanded)} className="cursor-pointer">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
+              !
             </span>
-          )}
-          <span className="quest-tracker-stat quest-tracker-stat-completed">
-            {stats.completed}/{stats.total}
-          </span>
+            <span className="text-white font-semibold">任务追踪</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-blue-400">{stats.active} 进行中</span>
+              {stats.available > 0 && (
+                <span className="text-green-400">{stats.available} 可接</span>
+              )}
+              <span className="text-gray-400">{stats.completed}/{stats.total}</span>
+            </div>
+            <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+          </div>
         </div>
-        <span className="quest-tracker-toggle">{isExpanded ? '▼' : '▶'}</span>
-      </div>
+      </CardHeader>
 
       {isExpanded && (
-        <div className="quest-tracker-body">
-          <div className="quest-tracker-missions">
+        <CardContent className="pt-0">
+          <div className="space-y-3 mt-4">
             {displayMissions.map((missionState) => {
               const mission = missionState.mission;
               const color = missionTypeColors[mission.type] || '#ffffff';
@@ -106,32 +117,40 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({ manager }) => {
               return (
                 <div
                   key={mission.id}
-                  className={`quest-mission ${isActive ? 'quest-mission-active' : 'quest-mission-available'}`}
+                  className={`p-3 rounded-lg border-l-4 ${
+                    isActive ? 'bg-gray-800/50' : 'bg-gray-800/30'
+                  }`}
                   style={{ borderLeftColor: color }}
                 >
-                  <div className="quest-mission-header">
-                    <span className="quest-mission-type-badge" style={{ backgroundColor: color }}>
-                      {typeLabel}
-                    </span>
-                    <span className="quest-mission-name">{mission.name}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="text-xs"
+                        style={{ backgroundColor: `${color}30`, color }}
+                      >
+                        {typeLabel}
+                      </Badge>
+                      <span className="text-white font-medium">{mission.name}</span>
+                    </div>
                     {!isActive && (
-                      <button
-                        className="quest-mission-accept-btn"
+                      <Button
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           manager.startMission(mission.id);
                         }}
                       >
                         接受
-                      </button>
+                      </Button>
                     )}
                   </div>
 
                   {isActive && (
                     <>
-                      <p className="quest-mission-desc">{mission.description}</p>
-                      <div className="quest-objectives">
-                        {missionState.objectives.map((obj, i) => {
+                      <p className="text-gray-400 text-sm mb-3">{mission.description}</p>
+                      <div className="space-y-2 mb-3">
+                        {missionState.objectives.map((obj) => {
                           const label = objectiveTypeLabels[obj.type] || obj.type;
                           const target = obj.count || obj.duration || 0;
                           const progress = Math.min(obj.current, target);
@@ -139,32 +158,37 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({ manager }) => {
 
                           return (
                             <div
-                              key={i}
-                              className={`quest-objective ${obj.completed ? 'quest-objective-done' : ''}`}
+                              key={obj.type}
+                              className={`flex items-start gap-2 ${
+                                obj.completed ? 'opacity-70' : ''
+                              }`}
                             >
-                              <span className="quest-objective-checkbox">
+                              <span className="text-sm mt-0.5">
                                 {obj.completed ? '✓' : '○'}
                               </span>
-                              <span className="quest-objective-text">
-                                {label}
-                                {obj.target ? ` ${obj.target}` : ''}
-                                {target > 0 && ` (${progress}/${target})`}
-                              </span>
-                              {target > 0 && (
-                                <div className="quest-objective-bar">
-                                  <div
-                                    className="quest-objective-bar-fill"
-                                    style={{ width: `${pct}%` }}
-                                  />
+                              <div className="flex-1">
+                                <div className="text-gray-300 text-sm">
+                                  {label}
+                                  {obj.target ? ` ${obj.target}` : ''}
+                                  {target > 0 && ` (${progress}/${target})`}
                                 </div>
-                              )}
+                                {target > 0 && (
+                                  <Progress
+                                    value={pct}
+                                    className="h-1.5 mt-1"
+                                    style={{
+                                      '--progress-color': color,
+                                    } as React.CSSProperties}
+                                  />
+                                )}
+                              </div>
                             </div>
                           );
                         })}
                       </div>
-                      <div className="quest-mission-rewards">
-                        <span className="quest-reward">+{mission.rewards.experience} EXP</span>
-                        <span className="quest-reward">+{mission.rewards.credits} 信用</span>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-yellow-400">+{mission.rewards.experience} EXP</span>
+                        <span className="text-blue-400">+{mission.rewards.credits} 信用</span>
                       </div>
                     </>
                   )}
@@ -173,14 +197,16 @@ export const QuestTracker: React.FC<QuestTrackerProps> = ({ manager }) => {
             })}
           </div>
 
-          <button
-            className="quest-tracker-toggle-view"
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-4"
             onClick={() => setShowAllMissions(!showAllMissions)}
           >
             {showAllMissions ? '仅显示进行中' : `查看全部 (${stats.total})`}
-          </button>
-        </div>
+          </Button>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 };

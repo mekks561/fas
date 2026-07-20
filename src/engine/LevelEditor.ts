@@ -100,7 +100,6 @@ export class LevelEditor {
   private selectionBox: pc.Entity | null = null;
   private previewEntity: pc.Entity | null = null;
   private currentTemplate: ObjectTemplate | null = null;
-  private transformGizmo: pc.Gizmo | null = null;
 
   private history: EditorHistory[] = [];
   private historyIndex: number = -1;
@@ -333,7 +332,7 @@ export class LevelEditor {
     }
   }
 
-  private onMouseMove(event: pc.MouseMoveEvent): void {
+  private onMouseMove(event: pc.MouseEvent): void {
     if (!this.isEnabled || !this.app) return;
 
     if (this.mode === 'place' && this.previewEntity) {
@@ -397,11 +396,14 @@ export class LevelEditor {
       this.editorCamera?.camera?.farClip,
     );
 
-    const result = this.app?.scenery?.raycast(from, to);
-    if (result && result.entity) {
-      const levelObject = this.findLevelObjectByEntity(result.entity);
-      if (levelObject) {
-        this.selectObject(levelObject);
+    const rigidbodySystem = this.app?.systems.rigidbody;
+    if (rigidbodySystem && from && to) {
+      const result = rigidbodySystem.raycastFirst(from, to);
+      if (result && result.entity) {
+        const levelObject = this.findLevelObjectByEntity(result.entity);
+        if (levelObject) {
+          this.selectObject(levelObject);
+        }
       }
     }
   }
@@ -420,10 +422,13 @@ export class LevelEditor {
       this.editorCamera?.camera?.farClip,
     );
 
-    const result = this.app?.scenery?.raycastGround(from, to);
-    if (result) {
-      const position = this.snapToGrid ? this.snapPosition(result.point) : result.point;
-      this.addObject(this.currentTemplate.id, position);
+    const rigidbodySystem = this.app?.systems.rigidbody;
+    if (rigidbodySystem && from && to) {
+      const result = rigidbodySystem.raycastFirst(from, to);
+      if (result) {
+        const position = this.snapToGrid ? this.snapPosition(result.point) : result.point;
+        this.addObject(this.currentTemplate.id, position);
+      }
     }
   }
 
@@ -439,11 +444,14 @@ export class LevelEditor {
       this.editorCamera?.camera?.farClip,
     );
 
-    const result = this.app?.scenery?.raycast(from, to);
-    if (result && result.entity) {
-      const levelObject = this.findLevelObjectByEntity(result.entity);
-      if (levelObject) {
-        this.removeObject(levelObject.id);
+    const rigidbodySystem = this.app?.systems.rigidbody;
+    if (rigidbodySystem && from && to) {
+      const result = rigidbodySystem.raycastFirst(from, to);
+      if (result && result.entity) {
+        const levelObject = this.findLevelObjectByEntity(result.entity);
+        if (levelObject) {
+          this.removeObject(levelObject.id);
+        }
       }
     }
   }
@@ -460,11 +468,14 @@ export class LevelEditor {
       this.editorCamera?.camera?.farClip,
     );
 
-    const result = this.app?.scenery?.raycast(from, to);
-    if (result && result.entity) {
-      const levelObject = this.findLevelObjectByEntity(result.entity);
-      if (levelObject !== this.hoveredObject) {
-        this.setHoveredObject(levelObject);
+    const rigidbodySystem = this.app?.systems.rigidbody;
+    if (rigidbodySystem && from && to) {
+      const result = rigidbodySystem.raycastFirst(from, to);
+      if (result && result.entity) {
+        const levelObject = this.findLevelObjectByEntity(result.entity);
+        if (levelObject !== this.hoveredObject) {
+          this.setHoveredObject(levelObject);
+        }
       }
     } else {
       this.setHoveredObject(null);
@@ -485,10 +496,15 @@ export class LevelEditor {
       this.editorCamera?.camera?.farClip,
     );
 
-    const result = this.app.scenery.raycastGround(from, to);
-    if (result) {
-      const position = this.snapToGrid ? this.snapPosition(result.point) : result.point;
-      this.previewEntity.setPosition(position);
+    if (from && to) {
+      const direction = new pc.Vec3().sub2(to, from).normalize();
+      if (direction.y !== 0) {
+        const t = -from.y / direction.y;
+        if (t > 0) {
+          const position = new pc.Vec3().add2(from, direction.scale(t));
+          this.previewEntity.setPosition(this.snapToGrid ? this.snapPosition(position) : position);
+        }
+      }
     }
   }
 
@@ -658,7 +674,7 @@ export class LevelEditor {
 
     if (template?.materialAssetId && this.app) {
       const material = this.app.assets.find(template.materialAssetId);
-      if (material) {
+      if (material && material.resource instanceof pc.Material) {
         if (entity.render) entity.render.material = material.resource;
       }
     } else if (template?.color) {

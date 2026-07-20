@@ -141,6 +141,46 @@ export const updateSettingsSchema = Joi.object({
     .max(2.0)
 }).min(1);
 
+// 购买物品验证
+export const purchaseSchema = Joi.object({
+  itemId: Joi.string()
+    .required()
+    .messages({
+      'any.required': '物品ID是必填项'
+    })
+});
+
+// 好友请求验证
+export const friendRequestSchema = Joi.object({
+  friendUsername: Joi.string()
+    .min(3)
+    .max(20)
+    .required()
+    .messages({
+      'string.min': '用户名至少3个字符',
+      'string.max': '用户名最多20个字符',
+      'any.required': '用户名是必填项'
+    })
+});
+
+// 技能升级验证
+export const upgradeSkillSchema = Joi.object({
+  skillId: Joi.string()
+    .required()
+    .messages({
+      'any.required': '技能ID是必填项'
+    })
+});
+
+// 武器升级验证
+export const upgradeWeaponSchema = Joi.object({
+  weaponId: Joi.string()
+    .required()
+    .messages({
+      'any.required': '武器ID是必填项'
+    })
+});
+
 // 验证中间件工厂
 export const validate = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {

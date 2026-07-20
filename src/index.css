@@ -36,7 +36,17 @@ body,
 
 body {
   font-family: var(--font-sans);
+  background: linear-gradient(135deg, var(--color-background) 0%, color-mix(in srgb, var(--color-background) 70%, var(--color-secondary)) 100%);
+  color: var(--color-foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body {
   background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+}
+
+.light body {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
 }
 
 @keyframes twinkle {

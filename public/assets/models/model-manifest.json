@@ -1,0 +1,611 @@
+{
+  "version": "1.0.0",
+  "createdAt": "2026-07-04T20:25:00.000Z",
+  "totalSize": 1250000000,
+  "modelCount": 45,
+  "categories": [
+    {
+      "id": "models-ships",
+      "name": "Player Ships",
+      "description": "玩家飞船模型",
+      "models": [
+        {
+          "id": "ship-fighter",
+          "name": "Interceptor Fighter",
+          "type": "player",
+          "url": "/assets/models/ships/ship-fighter.glb",
+          "size": 2000000,
+          "format": "glb",
+          "polyCount": 8000,
+          "materials": ["hull-blue", "metal-shiny"],
+          "tags": ["player", "fighter", "fast"],
+          "description": "轻型战斗机 - 高机动性",
+          "variants": [
+            { "id": "ship-fighter-red", "name": "Red Variant", "color": "#ff4444" },
+            { "id": "ship-fighter-green", "name": "Green Variant", "color": "#44ff44" },
+            { "id": "ship-fighter-gold", "name": "Gold Variant", "color": "#ffd700" }
+          ]
+        },
+        {
+          "id": "ship-bomber",
+          "name": "Heavy Bomber",
+          "type": "player",
+          "url": "/assets/models/ships/ship-bomber.glb",
+          "size": 4000000,
+          "format": "glb",
+          "polyCount": 15000,
+          "materials": ["hull-purple", "energy-core"],
+          "tags": ["player", "bomber", "heavy"],
+          "description": "重型轰炸机 - 高火力"
+        },
+        {
+          "id": "ship-cruiser",
+          "name": "Assault Cruiser",
+          "type": "player",
+          "url": "/assets/models/ships/ship-cruiser.glb",
+          "size": 6000000,
+          "format": "glb",
+          "polyCount": 25000,
+          "materials": ["hull-white", "shield-generator"],
+          "tags": ["player", "cruiser", "balanced"],
+          "description": "突击巡洋舰 - 均衡型"
+        },
+        {
+          "id": "ship-stealth",
+          "name": "Shadow Stealth",
+          "type": "player",
+          "url": "/assets/models/ships/ship-stealth.glb",
+          "size": 3000000,
+          "format": "glb",
+          "polyCount": 12000,
+          "materials": ["hull-black", "cloaking-device"],
+          "tags": ["player", "stealth", "invisible"],
+          "description": "隐形战机 - 可隐身"
+        },
+        {
+          "id": "ship-corvette",
+          "name": "Rapid Corvette",
+          "type": "player",
+          "url": "/assets/models/ships/ship-corvette.glb",
+          "size": 2500000,
+          "format": "glb",
+          "polyCount": 10000,
+          "materials": ["hull-camo", "engine-boost"],
+          "tags": ["player", "corvette", "scout"],
+          "description": "快速护卫舰 - 侦察型"
+        },
+        {
+          "id": "ship-dreadnought",
+          "name": "Super Dreadnought",
+          "type": "player",
+          "url": "/assets/models/ships/ship-dreadnought.glb",
+          "size": 10000000,
+          "format": "glb",
+          "polyCount": 40000,
+          "materials": ["hull-gold", "energy-shield", "heavy-cannons"],
+          "tags": ["player", "dreadnought", "legendary"],
+          "description": "超级无畏舰 - 传奇级"
+        }
+      ],
+      "totalSize": 27500000
+    },
+    {
+      "id": "models-enemies",
+      "name": "Enemy Ships",
+      "description": "敌方飞船模型",
+      "models": [
+        {
+          "id": "enemy-scout",
+          "name": "Scout Drone",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-scout.glb",
+          "size": 800000,
+          "format": "glb",
+          "polyCount": 3000,
+          "materials": ["drone-shell", "sensor-array"],
+          "tags": ["enemy", "scout", "fast"],
+          "description": "侦察无人机 - 小型快速"
+        },
+        {
+          "id": "enemy-fighter",
+          "name": "Enemy Fighter",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-fighter.glb",
+          "size": 1500000,
+          "format": "glb",
+          "polyCount": 6000,
+          "materials": ["enemy-hull", "plasma-cannons"],
+          "tags": ["enemy", "fighter", "common"],
+          "description": "敌方战斗机 - 标准战斗单位"
+        },
+        {
+          "id": "enemy-bomber",
+          "name": "Bomber Drone",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-bomber.glb",
+          "size": 2000000,
+          "format": "glb",
+          "polyCount": 8000,
+          "materials": ["heavy-shell", "bomb-bay"],
+          "tags": ["enemy", "bomber", "heavy"],
+          "description": "轰炸无人机 - 携带炸弹"
+        },
+        {
+          "id": "enemy-tank",
+          "name": "Armored Tank",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-tank.glb",
+          "size": 2500000,
+          "format": "glb",
+          "polyCount": 12000,
+          "materials": ["heavy-armor", "energy-barrier"],
+          "tags": ["enemy", "tank", "armored"],
+          "description": "装甲坦克 - 高防御"
+        },
+        {
+          "id": "enemy-assassin",
+          "name": "Assassin Ship",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-assassin.glb",
+          "size": 1800000,
+          "format": "glb",
+          "polyCount": 7000,
+          "materials": ["stealth-hull", "phase-drive"],
+          "tags": ["enemy", "assassin", "elite"],
+          "description": "刺客飞船 - 精英单位"
+        },
+        {
+          "id": "enemy-drone",
+          "name": "Swarm Drone",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-drone.glb",
+          "size": 500000,
+          "format": "glb",
+          "polyCount": 2000,
+          "materials": ["drone-light", "swarm-core"],
+          "tags": ["enemy", "drone", "swarm"],
+          "description": "蜂群无人机 - 群体攻击"
+        },
+        {
+          "id": "enemy-corvette",
+          "name": "Enemy Corvette",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-corvette.glb",
+          "size": 2200000,
+          "format": "glb",
+          "polyCount": 9000,
+          "materials": ["corvette-hull", "missile-racks"],
+          "tags": ["enemy", "corvette", "support"],
+          "description": "敌方护卫舰 - 支援单位"
+        },
+        {
+          "id": "enemy-destroyer",
+          "name": "Destroyer",
+          "type": "enemy",
+          "url": "/assets/models/enemies/enemy-destroyer.glb",
+          "size": 4000000,
+          "format": "glb",
+          "polyCount": 18000,
+          "materials": ["destroyer-hull", "turret-battery"],
+          "tags": ["enemy", "destroyer", "heavy"],
+          "description": "驱逐舰 - 重型战舰"
+        }
+      ],
+      "totalSize": 15300000
+    },
+    {
+      "id": "models-bosses",
+      "name": "Boss Ships",
+      "description": "Boss模型",
+      "models": [
+        {
+          "id": "boss-sentinel",
+          "name": "Sentinel Prime",
+          "type": "boss",
+          "url": "/assets/models/bosses/boss-sentinel.glb",
+          "size": 15000000,
+          "format": "glb",
+          "polyCount": 50000,
+          "materials": ["sentinel-core", "energy-shields", "plasma-cannons"],
+          "tags": ["boss", "sentinel", "first"],
+          "description": "哨兵首领 - 第一关Boss",
+          "phases": [
+            { "phase": 1, "health": 100, "attacks": ["laser", "missile"] },
+            { "phase": 2, "health": 50, "attacks": ["laser", "missile", "shield"] },
+            { "phase": 3, "health": 25, "attacks": ["all"] }
+          ]
+        },
+        {
+          "id": "boss-overlord",
+          "name": "Overlord",
+          "type": "boss",
+          "url": "/assets/models/bosses/boss-overlord.glb",
+          "size": 25000000,
+          "format": "glb",
+          "polyCount": 80000,
+          "materials": ["overlord-armor", "dark-energy", "gravitational-core"],
+          "tags": ["boss", "overlord", "final"],
+          "description": "霸主 - 最终Boss",
+          "phases": [
+            { "phase": 1, "health": 100, "attacks": ["energy-ball", "minions"] },
+            { "phase": 2, "health": 66, "attacks": ["energy-ball", "minions", "black-hole"] },
+            { "phase": 3, "health": 33, "attacks": ["all", "supernova"] }
+          ]
+        },
+        {
+          "id": "boss-collector",
+          "name": "The Collector",
+          "type": "boss",
+          "url": "/assets/models/bosses/boss-collector.glb",
+          "size": 18000000,
+          "format": "glb",
+          "polyCount": 60000,
+          "materials": ["collector-hull", "energy-vortex", "artifact-core"],
+          "tags": ["boss", "collector", "mid-game"],
+          "description": "收集者 - 中期Boss"
+        },
+        {
+          "id": "boss-tyrant",
+          "name": "Tyrant",
+          "type": "boss",
+          "url": "/assets/models/bosses/boss-tyrant.glb",
+          "size": 22000000,
+          "format": "glb",
+          "polyCount": 70000,
+          "materials": ["tyrant-armor", "chaos-energy", "void-cannons"],
+          "tags": ["boss", "tyrant", "penultimate"],
+          "description": "暴君 - 倒数第二关Boss"
+        }
+      ],
+      "totalSize": 80000000
+    },
+    {
+      "id": "models-structures",
+      "name": "Structures",
+      "description": "环境结构模型",
+      "models": [
+        {
+          "id": "structure-space-station",
+          "name": "Space Station",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-space-station.glb",
+          "size": 8000000,
+          "format": "glb",
+          "polyCount": 30000,
+          "materials": ["station-hull", "solar-panels", "docking-bays"],
+          "tags": ["structure", "station", "friendly"],
+          "description": "空间站 - 友方设施"
+        },
+        {
+          "id": "structure-asteroid-small",
+          "name": "Small Asteroid",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-asteroid-small.glb",
+          "size": 1000000,
+          "format": "glb",
+          "polyCount": 5000,
+          "materials": ["rock-surface", "iron-ore"],
+          "tags": ["structure", "asteroid", "obstacle"],
+          "description": "小型小行星 - 障碍物"
+        },
+        {
+          "id": "structure-asteroid-large",
+          "name": "Large Asteroid",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-asteroid-large.glb",
+          "size": 2500000,
+          "format": "glb",
+          "polyCount": 12000,
+          "materials": ["rock-surface", "crystal-deposit"],
+          "tags": ["structure", "asteroid", "obstacle", "minable"],
+          "description": "大型小行星 - 可开采"
+        },
+        {
+          "id": "structure-debris",
+          "name": "Debris Field",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-debris.glb",
+          "size": 1500000,
+          "format": "glb",
+          "polyCount": 8000,
+          "materials": ["scrap-metal", "wreckage"],
+          "tags": ["structure", "debris", "obstacle"],
+          "description": "残骸场 - 战场遗留物"
+        },
+        {
+          "id": "structure-satellite",
+          "name": "Comm Satellite",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-satellite.glb",
+          "size": 600000,
+          "format": "glb",
+          "polyCount": 3000,
+          "materials": ["satellite-body", "dish-antenna"],
+          "tags": ["structure", "satellite", "neutral"],
+          "description": "通讯卫星 - 中立设施"
+        },
+        {
+          "id": "structure-mining-rig",
+          "name": "Mining Rig",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-mining-rig.glb",
+          "size": 4000000,
+          "format": "glb",
+          "polyCount": 15000,
+          "materials": ["rig-frame", "drill-head", "storage-tanks"],
+          "tags": ["structure", "mining", "friendly"],
+          "description": "采矿平台 - 资源设施"
+        },
+        {
+          "id": "structure-defense-platform",
+          "name": "Defense Platform",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-defense-platform.glb",
+          "size": 3500000,
+          "format": "glb",
+          "polyCount": 14000,
+          "materials": ["platform-armor", "turret-weapons", "shield-generator"],
+          "tags": ["structure", "defense", "friendly"],
+          "description": "防御平台 - 防御设施"
+        },
+        {
+          "id": "structure-planet",
+          "name": "Planet",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-planet.glb",
+          "size": 6000000,
+          "format": "glb",
+          "polyCount": 20000,
+          "materials": ["planet-surface", "atmosphere"],
+          "tags": ["structure", "planet", "background"],
+          "description": "行星 - 背景装饰"
+        },
+        {
+          "id": "structure-moon",
+          "name": "Moon",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-moon.glb",
+          "size": 2000000,
+          "format": "glb",
+          "polyCount": 8000,
+          "materials": ["moon-surface", "crater-texture"],
+          "tags": ["structure", "moon", "background"],
+          "description": "卫星 - 背景装饰"
+        },
+        {
+          "id": "structure-nebula",
+          "name": "Nebula Cloud",
+          "type": "structure",
+          "url": "/assets/models/structures/structure-nebula.glb",
+          "size": 3000000,
+          "format": "glb",
+          "polyCount": 5000,
+          "materials": ["nebula-gas", "energy-dust"],
+          "tags": ["structure", "nebula", "background"],
+          "description": "星云云团 - 背景装饰"
+        }
+      ],
+      "totalSize": 32100000
+    },
+    {
+      "id": "models-projectiles",
+      "name": "Projectiles",
+      "description": "投射物模型",
+      "models": [
+        {
+          "id": "projectile-laser",
+          "name": "Laser Bolt",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-laser.glb",
+          "size": 100000,
+          "format": "glb",
+          "polyCount": 500,
+          "materials": ["energy-laser", "glow-effect"],
+          "tags": ["projectile", "laser", "fast"],
+          "description": "激光弹 - 快速直射"
+        },
+        {
+          "id": "projectile-missile",
+          "name": "Guided Missile",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-missile.glb",
+          "size": 300000,
+          "format": "glb",
+          "polyCount": 1500,
+          "materials": ["missile-body", "rocket-engine"],
+          "tags": ["projectile", "missile", "tracking"],
+          "description": "导弹 - 追踪目标"
+        },
+        {
+          "id": "projectile-plasma",
+          "name": "Plasma Ball",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-plasma.glb",
+          "size": 150000,
+          "format": "glb",
+          "polyCount": 800,
+          "materials": ["plasma-energy", "energy-core"],
+          "tags": ["projectile", "plasma", "area-damage"],
+          "description": "等离子球 - 范围伤害"
+        },
+        {
+          "id": "projectile-bomb",
+          "name": "Cluster Bomb",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-bomb.glb",
+          "size": 400000,
+          "format": "glb",
+          "polyCount": 2000,
+          "materials": ["bomb-shell", "explosive-core"],
+          "tags": ["projectile", "bomb", "cluster"],
+          "description": "集束炸弹 - 分裂攻击"
+        },
+        {
+          "id": "projectile-sniper",
+          "name": "Sniper Round",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-sniper.glb",
+          "size": 80000,
+          "format": "glb",
+          "polyCount": 400,
+          "materials": ["sniper-bullet", "tracer-effect"],
+          "tags": ["projectile", "sniper", "precision"],
+          "description": "狙击弹 - 高精度"
+        },
+        {
+          "id": "projectile-shotgun",
+          "name": "Shotgun Spread",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-shotgun.glb",
+          "size": 200000,
+          "format": "glb",
+          "polyCount": 1200,
+          "materials": ["shotgun-pellet", "spread-effect"],
+          "tags": ["projectile", "shotgun", "spread"],
+          "description": "霰弹 - 散射攻击"
+        },
+        {
+          "id": "projectile-nuke",
+          "name": "Nuclear Missile",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-nuke.glb",
+          "size": 600000,
+          "format": "glb",
+          "polyCount": 3000,
+          "materials": ["nuke-body", "radiation-core", "warning-stripe"],
+          "tags": ["projectile", "nuke", "ultimate"],
+          "description": "核弹 - 终极武器"
+        },
+        {
+          "id": "projectile-blackhole",
+          "name": "Black Hole",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-blackhole.glb",
+          "size": 500000,
+          "format": "glb",
+          "polyCount": 2500,
+          "materials": ["event-horizon", "gravitational-lens"],
+          "tags": ["projectile", "blackhole", "gravity"],
+          "description": "黑洞 - 引力武器"
+        },
+        {
+          "id": "projectile-gravity",
+          "name": "Gravity Well",
+          "type": "projectile",
+          "url": "/assets/models/projectiles/projectile-gravity.glb",
+          "size": 250000,
+          "format": "glb",
+          "polyCount": 1000,
+          "materials": ["gravity-field", "spacetime-warp"],
+          "tags": ["projectile", "gravity", "pull"],
+          "description": "引力井 - 吸引目标"
+        }
+      ],
+      "totalSize": 2580000
+    },
+    {
+      "id": "models-effects",
+      "name": "Effects",
+      "description": "特效模型",
+      "models": [
+        {
+          "id": "effect-explosion",
+          "name": "Explosion",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-explosion.glb",
+          "size": 300000,
+          "format": "glb",
+          "polyCount": 4000,
+          materials: ["explosion-flame", "smoke-particle"],
+          tags: ["effect", "explosion"],
+          description: "爆炸特效"
+        },
+        {
+          "id": "effect-shield",
+          "name": "Shield",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-shield.glb",
+          "size": 200000,
+          "format": "glb",
+          "polyCount": 3000,
+          materials: ["shield-energy", "force-field"],
+          tags: ["effect", "shield"],
+          description: "护盾特效"
+        },
+        {
+          "id": "effect-heal",
+          "name": "Heal",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-heal.glb",
+          "size": 150000,
+          "format": "glb",
+          "polyCount": 2000,
+          materials: ["heal-energy", "light-rays"],
+          tags: ["effect", "heal"],
+          description: "治疗特效"
+        },
+        {
+          "id": "effect-powerup",
+          "name": "Powerup",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-powerup.glb",
+          "size": 100000,
+          "format": "glb",
+          "polyCount": 1500,
+          materials: ["powerup-glow", "energy-orb"],
+          tags: ["effect", "powerup"],
+          description: "道具特效"
+        },
+        {
+          "id": "effect-trail",
+          "name": "Trail",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-trail.glb",
+          "size": 80000,
+          "format": "glb",
+          "polyCount": 1000,
+          materials: ["trail-smoke", "afterburner"],
+          tags: ["effect", "trail"],
+          description: "尾迹特效"
+        },
+        {
+          "id": "effect-damage",
+          "name": "Damage",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-damage.glb",
+          "size": 120000,
+          "format": "glb",
+          "polyCount": 1500,
+          materials: ["damage-flash", "sparks"],
+          tags: ["effect", "damage"],
+          description: "伤害特效"
+        },
+        {
+          "id": "effect-victory",
+          "name": "Victory",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-victory.glb",
+          "size": 400000,
+          "format": "glb",
+          "polyCount": 6000,
+          materials: ["victory-light", "celebration"],
+          tags: ["effect", "victory"],
+          description: "胜利特效"
+        },
+        {
+          "id": "effect-death",
+          "name": "Death",
+          "type": "effect",
+          "url": "/assets/models/effects/effect-death.glb",
+          "size": 350000,
+          "format": "glb",
+          "polyCount": 5000,
+          materials: ["death-particles", "soul-float"],
+          tags: ["effect", "death"],
+          description: "死亡特效"
+        }
+      ],
+      "totalSize": 1700000
+    }
+  ]
+}

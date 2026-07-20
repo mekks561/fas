@@ -34,7 +34,7 @@ export class Projectile {
 
 export class WeaponSystem {
   private engine: PlayCanvasGameEngine;
-  private player: PlayerShip;
+  private player!: PlayerShip;
   private projectiles: Projectile[] = [];
   private currentWeapon: WeaponType = 'normal';
   private weaponLevel: number = 1;
@@ -277,7 +277,7 @@ export class WeaponSystem {
 
   private createNormalProjectile(pos: pc.Vec3, forward: pc.Vec3, config: WeaponConfig): void {
     const projectile = this.createProjectileEntity(config.color || new pc.Color(1, 0.8, 0));
-    projectile.setPosition(pos.clone().add(forward.clone().scale(2)));
+    projectile.setPosition(pos.clone().add(forward.clone().mulScalar(2)));
 
     this.engine.addToScene(projectile);
 
@@ -285,7 +285,7 @@ export class WeaponSystem {
       new Projectile(
         projectile,
         config.damage,
-        forward.clone().scale(config.projectileSpeed),
+        forward.clone().mulScalar(config.projectileSpeed),
         'normal',
       ),
     );
@@ -301,10 +301,10 @@ export class WeaponSystem {
 
       const rotation = new pc.Quat();
       rotation.setFromAxisAngle(new pc.Vec3(0, 1, 0), offsetAngle);
-      direction.transform(rotation);
+      rotation.transformVector(direction);
 
       const projectile = this.createProjectileEntity(config.color || new pc.Color(0.8, 1, 0.2));
-      projectile.setPosition(pos.clone().add(forward.clone().scale(2)));
+      projectile.setPosition(pos.clone().add(forward.clone().mulScalar(2)));
 
       this.engine.addToScene(projectile);
 
@@ -312,7 +312,7 @@ export class WeaponSystem {
         new Projectile(
           projectile,
           config.damage,
-          direction.clone().scale(config.projectileSpeed),
+          direction.clone().mulScalar(config.projectileSpeed),
           'spread',
         ),
       );
@@ -321,7 +321,7 @@ export class WeaponSystem {
 
   private createLaserProjectile(pos: pc.Vec3, forward: pc.Vec3, config: WeaponConfig): void {
     const projectile = new pc.Entity('laser');
-    projectile.setPosition(pos.clone().add(forward.clone().scale(2)));
+    projectile.setPosition(pos.clone().add(forward.clone().mulScalar(2)));
 
     const material = new pc.StandardMaterial();
     material.diffuse.copy(config.color || new pc.Color(0.2, 0.8, 1));
@@ -340,7 +340,7 @@ export class WeaponSystem {
       new Projectile(
         projectile,
         config.damage,
-        forward.clone().scale(config.projectileSpeed),
+        forward.clone().mulScalar(config.projectileSpeed),
         'laser',
       ),
     );
@@ -348,7 +348,7 @@ export class WeaponSystem {
 
   private createMissileProjectile(pos: pc.Vec3, forward: pc.Vec3, config: WeaponConfig): void {
     const missile = new pc.Entity('missile');
-    missile.setPosition(pos.clone().add(forward.clone().scale(2.5)));
+    missile.setPosition(pos.clone().add(forward.clone().mulScalar(2.5)));
 
     const material = new pc.StandardMaterial();
     material.diffuse.copy(config.color || new pc.Color(1, 0.4, 0.8));
@@ -378,7 +378,7 @@ export class WeaponSystem {
         ),
       },
       sizeGraph: {
-        graph: new pc.Curve([0.2, 0.05], 'size'),
+        graph: new pc.Curve([0.2, 0.05]),
       },
     });
     flame.setLocalPosition(0, -0.5, 0);
@@ -390,7 +390,7 @@ export class WeaponSystem {
       new Projectile(
         missile,
         config.damage,
-        forward.clone().scale(config.projectileSpeed),
+        forward.clone().mulScalar(config.projectileSpeed),
         'missile',
       ),
     );
@@ -419,7 +419,7 @@ export class WeaponSystem {
       }
 
       const pos = proj.entity.getPosition();
-      pos.add(proj.velocity.clone().scale(dt));
+      pos.add(proj.velocity.clone().mulScalar(dt));
       proj.entity.setPosition(pos);
 
       if (pos.length() > 100) {
@@ -484,12 +484,11 @@ export class WeaponSystem {
         ),
       },
       sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5], 'size'),
+        graph: new pc.Curve([0.5, 1.5]),
       },
     });
 
     this.engine.addToScene(explosion);
-    explosion.particlesystem?.start();
 
     setTimeout(() => {
       explosion.destroy();
@@ -517,7 +516,7 @@ export class WeaponSystem {
   private updateCurrentWeapon(): void {
     const levelConfig =
       this.levelConfigs[Math.min(this.weaponLevel - 1, this.levelConfigs.length - 1)];
-    this.currentWeapon = levelConfig[this.currentWeapon] || 'normal';
+    this.currentWeapon = levelConfig[this.currentWeapon] as WeaponType || 'normal';
   }
 
   public getCurrentWeapon(): WeaponType {

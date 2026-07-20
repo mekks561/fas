@@ -133,7 +133,6 @@ export class MultiplayerSystem {
   private localPlayerName: string = '';
   private roomId: string = '';
   private players: Map<string, Player> = new Map();
-  private hostId: string = '';
 
   private peerConnections: Map<string, RTCPeerConnection> = new Map();
   private dataChannels: Map<string, RTCDataChannel> = new Map();
@@ -151,7 +150,6 @@ export class MultiplayerSystem {
   };
 
   private sequenceNumber: number = 0;
-  private messageQueue: NetworkMessage[] = [];
   private pendingReliableMessages: Map<number, { message: NetworkMessage; ack: boolean }> =
     new Map();
 
@@ -182,7 +180,6 @@ export class MultiplayerSystem {
     statsUpdate: [],
   };
 
-  private isEnabled: boolean = true;
   private isDestroyed: boolean = false;
 
   constructor(config?: Partial<ConnectionConfig>) {
@@ -270,7 +267,6 @@ export class MultiplayerSystem {
       };
 
       this.players.set(this.localPlayerId, hostPlayer);
-      this.hostId = this.localPlayerId;
 
       this.setConnectionState('connected');
       this.startHeartbeat();
@@ -358,14 +354,13 @@ export class MultiplayerSystem {
   }
 
   private handleSignalingMessage(message: Record<string, unknown>): void {
-    switch (message.type) {
+    switch (message['type']) {
       case 'room_created':
         break;
 
       case 'room_joined':
-        this.hostId = message.hostId as string;
-        this.roomId = message.roomId as string;
-        (message.players as Player[] | undefined)?.forEach((p: Player) => {
+        this.roomId = message['roomId'] as string;
+        (message['players'] as Player[] | undefined)?.forEach((p: Player) => {
           this.players.set(p.id, p);
           if (p.id !== this.localPlayerId) {
             this.notifyPlayerJoin(p);
@@ -377,7 +372,7 @@ export class MultiplayerSystem {
         break;
 
       case 'player_joined':
-        const player = message.player as { id: string; name: string };
+        const player = message['player'] as { id: string; name: string };
         const newPlayer: Player = {
           id: player.id,
           name: player.name,
@@ -393,26 +388,26 @@ export class MultiplayerSystem {
         break;
 
       case 'player_left':
-        this.handlePlayerLeave(message.playerId as string, message.reason as string);
+        this.handlePlayerLeave(message['playerId'] as string, message['reason'] as string);
         break;
 
       case 'offer':
-        this.handleOffer(message.senderId as string, message.offer as RTCSessionDescriptionInit);
+        this.handleOffer(message['senderId'] as string, message['offer'] as RTCSessionDescriptionInit);
         break;
 
       case 'answer':
-        this.handleAnswer(message.senderId as string, message.answer as RTCSessionDescriptionInit);
+        this.handleAnswer(message['senderId'] as string, message['answer'] as RTCSessionDescriptionInit);
         break;
 
       case 'ice_candidate':
         this.handleIceCandidate(
-          message.senderId as string,
-          message.candidate as RTCIceCandidateInit,
+          message['senderId'] as string,
+          message['candidate'] as RTCIceCandidateInit,
         );
         break;
 
       case 'error':
-        console.error('Signaling error:', message.error);
+        console.error('Signaling error:', message['error']);
         break;
     }
   }
@@ -532,10 +527,10 @@ export class MultiplayerSystem {
     }
   }
 
-  private handleDataMessage(senderId: string, data: unknown): void {
+  private handleDataMessage(_senderId: string, data: unknown): void {
     this.stats.packetsReceived++;
     const dataObj = data as { byteLength?: number; length?: number };
-    this.stats.bytesReceived += dataObj.byteLength || dataObj.length;
+    this.stats.bytesReceived += (dataObj.byteLength || dataObj.length || 0);
 
     let message: NetworkMessage;
     try {
@@ -701,7 +696,6 @@ export class MultiplayerSystem {
 
     this.players.clear();
     this.pendingReliableMessages.clear();
-    this.messageQueue = [];
   }
 
   public sendMessage(message: NetworkMessage): void {
@@ -939,13 +933,9 @@ export class MultiplayerSystem {
     this.callbacks.roomUpdate.forEach((cb) => cb(room));
   }
 
-  public enable(): void {
-    this.isEnabled = true;
-  }
+  public enable(): void {}
 
-  public disable(): void {
-    this.isEnabled = false;
-  }
+  public disable(): void {}
 
   public destroy(): void {
     this.isDestroyed = true;

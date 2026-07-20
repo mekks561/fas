@@ -117,7 +117,7 @@ export class ResourceDownloadTester {
       return success;
     });
 
-    const _results = await Promise.all(downloadPromises);
+    await Promise.all(downloadPromises);
 
     totalTime = Date.now() - startTime;
 

@@ -266,6 +266,13 @@ export class GameEngineCore {
   }
 
   /**
+   * 获取目标FPS
+   */
+  public getTargetFps(): number {
+    return this.targetFps;
+  }
+
+  /**
    * 是否正在运行
    */
   public getIsRunning(): boolean {
@@ -294,8 +301,8 @@ export class GameEngineCore {
   }
 }
 
-// Hook: 访问游戏引擎核心
-export const useGameEngine = () => {
+// 访问游戏引擎核心
+export const getGameEngine = () => {
   return GameEngineCore.getInstance();
 };
 

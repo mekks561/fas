@@ -1,0 +1,12 @@
+{
+  "name": "fighter-game-ai-training",
+  "version": "2.5.0",
+  "description": "AI training pipeline for NPC behavior",
+  "scripts": {
+    "train": "python train.py",
+    "export": "python export.py",
+    "test": "python test_model.py"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,5 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { LevelState, LevelStats } from '../LevelSystem';
+import { Card, Progress, Button } from './ui/shadcn';
+
+export enum LevelState {
+  LOADING = 'loading',
+  PLAYING = 'playing',
+  WAVE_INCOMING = 'wave_incoming',
+  WAVE_ACTIVE = 'wave_active',
+  WAVE_COMPLETE = 'wave_complete',
+  BOSS_APPROACHING = 'boss_approaching',
+  BOSS_FIGHT = 'boss_fight',
+  LEVEL_COMPLETE = 'level_complete',
+  GAME_OVER = 'game_over',
+  PAUSED = 'paused',
+}
+
+export interface LevelStats {
+  levelName: string;
+  wavesCompleted: number;
+  totalKills: number;
+}
 
 interface LevelUIProps {
   levelName: string;
@@ -33,14 +52,19 @@ export const LevelUI: React.FC<LevelUIProps> = ({
 
   useEffect(() => {
     if (announcement) {
-      setAnnouncementText(announcement);
-      setShowAnnouncement(true);
+      const initTimer = setTimeout(() => {
+        setAnnouncementText(announcement);
+        setShowAnnouncement(true);
+      }, 0);
 
       const timer = setTimeout(() => {
         setShowAnnouncement(false);
       }, 2000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(initTimer);
+        clearTimeout(timer);
+      };
     }
   }, [announcement]);
 
@@ -87,89 +111,81 @@ export const LevelUI: React.FC<LevelUIProps> = ({
     }
   }, []);
 
+  const waveProgress = (currentWave / totalWaves) * 100;
+  const bossProgress = bossMaxHealth > 0 ? (bossHealth / bossMaxHealth) * 100 : 0;
+
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {/* Level Info - Top Left */}
-      <div className="absolute top-4 left-4 bg-black/60 rounded-lg p-4">
+      <Card className="absolute top-4 left-4 bg-black/60 border-gray-700 pointer-events-auto">
         <div className="text-white text-lg font-bold">{levelName}</div>
-        <div className="text-gray-300 text-sm">
+        <div className="text-gray-300 text-sm mt-1">
           Wave {currentWave} / {totalWaves}
         </div>
-        <div className={`text-sm font-semibold mt-1 ${getStateColor(levelState)}`}>
+        <div className={`text-sm font-semibold mt-2 ${getStateColor(levelState)}`}>
           {getLevelStateText(levelState)}
         </div>
-      </div>
+      </Card>
 
-      {/* Enemy Counter - Top Right */}
-      <div className="absolute top-4 right-4 bg-black/60 rounded-lg p-4">
+      <Card className="absolute top-4 right-4 bg-black/60 border-gray-700 pointer-events-auto">
         <div className="text-gray-300 text-sm">Enemies Remaining</div>
-        <div className="text-white text-2xl font-bold">{enemiesRemaining}</div>
-      </div>
+        <div className="text-white text-2xl font-bold mt-1">{enemiesRemaining}</div>
+      </Card>
 
-      {/* Wave Announcement - Center */}
       {showAnnouncement && (
         <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="bg-black/80 rounded-xl px-8 py-4 border-2 border-yellow-500">
+          <Card className="bg-black/80 border-yellow-500 px-8 py-4">
             <div className="text-yellow-500 text-3xl font-bold text-center animate-pulse">
               {announcementText}
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      {/* Boss Health Bar - Top Center */}
       {isBossActive && bossMaxHealth > 0 && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-96">
-          <div className="bg-black/80 rounded-lg p-3 border-2 border-red-600">
-            <div className="text-red-500 text-lg font-bold text-center mb-2">{bossName}</div>
-            <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-red-700 to-red-500 transition-all duration-300"
-                style={{ width: `${(bossHealth / bossMaxHealth) * 100}%` }}
-              />
-            </div>
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-96 pointer-events-auto">
+          <Card className="bg-black/80 border-red-600">
+            <div className="text-red-500 text-lg font-bold text-center">{bossName}</div>
+            <Progress
+              value={bossProgress}
+              className="h-4 mt-2"
+              style={{ '--progress-color': '#ef4444' } as React.CSSProperties}
+            />
             <div className="text-white text-sm text-center mt-1">
               {Math.ceil(bossHealth)} / {bossMaxHealth}
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      {/* Active Effects - Bottom Left */}
       {activeEffects.length > 0 && (
-        <div className="absolute bottom-4 left-4 bg-black/60 rounded-lg p-4">
+        <Card className="absolute bottom-4 left-4 bg-black/60 border-gray-700 pointer-events-auto">
           <div className="text-gray-300 text-sm mb-2">Active Effects</div>
           <div className="space-y-2">
-            {activeEffects.map((effect, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div className="w-20 bg-gray-700 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500"
-                    style={{ width: `${effect.remainingTime}%` }}
-                  />
-                </div>
+            {activeEffects.map((effect) => (
+              <div key={effect.type} className="flex items-center gap-2">
+                <Progress
+                  value={effect.remainingTime}
+                  className="w-20 h-2"
+                  style={{ '--progress-color': '#3b82f6' } as React.CSSProperties}
+                />
                 <div className="text-white text-xs">
                   {effect.type} (+{Math.round(effect.value * 100)}%)
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
-      {/* Mini Map Indicator - Bottom Right */}
-      <div className="absolute bottom-4 right-4 bg-black/60 rounded-lg p-3">
+      <Card className="absolute bottom-4 right-4 bg-black/60 border-gray-700 pointer-events-auto">
         <div className="text-gray-300 text-xs mb-2">Level Progress</div>
-        <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-500"
-            style={{ width: `${(currentWave / totalWaves) * 100}%` }}
-          />
-        </div>
-        <div className="text-white text-xs mt-1">
-          {Math.round((currentWave / totalWaves) * 100)}% Complete
-        </div>
-      </div>
+        <Progress
+          value={waveProgress}
+          className="w-32 h-2"
+          style={{ '--progress-color': '#3b82f6' } as React.CSSProperties}
+        />
+        <div className="text-white text-xs mt-1">{Math.round(waveProgress)}% Complete</div>
+      </Card>
     </div>
   );
 };
@@ -193,15 +209,17 @@ export const LevelCompleteScreen: React.FC<LevelCompleteScreenProps> = ({
   }, []);
 
   return (
-    <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+    <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto">
       <div
-        className={`text-center transition-all duration-1000 ${showContent ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-10'}`}
+        className={`text-center transition-all duration-1000 ${
+          showContent ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-10'
+        }`}
       >
         <div className="text-green-500 text-5xl font-bold mb-4">LEVEL COMPLETE!</div>
 
         <div className="text-white text-2xl mb-8">{stats.levelName}</div>
 
-        <div className="bg-black/60 rounded-xl p-6 mb-8 inline-block">
+        <Card className="bg-black/60 border-gray-700 p-6 inline-block mb-8">
           <div className="grid grid-cols-2 gap-6 text-left">
             <div>
               <div className="text-gray-400 text-sm">Waves Completed</div>
@@ -216,14 +234,11 @@ export const LevelCompleteScreen: React.FC<LevelCompleteScreenProps> = ({
               <div className="text-yellow-500 text-2xl font-bold">{score.toLocaleString()}</div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        <button
-          onClick={onContinue}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold text-lg transition-colors pointer-events-auto"
-        >
+        <Button onClick={onContinue} size="lg">
           Continue to Next Level
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -245,13 +260,13 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({
   onMainMenu,
 }) => {
   return (
-    <div className="absolute inset-0 bg-black/90 flex items-center justify-center">
+    <div className="absolute inset-0 bg-black/90 flex items-center justify-center pointer-events-auto">
       <div className="text-center">
         <div className="text-red-600 text-6xl font-bold mb-4">GAME OVER</div>
 
         <div className="text-gray-400 text-xl mb-8">{levelName}</div>
 
-        <div className="bg-black/60 rounded-xl p-6 mb-8">
+        <Card className="bg-black/60 border-gray-700 p-6 mb-8">
           <div className="grid grid-cols-2 gap-6 text-left">
             <div>
               <div className="text-gray-400 text-sm">Waves Survived</div>
@@ -262,21 +277,15 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({
               <div className="text-white text-xl font-bold">{totalKills}</div>
             </div>
           </div>
-        </div>
+        </Card>
 
         <div className="flex gap-4 justify-center">
-          <button
-            onClick={onRetry}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold text-lg transition-colors pointer-events-auto"
-          >
+          <Button onClick={onRetry} size="lg">
             Retry Level
-          </button>
-          <button
-            onClick={onMainMenu}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg font-bold text-lg transition-colors pointer-events-auto"
-          >
+          </Button>
+          <Button onClick={onMainMenu} size="lg" variant="outline">
             Main Menu
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -296,20 +305,22 @@ export const WaveAnnouncement: React.FC<WaveAnnouncementProps> = ({
 }) => {
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-      <div
-        className={`rounded-2xl px-12 py-8 border-4 ${
+      <Card
+        className={`px-12 py-8 border-4 ${
           isBoss ? 'bg-red-900/90 border-red-500' : 'bg-blue-900/90 border-blue-500'
-        } animate-announcement`}
+        }`}
       >
         <div
-          className={`text-4xl font-bold text-center ${isBoss ? 'text-red-400' : 'text-blue-400'}`}
+          className={`text-4xl font-bold text-center ${
+            isBoss ? 'text-red-400' : 'text-blue-400'
+          }`}
         >
           {isBoss ? '⚠ BOSS WAVE ⚠' : `WAVE ${waveNumber}`}
         </div>
         {!isBoss && (
           <div className="text-white text-xl text-center mt-2">{enemyCount} Enemies Incoming</div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

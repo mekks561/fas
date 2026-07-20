@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { AssetLoadingProgress } from '../AssetPreloader';
+
+export interface AssetLoadingProgress {
+  progress: number;
+  loaded: number;
+  total: number;
+  loadedAssets: number;
+  totalAssets: number;
+  currentAsset: string;
+  errors: string[];
+  status: 'loading' | 'complete' | 'error';
+}
 
 interface ResourceDownloadUIProps {
   progress: AssetLoadingProgress;
@@ -19,14 +29,18 @@ export const ResourceDownloadUI: React.FC<ResourceDownloadUIProps> = ({
 
   useEffect(() => {
     if (progress.progress >= 100 && progress.errors.length === 0) {
+      let innerTimer: ReturnType<typeof setTimeout>;
       const timer = setTimeout(() => {
         setFadeOut(true);
-        setTimeout(() => {
+        innerTimer = setTimeout(() => {
           setIsVisible(false);
           onComplete?.();
         }, autoHideDelay);
       }, 1000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(innerTimer);
+      };
     }
   }, [progress.progress, progress.errors.length, autoHideDelay, onComplete]);
 
@@ -121,6 +135,7 @@ export const ResourceDownloadUI: React.FC<ResourceDownloadUIProps> = ({
                 </h3>
                 <ul className="text-sm text-red-300 max-h-32 overflow-y-auto space-y-1">
                   {progress.errors.map((error, index) => (
+                    // eslint-disable-next-line @eslint-react/no-array-index-key
                     <li key={index} className="flex items-start gap-2">
                       <span className="text-red-500">•</span>
                       <span>{error}</span>
@@ -151,6 +166,7 @@ export const ResourceDownloadUI: React.FC<ResourceDownloadUIProps> = ({
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {[...Array(20)].map((_, i) => (
             <div
+              // eslint-disable-next-line @eslint-react/no-array-index-key
               key={i}
               className="absolute w-1 h-1 bg-white rounded-full opacity-20"
               style={{

@@ -31,25 +31,35 @@ const DEFAULT_CONFIG: AudioConfig = {
 };
 
 const SOUND_DEFINITIONS: SoundDefinition[] = [
-  { name: 'menuMusic', type: 'music', url: '', loop: true, volume: 0.6, spatial: false },
-  { name: 'gameMusic', type: 'music', url: '', loop: true, volume: 0.5, spatial: false },
-  { name: 'victoryMusic', type: 'music', url: '', loop: false, volume: 0.7, spatial: false },
-  { name: 'defeatMusic', type: 'music', url: '', loop: false, volume: 0.5, spatial: false },
-  { name: 'playerShoot', type: 'sfx', url: '', loop: false, volume: 0.4, spatial: true },
-  { name: 'playerHit', type: 'sfx', url: '', loop: false, volume: 0.6, spatial: true },
-  { name: 'playerBoost', type: 'sfx', url: '', loop: true, volume: 0.5, spatial: true },
-  { name: 'playerExplosion', type: 'sfx', url: '', loop: false, volume: 0.8, spatial: true },
-  { name: 'enemyShoot', type: 'sfx', url: '', loop: false, volume: 0.3, spatial: true },
-  { name: 'enemyHit', type: 'sfx', url: '', loop: false, volume: 0.5, spatial: true },
-  { name: 'enemyExplosion', type: 'sfx', url: '', loop: false, volume: 0.7, spatial: true },
-  { name: 'powerup', type: 'sfx', url: '', loop: false, volume: 0.6, spatial: true },
-  { name: 'weaponUpgrade', type: 'sfx', url: '', loop: false, volume: 0.5, spatial: true },
-  { name: 'shieldActivate', type: 'sfx', url: '', loop: false, volume: 0.4, spatial: true },
-  { name: 'waveComplete', type: 'sfx', url: '', loop: false, volume: 0.6, spatial: false },
-  { name: 'levelComplete', type: 'sfx', url: '', loop: false, volume: 0.7, spatial: false },
-  { name: 'uiClick', type: 'sfx', url: '', loop: false, volume: 0.3, spatial: false },
-  { name: 'uiHover', type: 'sfx', url: '', loop: false, volume: 0.2, spatial: false },
-  { name: 'uiSelect', type: 'sfx', url: '', loop: false, volume: 0.4, spatial: false },
+  { name: 'menuMusic', type: 'music', url: '/assets/audio/bgm/bgm-mainmenu.wav', loop: true, volume: 0.6, spatial: false },
+  { name: 'gameMusic', type: 'music', url: '/assets/audio/bgm/bgm-gameplay.wav', loop: true, volume: 0.5, spatial: false },
+  { name: 'victoryMusic', type: 'music', url: '/assets/audio/bgm/bgm-victory.wav', loop: false, volume: 0.7, spatial: false },
+  { name: 'defeatMusic', type: 'music', url: '/assets/audio/bgm/bgm-story.wav', loop: false, volume: 0.5, spatial: false },
+  { name: 'bossMusic', type: 'music', url: '/assets/audio/bgm/bgm-boss.wav', loop: true, volume: 0.6, spatial: false },
+  { name: 'playerShoot', type: 'sfx', url: '/assets/audio/effects/sfx-laser.wav', loop: false, volume: 0.4, spatial: true },
+  { name: 'playerHit', type: 'sfx', url: '/assets/audio/effects/sfx-damage.wav', loop: false, volume: 0.6, spatial: true },
+  { name: 'playerBoost', type: 'sfx', url: '/assets/audio/effects/sfx-shield.wav', loop: true, volume: 0.5, spatial: true },
+  { name: 'playerExplosion', type: 'sfx', url: '/assets/audio/effects/sfx-explosion.wav', loop: false, volume: 0.8, spatial: true },
+  { name: 'enemyShoot', type: 'sfx', url: '/assets/audio/effects/sfx-plasma.wav', loop: false, volume: 0.3, spatial: true },
+  { name: 'enemyHit', type: 'sfx', url: '/assets/audio/effects/sfx-damage.wav', loop: false, volume: 0.5, spatial: true },
+  { name: 'enemyExplosion', type: 'sfx', url: '/assets/audio/effects/sfx-explosion.wav', loop: false, volume: 0.7, spatial: true },
+  { name: 'powerup', type: 'sfx', url: '/assets/audio/effects/sfx-powerup.wav', loop: false, volume: 0.6, spatial: true },
+  { name: 'weaponUpgrade', type: 'sfx', url: '/assets/audio/effects/sfx-powerup-spawn.wav', loop: false, volume: 0.5, spatial: true },
+  { name: 'shieldActivate', type: 'sfx', url: '/assets/audio/effects/sfx-shield.wav', loop: false, volume: 0.4, spatial: true },
+  { name: 'waveComplete', type: 'sfx', url: '/assets/audio/effects/sfx-wave-start.wav', loop: false, volume: 0.6, spatial: false },
+  { name: 'levelComplete', type: 'sfx', url: '/assets/audio/effects/sfx-level-complete.wav', loop: false, volume: 0.7, spatial: false },
+  { name: 'uiClick', type: 'sfx', url: '/assets/audio/ui/ui-click.wav', loop: false, volume: 0.3, spatial: false },
+  { name: 'uiHover', type: 'sfx', url: '/assets/audio/ui/ui-select.wav', loop: false, volume: 0.2, spatial: false },
+  { name: 'uiSelect', type: 'sfx', url: '/assets/audio/ui/ui-select.wav', loop: false, volume: 0.4, spatial: false },
+  { name: 'uiSuccess', type: 'sfx', url: '/assets/audio/ui/ui-success.wav', loop: false, volume: 0.5, spatial: false },
+  { name: 'uiError', type: 'sfx', url: '/assets/audio/ui/ui-error.wav', loop: false, volume: 0.4, spatial: false },
+  { name: 'uiLevelUp', type: 'sfx', url: '/assets/audio/ui/ui-levelup.wav', loop: false, volume: 0.6, spatial: false },
+  { name: 'uiAchievement', type: 'sfx', url: '/assets/audio/ui/ui-achievement.wav', loop: false, volume: 0.7, spatial: false },
+  { name: 'missile', type: 'sfx', url: '/assets/audio/effects/sfx-missile.wav', loop: false, volume: 0.5, spatial: true },
+  { name: 'heal', type: 'sfx', url: '/assets/audio/effects/sfx-heal.wav', loop: false, volume: 0.5, spatial: true },
+  { name: 'bossRoar', type: 'sfx', url: '/assets/audio/effects/sfx-boss-roar.wav', loop: false, volume: 0.8, spatial: true },
+  { name: 'nuke', type: 'sfx', url: '/assets/audio/effects/sfx-nuke.wav', loop: false, volume: 0.9, spatial: true },
+  { name: 'blackhole', type: 'sfx', url: '/assets/audio/effects/sfx-blackhole.wav', loop: false, volume: 0.7, spatial: true },
 ];
 
 export class AudioSystem {
@@ -111,17 +121,15 @@ export class AudioSystem {
 
     const volume = this.getVolume(def.type) * def.volume;
 
-    const options: pc.SoundOptions = {
+    const options = {
       volume,
       loop: def.loop,
+      spatialBlend: def.spatial && position ? 1 : 0,
+      maxDistance: def.maxDistance || 30,
     };
 
-    if (def.spatial && position) {
-      options.spatialBlend = 1;
-      options.maxDistance = def.maxDistance || 30;
-    }
-
-    const instance = asset.resource.play(options);
+    const soundAsset = asset.resource as unknown as { play: (opts: unknown) => pc.SoundInstance };
+    const instance = soundAsset.play(options);
 
     if (position && def.spatial) {
       instance.setPosition(position);
@@ -139,7 +147,9 @@ export class AudioSystem {
   }
 
   private playGeneratedSound(def: SoundDefinition): pc.SoundInstance | null {
-    const audioContext = this.app.audio.context;
+    const appAudio = (this.app as unknown as { audio?: { context: AudioContext } }).audio;
+    if (!appAudio) return null;
+    const audioContext = appAudio.context;
     if (!audioContext) return null;
 
     const volume = this.getVolume(def.type) * def.volume;
@@ -338,6 +348,20 @@ export class AudioSystem {
     this.currentMusicName = '';
   }
 
+  public pauseMusic(): void {
+    const musicInstance = this.playingSounds.get(this.currentMusicName);
+    if (musicInstance) {
+      musicInstance.pause();
+    }
+  }
+
+  public resumeMusic(): void {
+    const musicInstance = this.playingSounds.get(this.currentMusicName);
+    if (musicInstance) {
+      musicInstance.play();
+    }
+  }
+
   public stopSound(name: string): void {
     const instance = this.playingSounds.get(name);
     if (instance) {
@@ -440,6 +464,14 @@ export class AudioManager {
 
   public static stopMusic(): void {
     AudioManager.get().stopMusic();
+  }
+
+  public static pauseMusic(): void {
+    AudioManager.get().pauseMusic();
+  }
+
+  public static resumeMusic(): void {
+    AudioManager.get().resumeMusic();
   }
 
   public static toggleMute(): boolean {

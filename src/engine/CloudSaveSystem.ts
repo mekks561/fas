@@ -37,6 +37,16 @@ export interface LeaderboardEntry {
   kills: number;
   timestamp: number;
   rank?: number;
+  // 详细战斗统计
+  accuracy?: number;
+  maxCombo?: number;
+  bossesKilled?: number;
+  elitesKilled?: number;
+  playTime?: number;
+  powerupsCollected?: number;
+  damageDealt?: number;
+  damageTaken?: number;
+  rankGrade?: string;
 }
 
 export interface SaveResult {

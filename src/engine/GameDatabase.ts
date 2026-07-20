@@ -174,12 +174,8 @@ export class GameDatabase extends Dexie {
       .then((sessions) => sessions[sessions.length - 1]);
   }
 
-  public async saveLeaderboardEntry(entry: Omit<LeaderboardEntry, 'id'>): Promise<void> {
-    const fullEntry: LeaderboardEntry = {
-      ...entry,
-      id: `${entry.playerId}_${entry.timestamp}`,
-    };
-    await this.leaderboard.put(fullEntry);
+  public async saveLeaderboardEntry(entry: LeaderboardEntry): Promise<void> {
+    await this.leaderboard.put(entry);
   }
 
   public async getLeaderboard(limit: number = 100): Promise<LeaderboardEntry[]> {

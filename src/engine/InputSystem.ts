@@ -39,7 +39,6 @@ export class InputSystem {
   private touchControls: TouchControl[] = [];
   private activeTouchId: number | null = null;
   private gamepads: (Gamepad | null)[] = [];
-  private lastTouchPosition: pc.Vec2 | null = null;
   private touchStartPosition: pc.Vec2 | null = null;
   private listeners: Map<string, ((action: string, state: InputAction) => void)[]> = new Map();
   private isEnabled: boolean = true;
@@ -67,7 +66,7 @@ export class InputSystem {
     this.bindings.set('showStats', { action: 'showStats', keys: ['KeyF3'] });
     this.bindings.set('toggleAchievements', { action: 'toggleAchievements', keys: ['KeyF4'] });
 
-    this.bindings.forEach((binding, action) => {
+    this.bindings.forEach((_binding, action) => {
       this.actions.set(action, { state: 'released', value: 0 });
     });
   }
@@ -129,7 +128,6 @@ export class InputSystem {
     const touch = e.touches[0];
     this.activeTouchId = touch.identifier;
     this.touchStartPosition = new pc.Vec2(touch.clientX, touch.clientY);
-    this.lastTouchPosition = new pc.Vec2(touch.clientX, touch.clientY);
 
     const rect = this.canvas?.getBoundingClientRect();
     if (!rect) return;
@@ -147,7 +145,6 @@ export class InputSystem {
     for (let i = 0; i < e.touches.length; i++) {
       const touch = e.touches[i];
       if (touch.identifier === this.activeTouchId) {
-        this.lastTouchPosition = new pc.Vec2(touch.clientX, touch.clientY);
         this.updateJoystickAxis(touch);
         break;
       }
@@ -162,7 +159,6 @@ export class InputSystem {
       if (touch.identifier === this.activeTouchId) {
         this.activeTouchId = null;
         this.touchStartPosition = null;
-        this.lastTouchPosition = null;
         this.resetJoystickAxis();
         break;
       }

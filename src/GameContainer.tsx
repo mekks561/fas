@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameScene } from './components/GameScene';
-import { UIMode, MainMenu, LevelSelect, Settings } from './components/MainMenu';
-import { GameHUD, DamageIndicator, KillFeed } from './components/GameHUD';
-import {
-  PauseMenu,
-  GameOverScreen,
-  LevelCompleteScreen,
-  VictoryScreen,
-} from './components/PauseMenu';
-import { getUIManager, UIState, GameSettings } from './UIManager';
+import { MainMenu } from './components/MainMenu';
+import { LevelSelect } from './components/LevelSelect';
+import { Settings } from './components/Settings';
+import { GameHUD } from './components/GameHUD';
+import { PauseMenu } from './components/PauseMenu';
+import { GameOver as GameOverScreen } from './components/GameOver';
+import { LevelUI, LevelState } from './components/LevelUI';
+import { getUIManager, UIState, UIMode } from './UIManager';
 import { useGameStore } from './store/useGameStore';
 
 interface GameContainerProps {
   onQuit?: () => void;
 }
 
-export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
-  const [uiState, setUIState] = useState<UIState>(getUIManager().getState());
+export const GameContainer: React.FC<GameContainerProps> = () => {
+  const [uiState, setUIState] = useState<UIState>(() => getUIManager().getState());
 
   // 从 store 获取游戏状态
   const player = useGameStore((state) => state.player);
@@ -25,10 +24,32 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
   const enemyCount = useGameStore((state) => state.enemyCount);
   const fps = useGameStore((state) => state.fps);
 
-  // 暂时使用空数组，后续可以从 store 扩展
-  const kills: unknown[] = [];
-  const damageIndicators: unknown[] = [];
-  const activeEffects: unknown[] = [];
+  interface KillData {
+    id: string;
+    name: string;
+    score: number;
+    timestamp: number;
+  }
+
+  interface DamageIndicatorData {
+    id: string;
+    damage: number;
+    position: { x: number; y: number };
+    isCritical: boolean;
+    timestamp: number;
+  }
+
+  interface ActiveEffectData {
+    type: string;
+    icon: string;
+    remainingTime: number;
+    duration: number;
+    value: number;
+  }
+
+  const kills: KillData[] = [];
+  const damageIndicators: DamageIndicatorData[] = [];
+  const activeEffects: ActiveEffectData[] = [];
 
   useEffect(() => {
     const uiManager = getUIManager();
@@ -59,14 +80,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [uiState.mode]);
 
-  const handleStartGame = useCallback((levelId: number) => {
-    // 重置游戏状态
+  const handleStartGame = useCallback(() => {
     useGameStore.getState().resetGame();
-    getUIManager().startGame(levelId);
-  }, []);
-
-  const handleLevelSelect = useCallback(() => {
-    getUIManager().showLevelSelect();
+    getUIManager().startGame(1);
   }, []);
 
   const handleSettings = useCallback(() => {
@@ -78,12 +94,6 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
     getUIManager().showMainMenu();
   }, []);
 
-  const handleQuit = useCallback(() => {
-    if (onQuit) {
-      onQuit();
-    }
-  }, [onQuit]);
-
   const handleResume = useCallback(() => {
     getUIManager().resume();
     useGameStore.getState().setGamePaused(false);
@@ -94,10 +104,6 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
     getUIManager().startGame(uiState.currentLevelId);
   }, [uiState.currentLevelId]);
 
-  const handleSaveSettings = useCallback((settings: GameSettings) => {
-    getUIManager().updateSettings(settings);
-  }, []);
-
   const handleGameOver = useCallback(() => {
     getUIManager().showGameOver();
   }, []);
@@ -106,47 +112,19 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
     getUIManager().showLevelComplete();
   }, []);
 
-  const handleNextLevel = useCallback(() => {
-    const nextLevelId = uiState.currentLevelId + 1;
-    const levels = getUIManager().getLevels();
-
-    if (nextLevelId <= levels.length) {
-      useGameStore.getState().resetGame();
-      getUIManager().startGame(nextLevelId);
-    } else {
-      getUIManager().setMode(UIMode.LEVEL_COMPLETE);
-    }
-  }, [uiState.currentLevelId]);
-
   const renderUI = () => {
     switch (uiState.mode) {
       case UIMode.MAIN_MENU:
         return (
           <MainMenu
             onStartGame={handleStartGame}
-            onLevelSelect={handleLevelSelect}
             onSettings={handleSettings}
-            onQuit={handleQuit}
           />
         );
 
       case UIMode.LEVEL_SELECT:
         return (
           <LevelSelect
-            levels={uiState.levels.map((l) => ({
-              id: l.id,
-              name: l.name,
-              description: l.description,
-              difficulty: (l.difficulty as 'easy' | 'normal' | 'hard' | 'nightmare') || 'easy',
-              recommendedLevel: l.recommendedLevel || 1,
-              stars: l.stars || 0,
-              maxStars: 3,
-              unlocked: l.unlocked !== undefined ? l.unlocked : true,
-              highScore: l.highScore,
-              completionRate: l.completionRate,
-              enemies: l.enemies || 10,
-              waves: l.waves || 5,
-            }))}
             onSelectLevel={handleStartGame}
             onBack={handleBackToMenu}
           />
@@ -155,9 +133,7 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
       case UIMode.SETTINGS:
         return (
           <Settings
-            settings={uiState.settings}
-            onSave={handleSaveSettings}
-            onBack={handleBackToMenu}
+            onClose={handleBackToMenu}
           />
         );
 
@@ -180,14 +156,14 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
               bossMaxHealth={0}
               bossName=""
             />
-            <KillFeed kills={kills} />
-            {damageIndicators.map((d, i) => (
-              <DamageIndicator
-                key={`damage-${i}-${d.timestamp}`}
-                damage={d.damage}
-                position={d.position}
-                isCritical={d.isCritical}
-              />
+            {damageIndicators.map((d) => (
+              <div
+                key={`damage-${d.id}-${d.timestamp}`}
+                className="absolute text-red-500 font-bold text-xl"
+                style={{ left: d.position.x, top: d.position.y }}
+              >
+                -{d.damage}
+              </div>
             ))}
           </>
         );
@@ -214,7 +190,9 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
               currentStats={{
                 score: player.score,
                 wave: currentWave,
-                kills: kills.length,
+                level: player.level,
+                enemiesDefeated: kills.length,
+                timeElapsed: 0,
               }}
             />
           </>
@@ -223,13 +201,15 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
       case UIMode.GAME_OVER:
         return (
           <GameOverScreen
+            isVictory={false}
             stats={{
               score: player.score,
+              highScore: 0,
               level: player.level,
               wave: currentWave,
-              totalWaves: totalWaves,
-              kills: kills.length,
-              timePlayed: 0,
+              enemiesDefeated: kills.length,
+              timeElapsed: 0,
+              accuracy: 0,
             }}
             onRestart={handleRestart}
             onMainMenu={handleBackToMenu}
@@ -238,36 +218,15 @@ export const GameContainer: React.FC<GameContainerProps> = ({ onQuit }) => {
 
       case UIMode.LEVEL_COMPLETE:
         const levels = getUIManager().getLevels();
-        if (uiState.currentLevelId >= levels.length) {
-          return (
-            <VictoryScreen
-              stats={{
-                totalScore: player.score,
-                totalKills: kills.length,
-                totalTime: 0,
-                levelsCompleted: levels.filter((l) => l.completed).length,
-                bossesDefeated: levels.filter((l) => l.completed).length,
-              }}
-              onPlayAgain={handleRestart}
-              onMainMenu={handleBackToMenu}
-            />
-          );
-        }
-
         return (
-          <LevelCompleteScreen
-            stats={{
-              levelId: uiState.currentLevelId,
-              levelName: levels.find((l) => l.id === uiState.currentLevelId)?.name || '',
-              score: player.score,
-              wavesCompleted: currentWave,
-              totalWaves: totalWaves,
-              kills: kills.length,
-              timePlayed: 0,
-              bossDefeated: true,
-            }}
-            onNextLevel={handleNextLevel}
-            onMainMenu={handleBackToMenu}
+          <LevelUI
+            levelName={levels.find((l) => l.id === uiState.currentLevelId)?.name || ''}
+            currentWave={currentWave}
+            totalWaves={totalWaves}
+            levelState={LevelState.LEVEL_COMPLETE}
+            enemiesRemaining={0}
+            announcement="Level Complete"
+            isBossActive={false}
           />
         );
 

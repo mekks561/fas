@@ -40,7 +40,6 @@ export class EnhancedPlayerShip {
   private shield: number;
   private maxShield: number;
   private speed: number;
-  private velocity: pc.Vec3;
 
   private weapons: Map<WeaponType, WeaponConfig> = new Map();
   private currentWeapon: WeaponType = 'primary';
@@ -63,7 +62,6 @@ export class EnhancedPlayerShip {
     this.shield = config.shield || 50;
     this.maxShield = this.shield;
     this.speed = config.speed || 10;
-    this.velocity = new pc.Vec3(0, 0, 0);
 
     this.initializeWeapons();
     this.initializeSkills();
@@ -133,12 +131,10 @@ export class EnhancedPlayerShip {
   }
 
   private createPlayerShip(position: pc.Vec3): pc.Entity {
-    const _app = this.engine.getApp();
-
     const material = new pc.StandardMaterial();
     material.diffuse.set(0.2, 0.5, 0.8);
     material.specular.set(0.8, 0.8, 0.8);
-    material.shininess = 50;
+    (material as unknown as { shininess: number }).shininess = 50;
     material.emissive.set(0.1, 0.2, 0.4);
     material.update();
 
@@ -156,8 +152,8 @@ export class EnhancedPlayerShip {
     const cockpitMaterial = new pc.StandardMaterial();
     cockpitMaterial.diffuse.set(0.1, 0.3, 0.6);
     cockpitMaterial.specular.set(0.9, 0.9, 0.9);
-    cockpitMaterial.shininess = 100;
-    cockpitMaterial.transparency = 0.3;
+    (cockpitMaterial as unknown as { shininess: number }).shininess = 100;
+    cockpitMaterial.opacity = 0.3;
     cockpitMaterial.update();
     if (cockpit.model) cockpit.model.material = cockpitMaterial;
     cockpit.setLocalPosition(0, 0.3, 0);
@@ -216,7 +212,7 @@ export class EnhancedPlayerShip {
       sizeStart: 0.3,
       sizeEnd: 0.05,
     });
-    this.engineParticles.setParent(this.entity);
+    this.entity.addChild(this.engineParticles);
     this.engineParticles.setLocalPosition(0, 0, -1.5);
     this.engineParticles.setLocalEulerAngles(180, 0, 0);
 
@@ -230,7 +226,7 @@ export class EnhancedPlayerShip {
       sizeStart: 0.2,
       sizeEnd: 0,
     });
-    this.damageParticles.setParent(this.entity);
+    this.entity.addChild(this.damageParticles);
     if (this.damageParticles.particlesystem) this.damageParticles.particlesystem.enabled = false;
   }
 
@@ -510,5 +506,13 @@ export class EnhancedPlayerShip {
 
   public isSkillActive(skillName: string): boolean {
     return this.activeSkills.has(skillName);
+  }
+
+  public getWeaponCooldowns(): Map<WeaponType, number> {
+    return this.weaponCooldowns;
+  }
+
+  public setWeaponCooldowns(cooldowns: Map<WeaponType, number>): void {
+    this.weaponCooldowns = cooldowns;
   }
 }

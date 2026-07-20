@@ -114,7 +114,8 @@ export const PauseMenu: React.FC<PauseMenuProps> = ({
 
   // 启动动画
   useEffect(() => {
-    setShowAnimation(true);
+    const timer = setTimeout(() => setShowAnimation(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // 处理点击

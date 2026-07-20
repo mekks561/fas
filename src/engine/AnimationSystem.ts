@@ -407,7 +407,7 @@ export class AnimationSystem {
 
     if (animated.currentState === state) return true;
 
-    const _transition = this.findTransition(animated.currentState, state);
+    this.findTransition(animated.currentState, state);
     const targetClip = this.findClipForState(state);
 
     if (!targetClip) return false;
@@ -571,9 +571,9 @@ export class AnimationSystem {
     });
 
     if (totalWeight > 0) {
-      basePos.scale(1 / totalWeight);
-      baseRot.scale(1 / totalWeight);
-      baseScale.scale(1 / totalWeight);
+      basePos.mulScalar(1 / totalWeight);
+      baseRot.mulScalar(1 / totalWeight);
+      baseScale.mulScalar(1 / totalWeight);
       this.applyFrame(animated.entity, {
         position: basePos,
         rotation: baseRot,

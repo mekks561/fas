@@ -130,7 +130,7 @@ export class ResourceManager {
 
   public async preloadLevel(levelId: string): Promise<void> {
     const levelResources = Array.from(this.resources.values()).filter(
-      (r) => r.descriptor.preload && r.descriptor.metadata?.level === levelId,
+      (r) => r.descriptor.preload && r.descriptor.metadata?.['level'] === levelId,
     );
 
     const ids = levelResources.map((r) => r.descriptor.id);
@@ -195,11 +195,12 @@ export class ResourceManager {
       this.notifyProgress(descriptor.id);
 
       resolve(entry);
-    } catch (error) {
+    } catch (error: unknown) {
       this.failedLoads++;
       entry.isLoaded = false;
-      this.notifyError(error as Error, descriptor);
-      reject(error);
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      this.notifyError(errorObj, descriptor);
+      reject(errorObj);
     } finally {
       this.activeLoads.delete(descriptor.id);
       this.processQueue();
@@ -287,14 +288,14 @@ export class ResourceManager {
 
   private mapResourceType(type: ResourceType): string {
     const typeMap: Record<ResourceType, string> = {
-      model: 'model',
+      model: 'container',
       texture: 'texture',
       audio: 'audio',
       material: 'material',
       json: 'json',
       font: 'font',
       shader: 'shader',
-      prefab: 'model',
+      prefab: 'container',
     };
     return typeMap[type] || 'json';
   }
@@ -366,9 +367,12 @@ export class ResourceManager {
       this.currentCacheSize -= entry.size;
     }
 
-    if (this.app && entry.asset && entry.asset.unload) {
-      entry.asset.unload();
-      this.app.assets.remove(entry.asset);
+    if (this.app && entry.asset) {
+      const asset = entry.asset as pc.Asset;
+      if (typeof (asset as unknown as { unload: () => void }).unload === 'function') {
+        (asset as unknown as { unload: () => void }).unload();
+      }
+      this.app.assets.remove(asset);
     }
 
     entry.isLoaded = false;

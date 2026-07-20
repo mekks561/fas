@@ -18,6 +18,11 @@ import { DebugSystem } from './DebugSystem';
 import { LevelEditor } from './LevelEditor';
 import { MultiplayerSystem } from './MultiplayerSystem';
 import { LuaSkillBridge } from './LuaSkillBridge';
+import { ComputePhysics } from './ComputePhysics';
+import { AINPCController } from './AINPCController';
+import { PerformanceMonitor } from './PerformanceMonitor';
+import { gameplayManager } from './GameplayManager';
+import type { GameplayEvents } from './GameplayManager';
 
 export type GameState =
   'menu' | 'loading' | 'playing' | 'paused' | 'game_over' | 'level_complete' | 'settings';
@@ -71,6 +76,10 @@ export class Game {
   private levelEditor: LevelEditor | null = null;
   private multiplayerSystem: MultiplayerSystem | null = null;
   private luaSkillBridge: LuaSkillBridge | null = null;
+  private computePhysics: ComputePhysics | null = null;
+  private aiNPCController: AINPCController | null = null;
+  private performanceMonitor: PerformanceMonitor | null = null;
+  private gameplayManagerInstance: typeof gameplayManager | null = null;
 
   private isInitialized: boolean = false;
   private isRunning: boolean = false;
@@ -139,7 +148,7 @@ export class Game {
       instance: new InputSystem(this.config.canvas),
       enabled: true,
       initialized: false,
-      update: (dt) => this.inputSystem?.update(dt),
+      update: () => this.inputSystem?.update(),
       destroy: () => this.inputSystem?.destroy(),
     });
 
@@ -251,11 +260,59 @@ export class Game {
 
     // Lua 技能系统
     this.systems.set('luaSkill', {
-      instance: new LuaSkillBridge(this),
+      instance: new LuaSkillBridge(),
       enabled: true,
       initialized: false,
       update: (dt) => this.luaSkillBridge?.update(dt),
       destroy: () => this.luaSkillBridge?.destroy(),
+    });
+
+    // WebGPU 物理系统
+    this.systems.set('physics', {
+      instance: new ComputePhysics({
+        maxParticles: 5000,
+        gravity: new pc.Vec3(0, -9.81, 0),
+        damping: 0.99,
+        collisionRadius: 0.5,
+        solverIterations: 5,
+      }),
+      enabled: true,
+      initialized: false,
+      update: (dt) => this.computePhysics?.update(dt),
+      destroy: () => this.computePhysics?.destroy(),
+    });
+
+    // AI NPC 控制器
+    this.systems.set('aiNPC', {
+      instance: new AINPCController({
+        modelPath: '/models/npc_ai.onnx',
+        inputSize: 12,
+        outputSize: 5,
+        decisionInterval: 100,
+        maxInferenceTime: 50,
+      }),
+      enabled: true,
+      initialized: false,
+      update: (dt) => this.updateAI(dt),
+      destroy: () => this.aiNPCController?.destroy(),
+    });
+
+    // 性能监控
+    this.systems.set('performance', {
+      instance: new PerformanceMonitor(),
+      enabled: true,
+      initialized: true,
+      update: (_dt) => {},
+      destroy: () => {},
+    });
+
+    // 游戏玩法管理器
+    this.systems.set('gameplay', {
+      instance: gameplayManager,
+      enabled: true,
+      initialized: false,
+      update: (dt) => gameplayManager.update(dt),
+      destroy: () => gameplayManager.destroy(),
     });
   }
 
@@ -354,7 +411,49 @@ export class Game {
       console.log('[Game] Lua Skill System initialized');
     }
 
-    AudioManager.initialize(this.engine?.getApp() || null);
+    // 初始化 WebGPU 物理系统
+    const physicsSys = this.systems.get('physics');
+    if (physicsSys) {
+      this.computePhysics = physicsSys.instance as ComputePhysics;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      physicsSys.initialized = true;
+      console.log(`[Game] Compute Physics initialized - GPU: ${this.computePhysics.isUsingGPU()}`);
+    }
+
+    // 初始化 AI NPC 控制器
+    const aiNPCSys = this.systems.get('aiNPC');
+    if (aiNPCSys) {
+      this.aiNPCController = aiNPCSys.instance as AINPCController;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      aiNPCSys.initialized = true;
+      console.log(`[Game] AI NPC Controller initialized - AI Enabled: ${this.aiNPCController.isUsingAI()}`);
+    }
+
+    // 初始化性能监控
+    const performanceSys = this.systems.get('performance');
+    if (performanceSys) {
+      this.performanceMonitor = performanceSys.instance as PerformanceMonitor;
+      if (this.computePhysics) {
+        this.performanceMonitor.setGpuPhysics(this.computePhysics.isUsingGPU());
+      }
+      if (this.aiNPCController) {
+        this.performanceMonitor.setAiEnabled(this.aiNPCController.isUsingAI());
+      }
+      console.log('[Game] Performance Monitor initialized');
+    }
+
+    // 初始化游戏玩法管理器
+    const gameplaySys = this.systems.get('gameplay');
+    if (gameplaySys) {
+      this.gameplayManagerInstance = gameplaySys.instance as typeof gameplayManager;
+      await this.gameplayManagerInstance.initialize('normal');
+      gameplaySys.initialized = true;
+      console.log('[Game] Gameplay Manager initialized');
+    }
+
+    if (this.engine) {
+      AudioManager.initialize(this.engine.getApp());
+    }
   }
 
   private createEnvironment(): void {
@@ -436,7 +535,7 @@ export class Game {
   public createSkillSystem(player: PlayerShip): SkillSystem | null {
     if (!this.engine) return null;
 
-    const skillSystem = new SkillSystem(this.engine, player);
+    const skillSystem = new SkillSystem(player, this.engine);
     this.skillSystem = skillSystem;
 
     const skillSys = this.systems.get('skill');
@@ -479,12 +578,24 @@ export class Game {
       AudioManager.playSound('playerHit');
     });
 
-    this.eventSystem.on('enemy_death', () => {
+    this.eventSystem.on('enemy_death', (event) => {
       AudioManager.playSound('enemyExplosion');
+      const data = event.data as { type: string; score: number; isBoss?: boolean; isElite?: boolean };
+      if (this.gameplayManagerInstance && this.gameplayManagerInstance.isRunning()) {
+        this.gameplayManagerInstance.onEnemyKilled(
+          data.type,
+          data.isBoss || false,
+          data.isElite || false,
+        );
+      }
     });
 
-    this.eventSystem.on('powerup_collect', () => {
+    this.eventSystem.on('powerup_collect', (event) => {
       AudioManager.playSound('powerup');
+      const data = event.data as { type: string };
+      if (this.gameplayManagerInstance && this.gameplayManagerInstance.isRunning()) {
+        this.gameplayManagerInstance.applyPowerup(data.type as Parameters<typeof gameplayManager.applyPowerup>[0]);
+      }
     });
 
     this.eventSystem.on('wave_complete', (_e) => {
@@ -493,20 +604,49 @@ export class Game {
 
     this.eventSystem.on('game_pause', () => {
       AudioManager.pauseMusic();
+      this.gameplayManagerInstance?.pause();
     });
 
     this.eventSystem.on('game_resume', () => {
       AudioManager.resumeMusic();
+      this.gameplayManagerInstance?.resume();
     });
 
     this.eventSystem.on('game_over', () => {
       AudioManager.playSound('playerExplosion');
       AudioManager.playMusic('defeatMusic');
+      this.gameplayManagerInstance?.gameOver();
     });
 
     this.eventSystem.on('game_win', () => {
       AudioManager.playMusic('victoryMusic');
     });
+
+    if (this.gameplayManagerInstance) {
+      const gameplayEvents: GameplayEvents = {
+        onWaveStart: (waveNumber) => {
+          this.eventSystem?.emitWaveStart(waveNumber, 0);
+        },
+        onWaveComplete: (waveNumber, score) => {
+          this.eventSystem?.emitWaveComplete(waveNumber, 0);
+          this.eventSystem?.emitScoreUpdate(score, 0);
+        },
+        onEnemyKilled: (_enemyType, score) => {
+          this.eventSystem?.emitScoreUpdate(this.gameplayManagerInstance?.getScore() || 0, score);
+        },
+        onComboUpdate: (_combo, _maxCombo) => {
+        },
+        onRankChange: (_newRank, _oldRank) => {
+        },
+        onPowerupApplied: (_powerupType) => {
+        },
+        onPowerupExpired: (_powerupType) => {
+        },
+        onGameOver: (_finalScore, _rank) => {
+        },
+      };
+      this.gameplayManagerInstance.setEventCallbacks(gameplayEvents);
+    }
   }
 
   public start(): void {
@@ -515,6 +655,11 @@ export class Game {
     this.isRunning = true;
     this.state = 'playing';
     AudioManager.playMusic('gameMusic');
+
+    if (this.gameplayManagerInstance) {
+      this.gameplayManagerInstance.startGame('normal');
+      this.gameplayManagerInstance.startWave(1);
+    }
 
     this.engine.setUpdateCallback((dt: number) => {
       this.update(dt);
@@ -530,11 +675,32 @@ export class Game {
   private update(dt: number): void {
     if (!this.isRunning) return;
 
+    const frameStart = performance.now();
+
     this.systems.forEach((sys) => {
       if (sys.enabled && sys.initialized && sys.update) {
+        const name = sys.instance?.constructor?.name || 'unknown';
+        const start = performance.now();
         sys.update(dt);
+        const elapsed = performance.now() - start;
+
+        if (name === 'ComputePhysics') {
+          this.performanceMonitor?.recordPhysicsTime(elapsed);
+        } else if (name === 'AINPCController') {
+          this.performanceMonitor?.recordAiTime(elapsed);
+        }
       }
     });
+
+    const frameEnd = performance.now();
+    this.performanceMonitor?.recordFrameTime(frameEnd - frameStart);
+
+    if (this.computePhysics) {
+      this.performanceMonitor?.setActiveParticles(this.computePhysics.getActiveParticles().length);
+    }
+    if (this.aiNPCController) {
+      this.performanceMonitor?.setActiveNPCs(this.aiNPCController.getAllNPCStates().length);
+    }
 
     this.frameCount++;
     const now = Date.now();
@@ -546,6 +712,66 @@ export class Game {
 
     if (this.updateCallback) {
       this.updateCallback(dt);
+    }
+  }
+
+  private updateAI(dt: number): void {
+    if (!this.aiNPCController || !this.player) return;
+
+    const playerPositions = new Map<string, pc.Vec3>();
+    playerPositions.set('player', this.player.getPosition());
+
+    const actions = this.aiNPCController.update(dt, playerPositions);
+
+    actions.forEach((action, npcId) => {
+      this.executeNPCAction(npcId, action);
+    });
+  }
+
+  private executeNPCAction(npcId: string, action: { type: string; direction?: pc.Vec3; target?: pc.Vec3; speed?: number }): void {
+    const enemySystem = this.getEnemySystem();
+    if (!enemySystem) return;
+
+    const enemies = enemySystem.getEnemies();
+    const npcEnemy = enemies.find((e) => {
+      const entity = e.getEntity();
+      const entityTyped = entity as unknown as { id?: string };
+      return entity.name === npcId || entityTyped.id === npcId;
+    });
+
+    if (!npcEnemy) return;
+
+    const entity = npcEnemy.getEntity();
+    const position = entity.getPosition();
+
+    switch (action.type) {
+      case 'move':
+        if (action.direction) {
+          const newPos = new pc.Vec3().copy(position).add(action.direction.scale(action.speed || 1.5));
+          entity.setPosition(newPos);
+        }
+        break;
+      case 'chase':
+        if (action.target) {
+          const direction = new pc.Vec3().sub2(action.target, position).normalize();
+          const newPos = new pc.Vec3().copy(position).add(direction.scale(3));
+          entity.setPosition(newPos);
+        }
+        break;
+      case 'attack':
+        break;
+      case 'strafe':
+        if (action.direction) {
+          const newPos = new pc.Vec3().copy(position).add(action.direction.scale(action.speed || 2));
+          entity.setPosition(newPos);
+        }
+        break;
+      case 'flee':
+        if (action.direction) {
+          const newPos = new pc.Vec3().copy(position).add(action.direction.scale(action.speed || 4));
+          entity.setPosition(newPos);
+        }
+        break;
     }
   }
 
@@ -589,17 +815,20 @@ export class Game {
   }
 
   public getStats(): GameStats {
+    const app = this.engine?.getApp();
+    const stats = app?.stats;
     return {
       fps: this.fps,
       frameTime: this.frameTime,
-      entities: this.engine ? this.countEntities(this.engine.getScene()) : 0,
-      drawCalls: this.engine?.getApp()?.stats?.drawCalls?.count || 0,
-      triangles: this.engine?.getApp()?.stats?.triangles?.count || 0,
-      memoryUsage:
-        (window.performance as unknown as { memory?: { usedJSHeapSize: number } })?.memory
-          ?.usedJSHeapSize /
-          1024 /
-          1024 || 0,
+      entities: this.engine ? this.countEntities(this.engine.getScene().root as unknown as pc.Entity) : 0,
+      drawCalls: stats ? (stats.drawCalls.forward + stats.drawCalls.depth + stats.drawCalls.shadow + stats.drawCalls.immediate + stats.drawCalls.misc) : 0,
+      triangles: 0,
+      memoryUsage: (() => {
+        if (!window.performance) return 0;
+        const perf = window.performance as unknown as { memory?: { usedJSHeapSize: number } };
+        if (!perf.memory) return 0;
+        return perf.memory.usedJSHeapSize / 1024 / 1024;
+      })(),
       players: this.multiplayerSystem ? this.multiplayerSystem.getPlayers().length : 1,
       enemies: this.enemySystem ? this.enemySystem.getEnemies().length : 0,
       projectiles: this.weaponSystem ? this.weaponSystem.getProjectileCount() : 0,
@@ -608,7 +837,8 @@ export class Game {
 
   private countEntities(entity: pc.Entity): number {
     let count = 1;
-    entity.children.forEach((child) => {
+    const children = entity.children as unknown as pc.Entity[];
+    children.forEach((child) => {
       count += this.countEntities(child);
     });
     return count;
@@ -702,6 +932,22 @@ export class Game {
     return this.luaSkillBridge;
   }
 
+  public getComputePhysics(): ComputePhysics | null {
+    return this.computePhysics;
+  }
+
+  public getAINPCController(): AINPCController | null {
+    return this.aiNPCController;
+  }
+
+  public getPerformanceMonitor(): PerformanceMonitor | null {
+    return this.performanceMonitor;
+  }
+
+  public getGameplayManager(): typeof gameplayManager | null {
+    return this.gameplayManagerInstance;
+  }
+
   public enableLevelEditor(): void {
     const editorSys = this.systems.get('levelEditor');
     if (editorSys && this.engine) {
@@ -752,14 +998,16 @@ export class Game {
     this.levelEditor = null;
     this.multiplayerSystem = null;
     this.luaSkillBridge = null;
+    this.computePhysics = null;
+    this.aiNPCController = null;
     this.engine = null;
   }
 
-  public isInitialized(): boolean {
+  public getIsInitialized(): boolean {
     return this.isInitialized;
   }
 
-  public isRunning(): boolean {
+  public getIsRunning(): boolean {
     return this.isRunning;
   }
 }

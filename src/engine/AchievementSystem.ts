@@ -332,22 +332,26 @@ class AchievementSystem {
     this.saveProgress();
   }
 
-  public updateStats(updates: Partial<AchievementStats>): void {
-    const _oldStats = { ...this.stats };
+  private isRecordField(key: keyof AchievementStats): key is 'enemiesKilledByType' | 'skillsUsed' {
+    return key === 'enemiesKilledByType' || key === 'skillsUsed';
+  }
 
+  public updateStats(updates: Partial<AchievementStats>): void {
     Object.keys(updates).forEach((key) => {
       const k = key as keyof AchievementStats;
       const value = updates[k];
       if (typeof value === 'number') {
+        if (this.isRecordField(k)) {
+          return;
+        }
         (this.stats[k] as number) += value;
-      } else if (typeof value === 'object' && value !== null) {
-        this.stats[k] = { ...this.stats[k], ...value } as AchievementStats[typeof k];
+      } else if (typeof value === 'object' && value !== null && this.isRecordField(k)) {
+        const currentValue = this.stats[k] as Record<string, number>;
+        this.stats[k] = { ...currentValue, ...value };
       }
     });
 
-    // Update highest values
     if (this.stats.highestWave < this.stats.totalKills) {
-      // Check wave achievements
     }
 
     this.checkAchievements();
@@ -359,9 +363,12 @@ class AchievementSystem {
       const k = key as keyof AchievementStats;
       const value = updates[k];
       if (typeof value === 'number') {
+        if (this.isRecordField(k)) {
+          return;
+        }
         (this.stats[k] as number) = value;
-      } else if (typeof value === 'object' && value !== null) {
-        this.stats[k] = value as unknown as AchievementStats[keyof AchievementStats];
+      } else if (typeof value === 'object' && value !== null && this.isRecordField(k)) {
+        this.stats[k] = value;
       }
     });
 
@@ -475,7 +482,7 @@ class AchievementSystem {
   public getAllAchievements(): (AchievementDefinition & { progress: AchievementProgress })[] {
     return ACHIEVEMENT_DEFINITIONS.map((def) => ({
       ...def,
-      progress: this.achievements.get(def.id) || { current: 0, isUnlocked: false },
+      progress: this.achievements.get(def.id) || { current: 0, isUnlocked: false, notificationShown: false },
     }));
   }
 

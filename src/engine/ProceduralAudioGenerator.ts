@@ -28,7 +28,7 @@ export class ProceduralAudioGenerator {
   }
 
   generate(config: AudioConfig): AudioBuffer {
-    const { type, duration, options } = config;
+    const { type, duration, options = {} } = config;
 
     const sampleRate = this.audioContext.sampleRate;
     const length = duration * sampleRate;

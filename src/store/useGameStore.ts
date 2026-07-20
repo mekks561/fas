@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import type { DifficultySnapshot } from '../engine/DifficultyManager';
 
 interface PlayerState {
   health: number;
@@ -10,6 +11,8 @@ interface PlayerState {
   level: number;
   speed: number;
   isBoostActive: boolean;
+  boostEnergy: number;
+  maxBoostEnergy: number;
 }
 
 interface SkillsState {
@@ -37,6 +40,12 @@ interface TouchHandlers {
   onSkill4: () => void;
 }
 
+interface PerformanceStats {
+  drawCalls: number;
+  triangles: number;
+  memoryUsage: number;
+}
+
 interface GameState {
   isLoading: boolean;
   loadingProgress: number;
@@ -59,6 +68,38 @@ interface GameState {
   powerupsCollected: number;
   skillsUsed: number;
   enemiesDefeated: number;
+  frameCount: number;
+  performanceStats: PerformanceStats;
+  combo: number;
+  maxCombo: number;
+  comboTimer: number;
+  rank: string;
+  activePowerups: ActivePowerup[];
+  isBossWave: boolean;
+  isEliteWave: boolean;
+  waveEnemiesSpawned: number;
+  waveEnemiesDefeated: number;
+  waveEnemiesRemaining: number;
+  waveRewardNotification: { waveNumber: number; rewards: { label: string }[] } | null;
+  achievementNotifications: AchievementNotification[];
+  difficultyInfo: DifficultySnapshot | null;
+}
+
+interface AchievementNotification {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  rarity: string;
+  timestamp: number;
+}
+
+interface ActivePowerup {
+  type: string;
+  name: string;
+  remainingTime: number;
+  duration: number;
+  value: number;
 }
 
 interface GameActions {
@@ -74,6 +115,7 @@ interface GameActions {
   setPlayerLevel: (level: number) => void;
   setSpeed: (speed: number) => void;
   setBoostActive: (active: boolean) => void;
+  setBoostEnergy: (energy: number) => void;
   setWave: (wave: number) => void;
   setTotalWaves: (waves: number) => void;
   setWaveProgress: (progress: number) => void;
@@ -96,6 +138,18 @@ interface GameActions {
   saveGame: () => void;
   loadGame: () => void;
   clearSave: () => void;
+  incrementFrameCount: () => void;
+  updatePerformanceStats: (stats: Partial<PerformanceStats>) => void;
+  setCombo: (combo: number, maxCombo: number, timer: number) => void;
+  setRank: (rank: string) => void;
+  setActivePowerups: (powerups: ActivePowerup[]) => void;
+  addActivePowerup: (powerup: ActivePowerup) => void;
+  removeActivePowerup: (type: string) => void;
+  setWaveInfo: (info: Partial<{ isBossWave: boolean; isEliteWave: boolean; enemiesSpawned: number; enemiesDefeated: number; enemiesRemaining: number }>) => void;
+  setWaveRewardNotification: (notification: { waveNumber: number; rewards: { label: string }[] } | null) => void;
+  addAchievementNotification: (notification: AchievementNotification) => void;
+  removeAchievementNotification: (id: string) => void;
+  setDifficultyInfo: (info: DifficultySnapshot | null) => void;
 }
 
 const STORAGE_KEY = 'fighter-game-save';
@@ -108,20 +162,20 @@ const safeLocalStorage = {
       return null;
     }
   },
-  setItem: (key: string, value: string): boolean => {
+  setItem: (key: string, value: string): void => {
     try {
       localStorage.setItem(key, value);
-      return true;
     } catch {
       console.warn('Storage quota exceeded, save failed');
-      return false;
     }
   },
-  removeItem: (key: string): void => {
+  removeItem: (key: string): boolean => {
     try {
       localStorage.removeItem(key);
+      return true;
     } catch {
       console.warn('Storage remove failed');
+      return false;
     }
   },
 };
@@ -141,6 +195,8 @@ const defaultPlayerState: PlayerState = {
   level: 1,
   speed: 0,
   isBoostActive: false,
+  boostEnergy: 100,
+  maxBoostEnergy: 100,
 };
 
 const defaultSkillsState: SkillsState = {
@@ -170,7 +226,7 @@ const defaultState: GameState = {
   skills: defaultSkillsState,
   touchHandlers: null,
   currentWave: 1,
-  totalWaves: 5,
+  totalWaves: 10,
   waveProgress: 0,
   enemyCount: 0,
   projectileCount: 0,
@@ -180,6 +236,25 @@ const defaultState: GameState = {
   powerupsCollected: 0,
   skillsUsed: 0,
   enemiesDefeated: 0,
+  frameCount: 0,
+  performanceStats: {
+    drawCalls: 0,
+    triangles: 0,
+    memoryUsage: 0,
+  },
+  combo: 0,
+  maxCombo: 0,
+  comboTimer: 0,
+  rank: 'F',
+  activePowerups: [],
+  isBossWave: false,
+  isEliteWave: false,
+  waveEnemiesSpawned: 0,
+  waveEnemiesDefeated: 0,
+  waveEnemiesRemaining: 0,
+  waveRewardNotification: null,
+  achievementNotifications: [],
+  difficultyInfo: null,
 };
 
 export const useGameStore = create<GameState & GameActions>()(
@@ -228,6 +303,14 @@ export const useGameStore = create<GameState & GameActions>()(
       setBoostActive: (active) =>
         set((state) => ({
           player: { ...state.player, isBoostActive: active },
+        })),
+
+      setBoostEnergy: (energy) =>
+        set((state) => ({
+          player: {
+            ...state.player,
+            boostEnergy: Math.max(0, Math.min(state.player.maxBoostEnergy, energy)),
+          },
         })),
 
       setWave: (wave) => set({ currentWave: wave }),
@@ -319,6 +402,71 @@ export const useGameStore = create<GameState & GameActions>()(
           player: { ...get().player, score: 0, level: 1 },
         });
       },
+
+      incrementFrameCount: () => set((state) => ({ frameCount: state.frameCount + 1 })),
+      updatePerformanceStats: (stats) =>
+        set((state) => ({
+          performanceStats: { ...state.performanceStats, ...stats },
+        })),
+
+      setCombo: (combo, maxCombo, timer) =>
+        set((state) => ({
+          combo,
+          maxCombo: Math.max(state.maxCombo, maxCombo),
+          comboTimer: timer,
+        })),
+
+      setRank: (rank) => set({ rank }),
+
+      setActivePowerups: (powerups) => set({ activePowerups: powerups }),
+
+      addActivePowerup: (powerup) =>
+        set((state) => {
+          const existing = state.activePowerups.findIndex((p) => p.type === powerup.type);
+          if (existing >= 0) {
+            const updated = [...state.activePowerups];
+            updated[existing] = powerup;
+            return { activePowerups: updated };
+          }
+          return { activePowerups: [...state.activePowerups, powerup] };
+        }),
+
+      removeActivePowerup: (type) =>
+        set((state) => ({
+          activePowerups: state.activePowerups.filter((p) => p.type !== type),
+        })),
+
+      setWaveInfo: (info) =>
+        set((state) => ({
+          isBossWave: info.isBossWave ?? state.isBossWave,
+          isEliteWave: info.isEliteWave ?? state.isEliteWave,
+          waveEnemiesSpawned: info.enemiesSpawned ?? state.waveEnemiesSpawned,
+          waveEnemiesDefeated: info.enemiesDefeated ?? state.waveEnemiesDefeated,
+          waveEnemiesRemaining: info.enemiesRemaining ?? state.waveEnemiesRemaining,
+        })),
+
+      setWaveRewardNotification: (notification) => set({ waveRewardNotification: notification }),
+
+      addAchievementNotification: (notification) =>
+        set((state) => {
+          // 避免重复添加同一个成就通知
+          if (state.achievementNotifications.some((n) => n.id === notification.id)) {
+            return state;
+          }
+          // 限制队列长度，最多保留5个通知
+          const next = [...state.achievementNotifications, notification];
+          if (next.length > 5) {
+            next.shift();
+          }
+          return { achievementNotifications: next };
+        }),
+
+      removeAchievementNotification: (id) =>
+        set((state) => ({
+          achievementNotifications: state.achievementNotifications.filter((n) => n.id !== id),
+        })),
+
+      setDifficultyInfo: (info) => set({ difficultyInfo: info }),
     }),
     {
       name: STORAGE_KEY,

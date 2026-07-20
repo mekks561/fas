@@ -24,6 +24,8 @@ export interface EnemyConfig {
   type: EnemyType;
   position: pc.Vec3;
   player: PlayerShip;
+  /** 难度倍率（由难度自适应系统提供，缩放生命/速度/伤害），默认 1.0 */
+  difficultyMultiplier?: number;
 }
 
 export interface EnemyStats {
@@ -61,11 +63,20 @@ export class Enemy {
     this.player = config.player;
 
     const stats = this.getStatsForType(config.type);
-    this.stats = stats;
-    this.health = stats.health;
-    this.maxHealth = stats.health;
-    this.speed = stats.speed;
-    this.damage = stats.damage;
+    // 应用难度倍率：生命/伤害按倍率缩放，速度仅轻微缩放（避免过快/过慢破坏体验）
+    const m = config.difficultyMultiplier && config.difficultyMultiplier > 0
+      ? config.difficultyMultiplier
+      : 1.0;
+    const scaledHealth = Math.round(stats.health * m);
+    const scaledDamage = Math.round(stats.damage * m);
+    // 速度倍率压缩到 0.85 - 1.15 区间，避免极端值
+    const speedScale = Math.max(0.85, Math.min(1.15, 1 + (m - 1) * 0.4));
+    const scaledSpeed = stats.speed * speedScale;
+    this.stats = { ...stats, health: scaledHealth, maxHealth: scaledHealth, damage: scaledDamage, speed: scaledSpeed };
+    this.health = scaledHealth;
+    this.maxHealth = scaledHealth;
+    this.speed = scaledSpeed;
+    this.damage = scaledDamage;
     this.attackCooldown = stats.attackCooldown;
     this.lastAttackTime = 0;
 
@@ -369,7 +380,7 @@ export class Enemy {
         ),
       },
       sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5, 2], 'size'),
+        graph: new pc.Curve([0.5, 1.5, 2]),
       },
     });
 

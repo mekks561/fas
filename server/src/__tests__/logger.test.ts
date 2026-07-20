@@ -1,10 +1,11 @@
+import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { logger } from '../middleware/logger';
 
 describe('Logger', () => {
   beforeEach(() => {
-    vi.spyOn(console, 'log').mockImplementation();
-    vi.spyOn(console, 'error').mockImplementation();
-    vi.spyOn(console, 'warn').mockImplementation();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {

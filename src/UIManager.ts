@@ -1,4 +1,12 @@
-import { UIMode } from './components/MainMenu';
+export enum UIMode {
+  MAIN_MENU = 'main_menu',
+  LEVEL_SELECT = 'level_select',
+  SETTINGS = 'settings',
+  PLAYING = 'playing',
+  PAUSED = 'paused',
+  GAME_OVER = 'game_over',
+  LEVEL_COMPLETE = 'level_complete',
+}
 
 export interface GameSettings {
   musicVolume: number;
