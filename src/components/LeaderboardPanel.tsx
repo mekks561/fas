@@ -1,11 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Trophy, Medal, Award, Clock, Users, Star, Target, Swords, RefreshCw, ChevronDown, Zap, Heart, Crosshair, Skull } from 'lucide-react';
-import { LeaderboardService, LeaderboardFilter } from '../engine/LeaderboardService';
+import React, { useState } from 'react';
+import {
+  Trophy,
+  Medal,
+  Award,
+  Clock,
+  Users,
+  Star,
+  Target,
+  Swords,
+  RefreshCw,
+  ChevronDown,
+  Zap,
+  Heart,
+  Crosshair,
+  Skull,
+} from 'lucide-react';
+import type { LeaderboardFilter } from '../engine/LeaderboardService';
+import { useLeaderboardList, useMyRank, useLeaderboardStats } from '../services/leaderboard';
 import './LeaderboardPanel.css';
 
 interface LeaderboardPanelProps {
   onBack: () => void;
-  service: LeaderboardService;
 }
 
 const filterLabels: Record<LeaderboardFilter, string> = {
@@ -15,6 +30,18 @@ const filterLabels: Record<LeaderboardFilter, string> = {
   monthly: '月榜',
   friends: '好友',
 };
+
+function formatDate(ts: number): string {
+  const date = new Date(ts);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+  if (days === 0) return '今天';
+  if (days === 1) return '昨天';
+  if (days < 7) return `${days}天前`;
+  if (days < 30) return `${Math.floor(days / 7)}周前`;
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+}
 
 const rankColors: Record<number, string> = {
   1: 'text-yellow-400',
@@ -34,28 +61,29 @@ const rankIcons: Record<number, string> = {
   3: '🥉',
 };
 
-export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ onBack, service }) => {
+export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ onBack }) => {
   const [filter, setFilter] = useState<LeaderboardFilter>('all');
-  const [_updateTrigger, setUpdateTrigger] = useState({});
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
 
-  useEffect(() => {
-    const unsub = service.subscribe(() => setUpdateTrigger({}));
-    service.fetchLeaderboard(filter);
-    return unsub;
-  }, [service, filter]);
+  const listQuery = useLeaderboardList({ limit: 50, filter });
+  const statsQuery = useLeaderboardStats();
+  const myRankQuery = useMyRank('default_player');
 
-  useEffect(() => {
-    service.fetchLeaderboard(filter);
-  }, [service, filter]);
-
-  const entries = useMemo(() => service.getEntries(), [service]);
-  const stats = useMemo(() => service.getStats(), [service]);
-  const isLoading = useMemo(() => service.isLoadingEntries(), [service]);
-  const yourEntry = useMemo(() => service.getYourEntry(), [service]);
+  const entries = listQuery.data ?? [];
+  const stats = statsQuery.data ?? {
+    totalPlayers: 0,
+    topScore: 0,
+    avgScore: 0,
+    difficultyDistribution: { easy: 0, normal: 0, hard: 0, expert: 0 },
+  };
+  const isLoading = listQuery.isLoading || statsQuery.isLoading || myRankQuery.isLoading;
+  const error = listQuery.error || statsQuery.error || myRankQuery.error;
+  const yourEntry = myRankQuery.data?.entry ?? null;
 
   const handleRefresh = () => {
-    service.fetchLeaderboard(filter);
+    listQuery.refetch();
+    statsQuery.refetch();
+    myRankQuery.refetch();
   };
 
   const getRankIcon = (rank: number) => {
@@ -66,7 +94,9 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ o
   return (
     <div className="leaderboard-panel">
       <div className="leaderboard-header">
-        <button className="leaderboard-back-btn" onClick={onBack}>← 返回</button>
+        <button className="leaderboard-back-btn" onClick={onBack}>
+          ← 返回
+        </button>
         <h1 className="leaderboard-title">排行榜</h1>
         <button className="leaderboard-refresh-btn" onClick={handleRefresh}>
           <RefreshCw className={isLoading ? 'animate-spin' : ''} size={18} />
@@ -84,59 +114,63 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ o
         <div className="stat-card">
           <Trophy className="stat-icon" />
           <div className="stat-info">
-            <span className="stat-value">{service.formatScore(stats.topScore)}</span>
+            <span className="stat-value">{stats.topScore.toLocaleString()}</span>
             <span className="stat-label">最高分</span>
           </div>
         </div>
         <div className="stat-card">
           <Star className="stat-icon" />
           <div className="stat-info">
-            <span className="stat-value">{service.formatScore(stats.avgScore)}</span>
+            <span className="stat-value">{stats.avgScore.toLocaleString()}</span>
             <span className="stat-label">平均分</span>
           </div>
         </div>
       </div>
 
-      {stats.yourRank > 0 && (
-        <div className="leaderboard-your-rank">
-          <div className="your-rank-header">
-            <Medal className="your-rank-icon" />
-            <span className="your-rank-label">你的排名</span>
-            {yourEntry?.rankGrade && (
-              <span className={`your-rank-grade rank-grade-${yourEntry.rankGrade.toLowerCase()}`}>{yourEntry.rankGrade}</span>
-            )}
-          </div>
-          <div className="your-rank-content">
-            <span className="your-rank-number">#{stats.yourRank}</span>
-            <div className="your-rank-stats">
-              <span className="your-rank-stat">
-                <Target size={14} /> {service.formatScore(stats.yourScore)}
-              </span>
-              <span className="your-rank-stat">
-                <Swords size={14} /> Wave {yourEntry?.wave || 0}
-              </span>
-              {yourEntry?.maxCombo !== undefined && yourEntry.maxCombo > 0 && (
-                <span className="your-rank-stat">
-                  <Zap size={14} /> {yourEntry.maxCombo}x
-                </span>
-              )}
-              {yourEntry?.accuracy !== undefined && yourEntry.accuracy > 0 && (
-                <span className="your-rank-stat">
-                  <Crosshair size={14} /> {Math.round(yourEntry.accuracy * 100)}%
-                </span>
-              )}
-              {yourEntry?.bossesKilled !== undefined && yourEntry.bossesKilled > 0 && (
-                <span className="your-rank-stat">
-                  <Skull size={14} /> {yourEntry.bossesKilled}
+      {myRankQuery.data?.rank !== null &&
+        myRankQuery.data?.rank !== undefined &&
+        myRankQuery.data.rank > 0 && (
+          <div className="leaderboard-your-rank">
+            <div className="your-rank-header">
+              <Medal className="your-rank-icon" />
+              <span className="your-rank-label">你的排名</span>
+              {yourEntry?.rankGrade && (
+                <span className={`your-rank-grade rank-grade-${yourEntry.rankGrade.toLowerCase()}`}>
+                  {yourEntry.rankGrade}
                 </span>
               )}
             </div>
+            <div className="your-rank-content">
+              <span className="your-rank-number">#{myRankQuery.data.rank}</span>
+              <div className="your-rank-stats">
+                <span className="your-rank-stat">
+                  <Target size={14} /> {yourEntry?.score?.toLocaleString() ?? 0}
+                </span>
+                <span className="your-rank-stat">
+                  <Swords size={14} /> Wave {yourEntry?.wave || 0}
+                </span>
+                {yourEntry?.maxCombo !== undefined && yourEntry.maxCombo > 0 && (
+                  <span className="your-rank-stat">
+                    <Zap size={14} /> {yourEntry.maxCombo}x
+                  </span>
+                )}
+                {yourEntry?.accuracy !== undefined && yourEntry.accuracy > 0 && (
+                  <span className="your-rank-stat">
+                    <Crosshair size={14} /> {Math.round(yourEntry.accuracy * 100)}%
+                  </span>
+                )}
+                {yourEntry?.bossesKilled !== undefined && yourEntry.bossesKilled > 0 && (
+                  <span className="your-rank-stat">
+                    <Skull size={14} /> {yourEntry.bossesKilled}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       <div className="leaderboard-filters">
-        {(Object.keys(filterLabels) as LeaderboardFilter[]).map(f => (
+        {(Object.keys(filterLabels) as LeaderboardFilter[]).map((f) => (
           <button
             key={f}
             className={`leaderboard-filter-btn ${filter === f ? 'active' : ''}`}
@@ -152,6 +186,10 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ o
           <div className="leaderboard-loading">
             <RefreshCw className="animate-spin" size={32} />
             <span>加载中...</span>
+          </div>
+        ) : error ? (
+          <div className="leaderboard-loading text-red-400">
+            <span>加载失败: {(error as any)?.message || '未知错误'}</span>
           </div>
         ) : entries.length === 0 ? (
           <div className="leaderboard-empty">暂无排行数据</div>
@@ -170,7 +208,11 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ o
               const bgClass = rankBgColors[entry.rank] || '';
               const entryKey = `${entry.playerId}-${idx}`;
               const isExpanded = expandedEntry === entryKey;
-              const hasDetails = entry.accuracy !== undefined || entry.maxCombo !== undefined || entry.bossesKilled !== undefined || entry.damageDealt !== undefined;
+              const hasDetails =
+                entry.accuracy !== undefined ||
+                entry.maxCombo !== undefined ||
+                entry.bossesKilled !== undefined ||
+                entry.damageDealt !== undefined;
 
               return (
                 <div
@@ -181,9 +223,7 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ o
                     className={`leaderboard-item ${hasDetails ? 'clickable' : ''}`}
                     onClick={() => hasDetails && setExpandedEntry(isExpanded ? null : entryKey)}
                   >
-                    <span className={`list-col-rank ${rankColor}`}>
-                      {getRankIcon(entry.rank)}
-                    </span>
+                    <span className={`list-col-rank ${rankColor}`}>{getRankIcon(entry.rank)}</span>
                     <span className="list-col-name">
                       <Award
                         className={`name-icon ${isYou ? 'text-blue-400' : 'text-slate-500'}`}
@@ -192,14 +232,22 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ o
                       {entry.playerName}
                       {isYou && <span className="you-badge">你</span>}
                       {entry.rankGrade && (
-                        <span className={`entry-rank-grade rank-grade-${entry.rankGrade.toLowerCase()}`}>{entry.rankGrade}</span>
+                        <span
+                          className={`entry-rank-grade rank-grade-${entry.rankGrade.toLowerCase()}`}
+                        >
+                          {entry.rankGrade}
+                        </span>
                       )}
                     </span>
-                    <span className="list-col-score">{service.formatScore(entry.score)}</span>
+                    <span className="list-col-score">{entry.score.toLocaleString()}</span>
                     <span className="list-col-wave">{entry.wave}</span>
                     <span className="list-col-date">
                       <Clock size={12} />
-                      {service.formatDate(entry.timestamp)}
+                      {formatDate(
+                        entry.timestamp instanceof Date
+                          ? entry.timestamp.getTime()
+                          : entry.timestamp,
+                      )}
                     </span>
                     {hasDetails && (
                       <span className="list-col-expand">
@@ -254,7 +302,10 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = React.memo(({ o
                       {entry.playTime !== undefined && entry.playTime > 0 && (
                         <div className="detail-item">
                           <Clock size={12} className="text-slate-400" />
-                          <span>游戏时长: {Math.floor(entry.playTime / 60)}分{Math.floor(entry.playTime % 60)}秒</span>
+                          <span>
+                            游戏时长: {Math.floor(entry.playTime / 60)}分
+                            {Math.floor(entry.playTime % 60)}秒
+                          </span>
                         </div>
                       )}
                     </div>
