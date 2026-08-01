@@ -31,7 +31,7 @@ describe('TRPCProvider - Rule 2&3: 网络错误/5xx 降级', () => {
 
   it('fetch 抛网络错误 → 降级 MockProvider list 不抛', async () => {
     server.use(
-      http.post('http://bad-url.test/trpc/leaderboard.list', () => {
+      http.get('http://bad-url.test/trpc/leaderboard.list', () => {
         return HttpResponse.error();
       }),
     );
@@ -43,7 +43,7 @@ describe('TRPCProvider - Rule 2&3: 网络错误/5xx 降级', () => {
 
   it('HTTP 500 → 降级 MockProvider list 不抛', async () => {
     server.use(
-      http.post('http://down.test/trpc/leaderboard.list', () => {
+      http.get('http://down.test/trpc/leaderboard.list', () => {
         return new HttpResponse('server crash', { status: 500 });
       }),
     );
