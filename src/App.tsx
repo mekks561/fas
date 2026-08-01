@@ -4,16 +4,17 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { MainMenu } from './components/MainMenu';
 import { useGameStore } from './store/useGameStore';
 import { GameState } from './game/GameStateMachine';
-import { LeaderboardService } from './engine/LeaderboardService';
 import { FriendService } from './engine/FriendService';
 import { gameplayManager } from './engine/GameplayManager';
 import { dailyChallengeManager } from './engine/DailyChallengeManager';
+import { queryClient } from './services/trpc';
+import { getProvider } from './services/leaderboard';
 import './App.css';
 
-const leaderboardService = new LeaderboardService();
 const friendService = new FriendService();
 
 const GameScene = lazy(() =>
@@ -76,6 +77,11 @@ function App() {
   const hasSavedGame = useMemo(() => {
     const saved = localStorage.getItem('savedGame');
     return saved !== null;
+  }, []);
+
+  // 预初始化 Leaderboard Provider（Phase 3: tRPC + React Query）
+  useEffect(() => {
+    getProvider();
   }, []);
 
   // 键盘事件监听（暂停）
@@ -186,24 +192,8 @@ function App() {
     setGameState(GameState.GAME_OVER);
 
     const stats = gameplayManager.getStats();
-    if (stats && stats.score > 0) {
-      leaderboardService.submitScore(
-        stats.score,
-        stats.wavesCompleted || 0,
-        stats.kills || 0,
-        {
-          accuracy: stats.accuracy,
-          maxCombo: stats.comboMax,
-          bossesKilled: stats.bossesKilled,
-          elitesKilled: stats.elitesKilled,
-          playTime: stats.playTime,
-          powerupsCollected: stats.powerupsCollected,
-          damageDealt: Math.round(stats.damageDealt),
-          damageTaken: Math.round(stats.damageTaken),
-          rankGrade: stats.rank,
-        },
-      );
-    }
+
+    // 注：排行榜分数提交已迁移至 GameOver.tsx 内部的 useSubmitScore hook（Task 8）
 
     // 若处于每日挑战模式，提交挑战结果并退出挑战模式
     if (dailyChallengeManager.isDailyChallengeActive()) {
@@ -211,8 +201,7 @@ function App() {
       const victory = useGameStore.getState().isVictory;
       // 挑战完成判定：游戏胜利 或 达到目标波次
       const reachedTargetWaves =
-        challengeConfig !== null &&
-        (stats?.wavesCompleted || 0) >= challengeConfig.targetWaves;
+        challengeConfig !== null && (stats?.wavesCompleted || 0) >= challengeConfig.targetWaves;
       dailyChallengeManager.submitResult(
         stats?.score || 0,
         stats?.wavesCompleted || 0,
@@ -290,118 +279,120 @@ function App() {
   );
 
   return (
-    <div className="app-container">
-      {/* 主菜单 */}
-      {gameState === GameState.MENU && (
-        <MainMenu
-          onStartGame={handleStartGame}
-          onContinueGame={hasSavedGame ? handleContinueGame : undefined}
-          onSettings={handleSettings}
-          onAchievements={handleAchievements}
-          onShop={handleShop}
-          onLeaderboard={handleLeaderboard}
-          onFriends={handleFriends}
-          onDailyChallenge={handleDailyChallenge}
-          hasSavedGame={hasSavedGame}
-        />
-      )}
-
-      {/* 关卡选择 */}
-      {gameState === GameState.LEVEL_SELECT && (
-        <Suspense fallback={<PageLoader />}>
-          <LevelSelect
-            onSelectLevel={handleSelectLevel}
-            onBack={handleBackToMenu}
-            currentPlayerLevel={playerLevel}
-          />
-        </Suspense>
-      )}
-
-      {/* 设置面板 */}
-      {gameState === GameState.SETTINGS && (
-        <Suspense fallback={<PageLoader />}>
-          <Settings onClose={handleCloseSettings} />
-        </Suspense>
-      )}
-
-      {/* 成就面板 */}
-      {gameState === GameState.ACHIEVEMENTS && (
-        <Suspense fallback={<PageLoader />}>
-          <AchievementPanel onBack={handleBackToMenu} />
-        </Suspense>
-      )}
-
-      {/* 商店面板 */}
-      {gameState === GameState.SHOP && (
-        <Suspense fallback={<PageLoader />}>
-          <ShopPanel onBack={handleBackToMenu} />
-        </Suspense>
-      )}
-
-      {/* 排行榜面板 */}
-      {gameState === GameState.LEADERBOARD && (
-        <Suspense fallback={<PageLoader />}>
-          <LeaderboardPanel onBack={handleBackToMenu} service={leaderboardService} />
-        </Suspense>
-      )}
-
-      {/* 好友面板 */}
-      {gameState === GameState.FRIENDS && (
-        <Suspense fallback={<PageLoader />}>
-          <FriendPanel onBack={handleBackToMenu} service={friendService} />
-        </Suspense>
-      )}
-
-      {/* 每日挑战面板 */}
-      {gameState === GameState.DAILY_CHALLENGE && (
-        <Suspense fallback={<PageLoader />}>
-          <DailyChallengePanel
-            onBack={handleBackToMenu}
-            onStartChallenge={handleStartDailyChallenge}
-          />
-        </Suspense>
-      )}
-
-      {/* 游戏场景 */}
-      {gameState === GameState.PLAYING && (
-        <>
-          <Suspense fallback={<PageLoader />}>
-            <GameScene onGameOver={handleGameOver} onLevelComplete={handleLevelComplete} />
-          </Suspense>
-
-          {/* 暂停菜单 */}
-          {isPaused && (
-            <Suspense fallback={<PageLoader />}>
-              <PauseMenu
-                onResume={handleResume}
-                onRestart={handleRestart}
-                onSettings={handleSettings}
-                onMainMenu={handleBackToMenu}
-                currentStats={pauseStats}
-              />
-            </Suspense>
-          )}
-        </>
-      )}
-
-      {/* 游戏结束 */}
-      {gameState === GameState.GAME_OVER && (
-        <Suspense fallback={<PageLoader />}>
-          <GameOver
-            isVictory={isVictory}
-            stats={gameStats}
-            combatStats={combatStats}
-            scoreBreakdown={scoreBreakdown}
-            finalRank={finalRank || undefined}
-            unlockedAchievements={unlockedAchievements}
-            onRestart={handleRestart}
-            onMainMenu={handleBackToMenu}
-            onNextLevel={selectedLevel < 5 ? handleNextLevel : undefined}
+    <QueryClientProvider client={queryClient}>
+      <div className="app-container">
+        {/* 主菜单 */}
+        {gameState === GameState.MENU && (
+          <MainMenu
+            onStartGame={handleStartGame}
+            onContinueGame={hasSavedGame ? handleContinueGame : undefined}
+            onSettings={handleSettings}
+            onAchievements={handleAchievements}
+            onShop={handleShop}
             onLeaderboard={handleLeaderboard}
+            onFriends={handleFriends}
+            onDailyChallenge={handleDailyChallenge}
+            hasSavedGame={hasSavedGame}
           />
-        </Suspense>
-      )}
-    </div>
+        )}
+
+        {/* 关卡选择 */}
+        {gameState === GameState.LEVEL_SELECT && (
+          <Suspense fallback={<PageLoader />}>
+            <LevelSelect
+              onSelectLevel={handleSelectLevel}
+              onBack={handleBackToMenu}
+              currentPlayerLevel={playerLevel}
+            />
+          </Suspense>
+        )}
+
+        {/* 设置面板 */}
+        {gameState === GameState.SETTINGS && (
+          <Suspense fallback={<PageLoader />}>
+            <Settings onClose={handleCloseSettings} />
+          </Suspense>
+        )}
+
+        {/* 成就面板 */}
+        {gameState === GameState.ACHIEVEMENTS && (
+          <Suspense fallback={<PageLoader />}>
+            <AchievementPanel onBack={handleBackToMenu} />
+          </Suspense>
+        )}
+
+        {/* 商店面板 */}
+        {gameState === GameState.SHOP && (
+          <Suspense fallback={<PageLoader />}>
+            <ShopPanel onBack={handleBackToMenu} />
+          </Suspense>
+        )}
+
+        {/* 排行榜面板 */}
+        {gameState === GameState.LEADERBOARD && (
+          <Suspense fallback={<PageLoader />}>
+            <LeaderboardPanel onBack={handleBackToMenu} />
+          </Suspense>
+        )}
+
+        {/* 好友面板 */}
+        {gameState === GameState.FRIENDS && (
+          <Suspense fallback={<PageLoader />}>
+            <FriendPanel onBack={handleBackToMenu} service={friendService} />
+          </Suspense>
+        )}
+
+        {/* 每日挑战面板 */}
+        {gameState === GameState.DAILY_CHALLENGE && (
+          <Suspense fallback={<PageLoader />}>
+            <DailyChallengePanel
+              onBack={handleBackToMenu}
+              onStartChallenge={handleStartDailyChallenge}
+            />
+          </Suspense>
+        )}
+
+        {/* 游戏场景 */}
+        {gameState === GameState.PLAYING && (
+          <>
+            <Suspense fallback={<PageLoader />}>
+              <GameScene onGameOver={handleGameOver} onLevelComplete={handleLevelComplete} />
+            </Suspense>
+
+            {/* 暂停菜单 */}
+            {isPaused && (
+              <Suspense fallback={<PageLoader />}>
+                <PauseMenu
+                  onResume={handleResume}
+                  onRestart={handleRestart}
+                  onSettings={handleSettings}
+                  onMainMenu={handleBackToMenu}
+                  currentStats={pauseStats}
+                />
+              </Suspense>
+            )}
+          </>
+        )}
+
+        {/* 游戏结束 */}
+        {gameState === GameState.GAME_OVER && (
+          <Suspense fallback={<PageLoader />}>
+            <GameOver
+              isVictory={isVictory}
+              stats={gameStats}
+              combatStats={combatStats}
+              scoreBreakdown={scoreBreakdown}
+              finalRank={finalRank || undefined}
+              unlockedAchievements={unlockedAchievements}
+              onRestart={handleRestart}
+              onMainMenu={handleBackToMenu}
+              onNextLevel={selectedLevel < 5 ? handleNextLevel : undefined}
+              onLeaderboard={handleLeaderboard}
+            />
+          </Suspense>
+        )}
+      </div>
+    </QueryClientProvider>
   );
 }
 
