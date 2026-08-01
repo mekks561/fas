@@ -94,6 +94,8 @@ interface SaveQueueItem {
 }
 
 import { gameDatabase } from './GameDatabase';
+import { getProvider } from '../services/leaderboard';
+import type { SubmitScoreInput, LeaderboardEntryDTO } from '../shared/schemas/leaderboard';
 
 export class CloudSaveSystem {
   private currentProgress: PlayerProgress | null = null;
@@ -448,35 +450,21 @@ export class CloudSaveSystem {
   }
 
   public async getLeaderboard(limit: number = 100): Promise<LeaderboardEntry[]> {
-    if (!this.isOnline || this.localOnly) {
-      return this.getLocalLeaderboard(limit);
-    }
-
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.cloudConfig.timeout);
-
-      const response = await fetch(`${this.cloudConfig.endpoint}/leaderboard?limit=${limit}`, {
-        headers: {
-          ...(this.cloudConfig.apiKey
-            ? { Authorization: `Bearer ${this.cloudConfig.apiKey}` }
-            : {}),
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const entries: LeaderboardEntry[] = await response.json();
+      const provider = getProvider();
+      const dtoList = await provider.list({ limit, filter: 'all' });
+      const entries: LeaderboardEntry[] = dtoList.map((dto: LeaderboardEntryDTO) => ({
+        ...(dto as any),
+        timestamp:
+          dto.timestamp instanceof Date
+            ? dto.timestamp.getTime()
+            : new Date(dto.timestamp).getTime(),
+      }));
       const ranked = this.assignRanks(entries);
       this.leaderboardCallbacks.forEach((cb) => cb(ranked));
       return ranked;
     } catch (error) {
-      console.warn('Failed to fetch leaderboard:', error);
+      console.warn('[CloudSaveSystem] provider.list failed, fallback getLocalLeaderboard:', error);
       return this.getLocalLeaderboard(limit);
     }
   }
@@ -502,31 +490,43 @@ export class CloudSaveSystem {
 
     const local = this.getLocalLeaderboard(1000);
     const updated = [...local, fullEntry].sort((a, b) => b.score - a.score).slice(0, 100);
-
     localStorage.setItem('leaderboard', JSON.stringify(updated));
+
+    try {
+      await gameDatabase.saveLeaderboardEntry?.(fullEntry as any);
+    } catch {
+      // Dexie 表不一定存在，忽略
+    }
 
     if (this.isOnline && !this.localOnly) {
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.cloudConfig.timeout);
-
-        const response = await fetch(`${this.cloudConfig.endpoint}/leaderboard`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(this.cloudConfig.apiKey
-              ? { Authorization: `Bearer ${this.cloudConfig.apiKey}` }
-              : {}),
-          },
-          body: JSON.stringify(fullEntry),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-        return response.ok;
+        const payload: SubmitScoreInput = {
+          playerId: entry.playerId,
+          playerName: entry.playerName,
+          score: entry.score,
+          wave: entry.wave,
+          kills: entry.kills,
+          accuracy: entry.accuracy,
+          maxCombo: entry.maxCombo,
+          bossesKilled: entry.bossesKilled,
+          elitesKilled: entry.elitesKilled,
+          playTime: entry.playTime,
+          powerupsCollected: entry.powerupsCollected,
+          damageDealt: entry.damageDealt,
+          damageTaken: entry.damageTaken,
+          rankGrade: entry.rankGrade,
+        };
+        const provider = getProvider();
+        await provider.submit(payload);
+        try {
+          await this.getLeaderboard(100);
+        } catch {
+          // ignore refetch error for callbacks
+        }
+        return true;
       } catch (error) {
-        console.warn('Failed to submit score:', error);
-        return false;
+        console.warn('[CloudSaveSystem] provider.submit failed, local already saved OK:', error);
+        return true;
       }
     }
 
