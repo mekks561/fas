@@ -19,7 +19,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { LeaderboardService } from '../engine/LeaderboardService';
+import { useSubmitScore } from '../services/leaderboard';
 
 interface ScoreBreakdown {
   baseScore: number;
@@ -74,8 +74,6 @@ interface GameOverProps {
   onLeaderboard?: () => void;
 }
 
-const leaderboardService = new LeaderboardService();
-
 export const GameOver: React.FC<GameOverProps> = ({
   isVictory,
   stats,
@@ -93,16 +91,48 @@ export const GameOver: React.FC<GameOverProps> = ({
   const [animateStats, setAnimateStats] = useState(false);
   const [submittedScore, setSubmittedScore] = useState(false);
   const [rank, setRank] = useState<number | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { t } = useTranslation();
+  const submitMutation = useSubmitScore();
 
   useEffect(() => {
+    let cancelled = false;
     const submitScoreAndGetRank = async () => {
-      const newRank = await leaderboardService.submitScore(stats.score, stats.wave, stats.enemiesDefeated);
-      setRank(newRank);
-      setSubmittedScore(true);
+      if (typeof stats?.score !== 'number' || stats.score < 0) return;
+      try {
+        const result = await submitMutation.mutateAsync({
+          playerId: 'default_player',
+          playerName: 'Player',
+          score: stats.score,
+          wave: stats.wave,
+          kills: stats.enemiesDefeated,
+          accuracy: stats.accuracy,
+          maxCombo: combatStats?.comboMax,
+          bossesKilled: combatStats?.bossesKilled,
+          elitesKilled: combatStats?.elitesKilled,
+          playTime: stats.timeElapsed,
+          powerupsCollected: combatStats?.powerupsCollected,
+          damageDealt: combatStats?.damageDealt,
+          damageTaken: combatStats?.damageTaken,
+        });
+        if (cancelled) return;
+        setRank(result.rank);
+        setSubmitError(null);
+      } catch (e: any) {
+        if (cancelled) return;
+        setSubmitError(e?.message || '分数提交失败');
+      } finally {
+        if (!cancelled) {
+          setSubmittedScore(true);
+        }
+      }
     };
     submitScoreAndGetRank();
-  }, [stats]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stats?.score]);
 
   const menuOptions = useMemo(
     () => [
@@ -125,7 +155,14 @@ export const GameOver: React.FC<GameOverProps> = ({
         primary: !onNextLevel || !isVictory,
       },
       ...(onLeaderboard
-        ? [{ id: 'leaderboard', label: t('gameOver.leaderboard'), icon: Trophy, action: onLeaderboard }]
+        ? [
+            {
+              id: 'leaderboard',
+              label: t('gameOver.leaderboard'),
+              icon: Trophy,
+              action: onLeaderboard,
+            },
+          ]
         : []),
       { id: 'mainMenu', label: t('gameOver.mainMenu'), icon: ArrowLeft, action: onMainMenu },
     ],
@@ -144,12 +181,18 @@ export const GameOver: React.FC<GameOverProps> = ({
 
   const getRankColor = (rank: string): string => {
     switch (rank) {
-      case 'S': return 'text-yellow-400 bg-yellow-400/20 border-yellow-400';
-      case 'A': return 'text-red-400 bg-red-400/20 border-red-400';
-      case 'B': return 'text-purple-400 bg-purple-400/20 border-purple-400';
-      case 'C': return 'text-blue-400 bg-blue-400/20 border-blue-400';
-      case 'D': return 'text-green-400 bg-green-400/20 border-green-400';
-      default: return 'text-slate-400 bg-slate-400/20 border-slate-400';
+      case 'S':
+        return 'text-yellow-400 bg-yellow-400/20 border-yellow-400';
+      case 'A':
+        return 'text-red-400 bg-red-400/20 border-red-400';
+      case 'B':
+        return 'text-purple-400 bg-purple-400/20 border-purple-400';
+      case 'C':
+        return 'text-blue-400 bg-blue-400/20 border-blue-400';
+      case 'D':
+        return 'text-green-400 bg-green-400/20 border-green-400';
+      default:
+        return 'text-slate-400 bg-slate-400/20 border-slate-400';
     }
   };
 
@@ -238,7 +281,12 @@ export const GameOver: React.FC<GameOverProps> = ({
                   <span className="text-sm font-bold">{t('gameOver.newRecord')}</span>
                 </div>
               )}
-              {submittedScore && rank !== null && (
+              {submittedScore && submitError && (
+                <div className="flex items-center justify-center gap-2 text-red-400 mb-3">
+                  <span className="text-sm font-bold">提交异常: {submitError}</span>
+                </div>
+              )}
+              {submittedScore && !submitError && rank !== null && (
                 <div className="flex items-center justify-center gap-2 text-blue-400 mb-3">
                   <Medal className="w-4 h-4" />
                   <span className="text-sm font-bold">排名: #{rank}</span>
@@ -316,19 +364,25 @@ export const GameOver: React.FC<GameOverProps> = ({
                 {scoreBreakdown.accuracyBonus > 0 && (
                   <div className="flex justify-between text-purple-400">
                     <span>命中率加成</span>
-                    <span className="font-mono">+{scoreBreakdown.accuracyBonus.toLocaleString()}</span>
+                    <span className="font-mono">
+                      +{scoreBreakdown.accuracyBonus.toLocaleString()}
+                    </span>
                   </div>
                 )}
                 {scoreBreakdown.efficiencyBonus > 0 && (
                   <div className="flex justify-between text-green-400">
                     <span>效率加成</span>
-                    <span className="font-mono">+{scoreBreakdown.efficiencyBonus.toLocaleString()}</span>
+                    <span className="font-mono">
+                      +{scoreBreakdown.efficiencyBonus.toLocaleString()}
+                    </span>
                   </div>
                 )}
                 {scoreBreakdown.survivalBonus > 0 && (
                   <div className="flex justify-between text-blue-400">
                     <span>生存加成</span>
-                    <span className="font-mono">+{scoreBreakdown.survivalBonus.toLocaleString()}</span>
+                    <span className="font-mono">
+                      +{scoreBreakdown.survivalBonus.toLocaleString()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -342,7 +396,9 @@ export const GameOver: React.FC<GameOverProps> = ({
                   <Sword className="w-5 h-5 text-orange-400" />
                   <div>
                     <div className="text-xs text-slate-500">伤害输出</div>
-                    <div className="text-lg font-bold text-white">{Math.round(combatStats.damageDealt).toLocaleString()}</div>
+                    <div className="text-lg font-bold text-white">
+                      {Math.round(combatStats.damageDealt).toLocaleString()}
+                    </div>
                   </div>
                 </div>
 
@@ -350,7 +406,9 @@ export const GameOver: React.FC<GameOverProps> = ({
                   <Heart className="w-5 h-5 text-red-400" />
                   <div>
                     <div className="text-xs text-slate-500">受到伤害</div>
-                    <div className="text-lg font-bold text-white">{Math.round(combatStats.damageTaken).toLocaleString()}</div>
+                    <div className="text-lg font-bold text-white">
+                      {Math.round(combatStats.damageTaken).toLocaleString()}
+                    </div>
                   </div>
                 </div>
 
@@ -358,7 +416,9 @@ export const GameOver: React.FC<GameOverProps> = ({
                   <Shield className="w-5 h-5 text-blue-400" />
                   <div>
                     <div className="text-xs text-slate-500">恢复生命</div>
-                    <div className="text-lg font-bold text-white">{Math.round(combatStats.damageHealed).toLocaleString()}</div>
+                    <div className="text-lg font-bold text-white">
+                      {Math.round(combatStats.damageHealed).toLocaleString()}
+                    </div>
                   </div>
                 </div>
 
@@ -374,7 +434,9 @@ export const GameOver: React.FC<GameOverProps> = ({
                   <Zap className="w-5 h-5 text-cyan-400" />
                   <div>
                     <div className="text-xs text-slate-500">道具拾取</div>
-                    <div className="text-lg font-bold text-white">{combatStats.powerupsCollected}</div>
+                    <div className="text-lg font-bold text-white">
+                      {combatStats.powerupsCollected}
+                    </div>
                   </div>
                 </div>
 
@@ -382,33 +444,38 @@ export const GameOver: React.FC<GameOverProps> = ({
                   <Skull className="w-5 h-5 text-purple-400" />
                   <div>
                     <div className="text-xs text-slate-500">BOSS/精英击杀</div>
-                    <div className="text-lg font-bold text-white">{combatStats.bossesKilled} / {combatStats.elitesKilled}</div>
+                    <div className="text-lg font-bold text-white">
+                      {combatStats.bossesKilled} / {combatStats.elitesKilled}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {combatStats.enemiesDefeated && Object.keys(combatStats.enemiesDefeated).length > 0 && (
-                <div className="bg-slate-800/50 rounded-xl p-4">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <Target className="w-5 h-5 text-red-400" />
-                    <span className="text-sm font-bold text-white">击杀分布</span>
+              {combatStats.enemiesDefeated &&
+                Object.keys(combatStats.enemiesDefeated).length > 0 && (
+                  <div className="bg-slate-800/50 rounded-xl p-4">
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <Target className="w-5 h-5 text-red-400" />
+                      <span className="text-sm font-bold text-white">击杀分布</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {Object.entries(combatStats.enemiesDefeated).map(([type, count]) => (
+                        <div key={type} className="bg-slate-700/50 rounded-lg px-3 py-1.5 text-xs">
+                          <span className="text-slate-400 capitalize">{type}</span>
+                          <span className="text-white font-bold ml-2">{count}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {Object.entries(combatStats.enemiesDefeated).map(([type, count]) => (
-                      <div key={type} className="bg-slate-700/50 rounded-lg px-3 py-1.5 text-xs">
-                        <span className="text-slate-400 capitalize">{type}</span>
-                        <span className="text-white font-bold ml-2">{count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                )}
             </div>
           )}
 
           {finalRank && (
             <div className="flex justify-center">
-              <div className={`px-6 py-2 rounded-xl border-2 font-bold text-2xl ${getRankColor(finalRank)}`}>
+              <div
+                className={`px-6 py-2 rounded-xl border-2 font-bold text-2xl ${getRankColor(finalRank)}`}
+              >
                 等级 {finalRank}
               </div>
             </div>
