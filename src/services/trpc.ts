@@ -26,7 +26,7 @@ export function createLeaderboardTRPCClient(options: TRPCClientFactoryOptions) {
   return createTRPCClient<AppRouter>({
     links: [
       httpBatchLink({
-        url: `${options.url}/trpc`,
+        url: options.url,
         transformer: superjson,
         headers() {
           return {

@@ -30,7 +30,7 @@ describe('TRPCProvider - Rule 2&3: 网络错误/5xx 降级', () => {
 
   it('fetch 抛网络错误 → 降级 MockProvider list 不抛', async () => {
     server.use(
-      http.get('http://bad-url.test/trpc/leaderboard.list', () => {
+      http.get('http://bad-url.test/leaderboard.list', () => {
         return HttpResponse.error();
       }),
     );
@@ -42,7 +42,7 @@ describe('TRPCProvider - Rule 2&3: 网络错误/5xx 降级', () => {
 
   it('HTTP 500 → 降级 MockProvider list 不抛', async () => {
     server.use(
-      http.get('http://down.test/trpc/leaderboard.list', () => {
+      http.get('http://down.test/leaderboard.list', () => {
         return new HttpResponse('server crash', { status: 500 });
       }),
     );
@@ -60,7 +60,7 @@ describe('TRPCProvider - Rule 4: Zod 400 BAD_REQUEST 不降级向上抛', () => 
 
   it('zod BAD_REQUEST → submit 抛错（不降级）', async () => {
     server.use(
-      http.post('http://zod-err.test/trpc/leaderboard.submit', async () => {
+      http.post('http://zod-err.test/leaderboard.submit', async () => {
         return HttpResponse.json(
           {
             error: {
@@ -83,7 +83,7 @@ describe('TRPCProvider - filter=friends 时 Omit filter 转发', () => {
   it('请求体不含 filter 字段（POC listInput 无 filter）', async () => {
     let capturedBody: any = null;
     server.use(
-      http.get('http://ok.test/trpc/leaderboard.list', ({ request }) => {
+      http.get('http://ok.test/leaderboard.list', ({ request }) => {
         const url = new URL(request.url);
         capturedBody = { searchParams: Object.fromEntries(url.searchParams), bodyText: '' };
         return HttpResponse.json({ result: { data: { json: [] } } });
@@ -102,7 +102,7 @@ describe('TRPCProvider - fallbackOrThrow 内部机制 (list 成功路径)', () =
   it('成功响应 → 返回服务端数据，不降级，timestamp Date 正确', async () => {
     const nowIso = new Date('2026-08-02T12:00:00Z').toISOString();
     server.use(
-      http.get('http://ok.test/trpc/leaderboard.list', () => {
+      http.get('http://ok.test/leaderboard.list', () => {
         return HttpResponse.json({
           result: {
             data: {
@@ -141,7 +141,7 @@ describe('TRPCProvider - fallbackOrThrow 内部机制 (list 成功路径)', () =
       rank: i + 1,
     }));
     server.use(
-      http.get('http://ok.test/trpc/leaderboard.list', () =>
+      http.get('http://ok.test/leaderboard.list', () =>
         HttpResponse.json({ result: { data: { json: seed } } }),
       ),
     );
