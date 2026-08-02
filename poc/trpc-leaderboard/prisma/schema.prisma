@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model LeaderboardEntry {
+  id                String   @id @default(cuid()) @db.VarChar(30)
+  playerId          String   @db.VarChar(64)
+  playerName        String   @db.VarChar(32)
+  score             Int
+  wave              Int      @default(1) @db.UnsignedSmallInt
+  kills             Int      @default(0) @db.UnsignedInt
+  accuracy          Float?
+  maxCombo          Int?     @db.UnsignedInt
+  bossesKilled      Int?     @db.UnsignedSmallInt
+  elitesKilled      Int?     @db.UnsignedMediumInt
+  playTime          Int?     @db.UnsignedInt
+  powerupsCollected Int?     @db.UnsignedMediumInt
+  damageDealt       Int?     @db.UnsignedInt
+  damageTaken       Int?     @db.UnsignedInt
+  rankGrade         String?  @db.VarChar(4)
+  difficulty        String   @default("normal") @db.VarChar(20)
+  timestamp         DateTime @default(now()) @db.DateTime(3)
+  createdAt         DateTime @default(now()) @db.DateTime(3)
+
+  @@index([score(sort: Desc)])
+  @@index([playerId, score(sort: Desc)])
+  @@index([difficulty, score(sort: Desc)])
+  @@index([timestamp])
+}

@@ -13,16 +13,28 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "demo:client": "tsx client/demo.ts",
-    "demo:typecheck": "tsc --noEmit client/demo.ts --strict --moduleResolution bundler --module ESNext --target ES2022 --types node --skipLibCheck 2>&1 || echo 'typecheck done'"
+    "demo:typecheck": "tsc --noEmit client/demo.ts --strict --moduleResolution bundler --module ESNext --target ES2022 --types node --skipLibCheck 2>&1 || echo 'typecheck done'",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --name init",
+    "db:push": "prisma db push",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:studio": "prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@prisma/adapter-mariadb": "^7.9.1",
+    "@prisma/client": "^7.9.1",
     "@trpc/client": "^11.0.0",
     "@trpc/server": "^11.0.0",
+    "dotenv": "^16.6.1",
+    "mariadb": "^3.5.3",
     "superjson": "^2.2.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "prisma": "^7.9.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }
