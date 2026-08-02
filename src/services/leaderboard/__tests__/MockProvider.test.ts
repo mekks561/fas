@@ -1,6 +1,5 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { MockProvider } from '../MockProvider';
-import type { ListInput } from '../../../shared/schemas/leaderboard';
 
 describe('MockProvider', () => {
   beforeEach(() => {

@@ -11,13 +11,10 @@ import type { LeaderboardProvider, ProviderKind, SubmitResult } from './types';
 import { MockProvider } from './MockProvider';
 import { TRPCProvider } from './TRPCProvider';
 
-let currentPlayer: { playerId: string; playerName: string } = {
-  playerId: 'default_player',
-  playerName: 'Player',
-};
-
-export function setCurrentPlayer(playerId: string, playerName: string): void {
-  currentPlayer = { playerId, playerName };
+// setCurrentPlayer 保留 API 兼容：当前 provider 不依赖显式 currentPlayer
+// （GameOver.tsx 直接在 useSubmitScore payload 中传 playerId/playerName）
+export function setCurrentPlayer(_playerId: string, _playerName: string): void {
+  // no-op: 保留 API 兼容，provider 通过 useSubmitScore 的 payload 获取玩家信息
 }
 
 let singleton: LeaderboardProvider | null = null;

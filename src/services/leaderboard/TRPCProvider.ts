@@ -9,12 +9,6 @@ import type {
   SubmitScoreInput,
 } from '../../shared/schemas/leaderboard';
 
-type TRPCErrorLike = { code?: string; message?: string; data?: any; cause?: any };
-
-function isTRPCError(e: any): e is TRPCErrorLike {
-  return e && (typeof e.code === 'string' || (e.cause && typeof e.cause.code === 'string'));
-}
-
 function getErrorCode(e: any): string | undefined {
   if (!e) return undefined;
   if (typeof e.code === 'string') return e.code;
@@ -32,11 +26,9 @@ export class TRPCProvider implements LeaderboardProvider {
   readonly kind = 'trpc' as const;
   private client: LeaderboardTRPCClient | null = null;
   private fallback: MockProvider;
-  private readonly baseUrl: string;
 
   constructor(trpcUrl?: string | null) {
     const url = (trpcUrl || '').trim();
-    this.baseUrl = url;
     this.fallback = new MockProvider();
     if (url) {
       try {

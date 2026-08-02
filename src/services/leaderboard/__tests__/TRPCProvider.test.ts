@@ -2,7 +2,6 @@ import { beforeAll, afterEach, afterAll, beforeEach, describe, it, expect, vi } 
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import { TRPCProvider } from '../TRPCProvider';
-import { MockProvider } from '../MockProvider';
 
 const server = setupServer();
 

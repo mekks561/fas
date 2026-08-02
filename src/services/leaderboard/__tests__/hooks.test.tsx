@@ -18,24 +18,36 @@ const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 );
 
+type SpyOverrides = {
+  list?: (...args: any[]) => any;
+  submit?: (...args: any[]) => any;
+  myRank?: (...args: any[]) => any;
+  stats?: (...args: any[]) => any;
+};
+
 function makeSpyProvider(
-  overrides: Partial<LeaderboardProvider> = {},
+  overrides: SpyOverrides = {},
 ): LeaderboardProvider & { _calls: Record<string, any[]> } {
   const store: any = { listCalled: 0, submitCalled: 0, myRankCalled: 0, statsCalled: 0 };
   const base: LeaderboardProvider & { _calls: any } = {
     kind: 'mock',
     _calls: store,
-    list: vi.fn(async () => {
+    list: vi.fn(async (input: any) => {
       store.listCalled++;
-      return overrides.list?.() ?? [];
+      return overrides.list?.(input) ?? [];
     }),
-    submit: vi.fn(async (i) => {
+    submit: vi.fn(async (input: any) => {
       store.submitCalled++;
-      return overrides.submit?.(i) ?? { rank: 1, entry: { ...i, timestamp: new Date(), rank: 1 } };
+      return (
+        overrides.submit?.(input) ?? {
+          rank: 1,
+          entry: { ...input, timestamp: new Date(), rank: 1 },
+        }
+      );
     }),
-    myRank: vi.fn(async () => {
+    myRank: vi.fn(async (playerId: any) => {
       store.myRankCalled++;
-      return overrides.myRank?.() ?? { rank: null, entry: null };
+      return overrides.myRank?.(playerId) ?? { rank: null, entry: null };
     }),
     stats: vi.fn(async () => {
       store.statsCalled++;
@@ -174,7 +186,7 @@ describe('leaderboard hooks (integration)', () => {
     const { result } = renderHook(() => useMyRank(''), { wrapper });
     await new Promise((r) => setTimeout(r, 200));
     expect(result.current.isFetching).toBe(false);
-    expect(spy._calls.myRankCalled).toBe(0);
+    expect(spy._calls['myRankCalled']).toBe(0);
   });
 
   it('useMyRank: 有 playerId 时正常查询', async () => {
