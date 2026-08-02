@@ -106,12 +106,14 @@ export class MockProvider implements LeaderboardProvider {
       'expert',
     ];
 
-    for (let i = 0; i < 50; i++) {
-      const daysAgo = Math.floor(Math.random() * 30);
+    for (let i = 0; i < 150; i++) {
+      // 强制前 2 条为今天(daysAgo=0)，确保 daily filter 至少有 2 条数据
+      // 其余随机分布在 30 天内（期望 daily ~5 条, weekly ~35 条, monthly ~150 条）
+      const daysAgo = i < 2 ? 0 : Math.floor(Math.random() * 30);
       // 让远期玩家(daysAgo 大)分数更高，符合"老兵积分累积更多"的直觉。
-      // 这样 daily < weekly < monthly < all 的中位数关系能稳定成立（修复计划统计缺陷）。
+      // timeBoost 占主导(900k)，随机部分仅 100k，确保 daily < weekly < monthly < all 中位数关系稳定。
       const timeBoost = daysAgo / 30; // 0..1
-      const baseScore = 1000 + timeBoost * 700_000 + Math.random() * 300_000;
+      const baseScore = 1000 + timeBoost * 900_000 + Math.random() * 100_000;
       entries.push({
         playerId: `mock_player_${i}`,
         playerName: MOCK_NAMES[i % MOCK_NAMES.length] + (i >= MOCK_NAMES.length ? `_${i}` : ''),
