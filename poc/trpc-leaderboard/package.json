@@ -1,0 +1,29 @@
+{
+  "name": "trpc-leaderboard-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "tRPC 11 + Zod 端到端类型安全排行榜 POC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "demo:client": "tsx client/demo.ts",
+    "demo:typecheck": "tsc --noEmit client/demo.ts --strict --moduleResolution bundler --module ESNext --target ES2022 --types node --skipLibCheck 2>&1 || echo 'typecheck done'"
+  },
+  "dependencies": {
+    "@trpc/client": "^11.0.0",
+    "@trpc/server": "^11.0.0",
+    "superjson": "^2.2.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
