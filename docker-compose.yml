@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fighter-leaderboard-db
+    environment:
+      POSTGRES_USER: lb_user
+      POSTGRES_PASSWORD: lb_pass
+      POSTGRES_DB: leaderboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lb_user -d leaderboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: fighter-leaderboard-db-test
+    environment:
+      POSTGRES_USER: lb_user
+      POSTGRES_PASSWORD: lb_pass
+      POSTGRES_DB: leaderboard_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-test:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+  pgdata-test:
