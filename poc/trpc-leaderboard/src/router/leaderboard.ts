@@ -22,96 +22,86 @@ import {
   totalCount,
 } from '../store.js';
 
+// Prisma StoredEntry (null) → Zod optional (undefined) 的转换辅助
+function toDTO(
+  e: {
+    playerId: string;
+    playerName: string;
+    score: number;
+    wave: number;
+    kills: number;
+    accuracy: number | null;
+    maxCombo: number | null;
+    bossesKilled: number | null;
+    elitesKilled: number | null;
+    playTime: number | null;
+    powerupsCollected: number | null;
+    damageDealt: number | null;
+    damageTaken: number | null;
+    rankGrade: string | null;
+    timestamp: Date;
+  },
+  rank: number,
+) {
+  return {
+    playerId: e.playerId,
+    playerName: e.playerName,
+    score: e.score,
+    wave: e.wave,
+    kills: e.kills,
+    timestamp: e.timestamp,
+    rank,
+    accuracy: e.accuracy ?? undefined,
+    maxCombo: e.maxCombo ?? undefined,
+    bossesKilled: e.bossesKilled ?? undefined,
+    elitesKilled: e.elitesKilled ?? undefined,
+    playTime: e.playTime ?? undefined,
+    powerupsCollected: e.powerupsCollected ?? undefined,
+    damageDealt: e.damageDealt ?? undefined,
+    damageTaken: e.damageTaken ?? undefined,
+    rankGrade: e.rankGrade ?? undefined,
+  };
+}
+
 export const leaderboardRouter = router({
   // 查询排行榜 - query
   list: publicProcedure
     .input(listInputSchema)
     .output(z.array(leaderboardEntrySchema))
-    .query(({ input }) => {
+    .query(async ({ input }) => {
       const { limit, difficulty } = input;
-      const entries = listEntries(limit, difficulty);
-      return entries.map((e, i) => ({
-        playerId: e.playerId,
-        playerName: e.playerName,
-        score: e.score,
-        wave: e.wave,
-        kills: e.kills,
-        timestamp: e.timestamp,
-        rank: i + 1,
-        accuracy: e.accuracy,
-        maxCombo: e.maxCombo,
-        bossesKilled: e.bossesKilled,
-        elitesKilled: e.elitesKilled,
-        playTime: e.playTime,
-        powerupsCollected: e.powerupsCollected,
-        damageDealt: e.damageDealt,
-        damageTaken: e.damageTaken,
-        rankGrade: e.rankGrade,
-      }));
+      const entries = await listEntries(limit, difficulty);
+      return entries.map((e, i) => toDTO(e, i + 1));
     }),
 
   // 提交分数 - mutation
   submit: publicProcedure
     .input(submitScoreSchema)
     .output(leaderboardEntrySchema)
-    .mutation(({ input }) => {
-      const stored = insertEntry(input);
-      const rank = countHigherThan(stored.score) + 1;
-      return {
-        playerId: stored.playerId,
-        playerName: stored.playerName,
-        score: stored.score,
-        wave: stored.wave,
-        kills: stored.kills,
-        timestamp: stored.timestamp,
-        rank,
-        accuracy: stored.accuracy,
-        maxCombo: stored.maxCombo,
-        bossesKilled: stored.bossesKilled,
-        elitesKilled: stored.elitesKilled,
-        playTime: stored.playTime,
-        powerupsCollected: stored.powerupsCollected,
-        damageDealt: stored.damageDealt,
-        damageTaken: stored.damageTaken,
-        rankGrade: stored.rankGrade,
-      };
+    .mutation(async ({ input }) => {
+      const stored = await insertEntry(input);
+      const rank = (await countHigherThan(stored.score)) + 1;
+      return toDTO(stored, rank);
     }),
 
   // 个人最佳排名 - query
   myRank: publicProcedure
     .input(z.object({ playerId: z.string().min(1) }))
     .output(myRankSchema)
-    .query(({ input }) => {
-      const best = findBestByPlayer(input.playerId);
+    .query(async ({ input }) => {
+      const best = await findBestByPlayer(input.playerId);
       if (!best) return { rank: null, entry: null };
-      const rank = countHigherThan(best.score) + 1;
+      const rank = (await countHigherThan(best.score)) + 1;
       return {
         rank,
-        entry: {
-          playerId: best.playerId,
-          playerName: best.playerName,
-          score: best.score,
-          wave: best.wave,
-          kills: best.kills,
-          timestamp: best.timestamp,
-          rank,
-          accuracy: best.accuracy,
-          maxCombo: best.maxCombo,
-          bossesKilled: best.bossesKilled,
-          elitesKilled: best.elitesKilled,
-          playTime: best.playTime,
-          powerupsCollected: best.powerupsCollected,
-          damageDealt: best.damageDealt,
-          damageTaken: best.damageTaken,
-          rankGrade: best.rankGrade,
-        },
+        entry: toDTO(best, rank),
       };
     }),
 
   // 统计 - query
-  stats: publicProcedure.query(() => {
-    const entries = listEntries(500);
-    const total = totalCount();
+  stats: publicProcedure.query(async () => {
+    const entries = await listEntries(500);
+    const total = await totalCount();
     const scores = entries.map((e) => e.score);
     const sum = scores.reduce((a, b) => a + b, 0);
     const today = new Date();
