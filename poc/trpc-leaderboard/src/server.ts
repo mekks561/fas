@@ -3,13 +3,14 @@
 // 启动后监听 2026 端口，接受 /trpc 请求
 // ===================================================================
 
+import 'dotenv/config';
 import { createHTTPServer } from '@trpc/server/adapters/standalone';
 import { appRouter } from './router/index.js';
 import { createContext } from './context.js';
 import { seedIfEmpty } from './store.js';
 
-// POC 初始数据
-seedIfEmpty();
+// POC 初始数据 (ESM top-level await)
+await seedIfEmpty();
 
 const port = Number(process.env.PORT ?? 2026);
 
