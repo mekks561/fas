@@ -1,73 +1,92 @@
-// ===================================================================
-// 内存存储 - POC 用，避免依赖外部数据库
-// 专注验证 tRPC 类型安全，数据持久化不是本 POC 重点
-// ===================================================================
-
+import { prisma } from './prisma/client.js';
 import type { SubmitScoreInput, Difficulty } from './schemas/leaderboard.js';
 
-interface StoredEntry extends SubmitScoreInput {
+export interface StoredEntry {
   id: string;
+  playerId: string;
+  playerName: string;
+  score: number;
+  wave: number;
+  kills: number;
+  accuracy: number | null;
+  maxCombo: number | null;
+  bossesKilled: number | null;
+  elitesKilled: number | null;
+  playTime: number | null;
+  powerupsCollected: number | null;
+  damageDealt: number | null;
+  damageTaken: number | null;
+  rankGrade: string | null;
+  difficulty: string;
   timestamp: Date;
-  difficulty: Difficulty;
 }
 
-const store = new Map<string, StoredEntry>();
-let counter = 0;
-
-function nextId(): string {
-  counter++;
-  return `entry_${counter}`;
+export async function insertEntry(input: SubmitScoreInput): Promise<StoredEntry> {
+  const created = await prisma.leaderboardEntry.create({
+    data: {
+      playerId: input.playerId,
+      playerName: input.playerName,
+      score: input.score,
+      wave: input.wave,
+      kills: input.kills,
+      accuracy: input.accuracy ?? null,
+      maxCombo: input.maxCombo ?? null,
+      bossesKilled: input.bossesKilled ?? null,
+      elitesKilled: input.elitesKilled ?? null,
+      playTime: input.playTime ?? null,
+      powerupsCollected: input.powerupsCollected ?? null,
+      damageDealt: input.damageDealt ?? null,
+      damageTaken: input.damageTaken ?? null,
+      rankGrade: input.rankGrade ?? null,
+      difficulty: input.difficulty ?? 'normal',
+    },
+  });
+  return created as StoredEntry;
 }
 
-export function insertEntry(input: SubmitScoreInput): StoredEntry {
-  const entry: StoredEntry = {
-    ...input,
-    id: nextId(),
-    timestamp: new Date(),
-    difficulty: input.difficulty ?? 'normal',
-  };
-  store.set(entry.id, entry);
-  return entry;
+export async function listEntries(limit: number, difficulty?: Difficulty): Promise<StoredEntry[]> {
+  const entries = await prisma.leaderboardEntry.findMany({
+    where: difficulty ? { difficulty } : undefined,
+    orderBy: { score: 'desc' },
+    take: limit,
+  });
+  return entries as StoredEntry[];
 }
 
-export function listEntries(limit: number, difficulty?: Difficulty): StoredEntry[] {
-  const all = Array.from(store.values());
-  const filtered = difficulty ? all.filter((e) => e.difficulty === difficulty) : all;
-  return filtered.sort((a, b) => b.score - a.score).slice(0, limit);
+export async function findBestByPlayer(playerId: string): Promise<StoredEntry | null> {
+  const entries = await prisma.leaderboardEntry.findMany({
+    where: { playerId },
+    orderBy: { score: 'desc' },
+    take: 1,
+  });
+  return (entries[0] as StoredEntry | undefined) ?? null;
 }
 
-export function findBestByPlayer(playerId: string): StoredEntry | undefined {
-  const playerEntries = Array.from(store.values()).filter((e) => e.playerId === playerId);
-  return playerEntries.sort((a, b) => b.score - a.score)[0];
+export async function countHigherThan(score: number): Promise<number> {
+  return prisma.leaderboardEntry.count({
+    where: { score: { gt: score } },
+  });
 }
 
-export function countHigherThan(score: number): number {
-  let count = 0;
-  for (const entry of store.values()) {
-    if (entry.score > score) count++;
-  }
-  return count;
+export async function totalCount(): Promise<number> {
+  return prisma.leaderboardEntry.count();
 }
 
-export function totalCount(): number {
-  return store.size;
-}
+export async function seedIfEmpty(): Promise<void> {
+  const count = await totalCount();
+  if (count > 0) return;
 
-export function seedIfEmpty(): void {
-  if (store.size > 0) return;
   const names = ['星际猎人', '银河守卫', '宇宙战神', '光速战士', '暗夜游侠'];
   const difficulties: Difficulty[] = ['easy', 'normal', 'hard', 'expert'];
-  for (let i = 0; i < 20; i++) {
-    const diff = difficulties[i % difficulties.length]!;
-    insertEntry({
-      playerId: `seed_${i}`,
-      playerName: `${names[i % names.length]!}_${i}`,
-      score: 10000 + Math.floor(Math.random() * 200000),
-      wave: 5 + Math.floor(Math.random() * 30),
-      kills: 20 + Math.floor(Math.random() * 200),
-      accuracy: Math.random(),
-      maxCombo: Math.floor(Math.random() * 100),
-      difficulty: diff,
-    });
-  }
+  const data = Array.from({ length: 20 }, (_, i) => ({
+    playerId: `seed_${i}`,
+    playerName: `${names[i % names.length]!}_${i}`,
+    score: 10000 + Math.floor(Math.random() * 200000),
+    wave: 5 + Math.floor(Math.random() * 30),
+    kills: 20 + Math.floor(Math.random() * 200),
+    accuracy: Math.random(),
+    maxCombo: Math.floor(Math.random() * 100),
+    difficulty: difficulties[i % difficulties.length]!,
+  }));
+  await prisma.leaderboardEntry.createMany({ data });
 }
