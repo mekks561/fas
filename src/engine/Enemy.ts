@@ -3,6 +3,7 @@ import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { EnemyAI, EnemyAIFactory, AIState, StatusEffect } from './EnemyAI';
 import { ProceduralModelGenerator, EnemyModelType } from './ProceduralModelGenerator';
+import { ModelAssetProvider } from './ModelAssetProvider';
 
 export enum EnemyType {
   SCOUT = 'scout',
@@ -238,6 +239,17 @@ export class Enemy {
     const modelOptions = this.getModelOptionsForEnemy();
     const modelRoot = this.modelGenerator.createEnemyModel(modelType, modelOptions);
     enemy.addChild(modelRoot);
+
+    // 异步换成真实 GLB 模型。敌人数量多，每个实例共用同一份已加载的容器资产；
+    // 加载失败时保留程序化模型，波次照常进行。
+    const isBoss = modelType.startsWith('boss');
+    this.engine
+      .getModelAssets()
+      .upgrade(enemy, modelRoot, ModelAssetProvider.enemyPath(modelType), {
+        tint: modelOptions.primaryColor,
+        scaleMultiplier: isBoss ? ModelAssetProvider.bossScale() : ModelAssetProvider.enemyScale(),
+        yaw: isBoss ? ModelAssetProvider.bossYaw() : ModelAssetProvider.enemyYaw(),
+      });
 
     this.engine.addToScene(enemy);
 

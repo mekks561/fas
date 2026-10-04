@@ -1,6 +1,7 @@
 import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { ProceduralModelGenerator, ShipModelType } from './ProceduralModelGenerator';
+import { ModelAssetProvider } from './ModelAssetProvider';
 import type { PlayerModifiers } from './BuildSystem';
 
 export interface PlayerConfig {
@@ -111,6 +112,16 @@ export class PlayerShip {
     });
 
     player.addChild(modelRoot);
+
+    // 异步换成真实 GLB 模型（Kenney CC0）。加载期间程序化模型照常显示，
+    // 任何失败都保留它作为回落，绝不阻塞开局、绝不抛错。
+    this.engine
+      .getModelAssets()
+      .upgrade(player, modelRoot, ModelAssetProvider.shipPath(this.shipModelType), {
+        tint: [0.2, 0.5, 0.8],
+        scaleMultiplier: ModelAssetProvider.shipScale(),
+        yaw: ModelAssetProvider.shipYaw(),
+      });
 
     // 创建引擎尾焰粒子系统
     this.engineTrail = this.createEngineTrail();

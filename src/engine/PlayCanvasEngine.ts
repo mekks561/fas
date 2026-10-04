@@ -3,6 +3,7 @@ import { InstancedRenderer } from './InstancedRenderer';
 import { GameEngineConfig, LightConfig, CameraConfig, GameEngine } from './GameEngine';
 import { PluginSystem, Plugin, PluginConfig } from './PluginSystem';
 import { ProceduralModelGenerator } from './ProceduralModelGenerator';
+import { ModelAssetProvider } from './ModelAssetProvider';
 
 export type GameConfig = GameEngineConfig;
 
@@ -14,6 +15,7 @@ export class PlayCanvasGameEngine implements GameEngine {
   private onResize: () => void;
   private instancedRenderer: InstancedRenderer | null = null;
   private pluginSystem: PluginSystem | null = null;
+  private modelAssets: ModelAssetProvider | null = null;
 
   constructor(config: GameConfig) {
     const { canvas, antialias = true, enablePhysics = true } = config;
@@ -383,6 +385,16 @@ export class PlayCanvasGameEngine implements GameEngine {
 
   public getApp(): pc.Application {
     return this.app;
+  }
+
+  /**
+   * 真实模型（GLB）资产提供器。整局游戏共用一个实例，容器资产只加载一次。
+   */
+  public getModelAssets(): ModelAssetProvider {
+    if (!this.modelAssets) {
+      this.modelAssets = new ModelAssetProvider(this.app);
+    }
+    return this.modelAssets;
   }
 
   public getScene(): pc.Scene {
