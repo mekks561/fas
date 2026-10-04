@@ -99,7 +99,9 @@ export class GameplayManager {
 
     achievementSystem.initialize();
     achievementSystem.onAchievementUnlocked((achievement) => {
-      const alreadyUnlocked = this.unlockedAchievementsThisSession.find((a) => a.id === achievement.id);
+      const alreadyUnlocked = this.unlockedAchievementsThisSession.find(
+        (a) => a.id === achievement.id,
+      );
       if (!alreadyUnlocked) {
         this.unlockedAchievementsThisSession.push(achievement);
       }
@@ -142,12 +144,24 @@ export class GameplayManager {
     enemyTypes: string[];
   } {
     if (!this.running) {
-      return { success: false, enemyCount: 0, isBossWave: false, isEliteWave: false, enemyTypes: [] };
+      return {
+        success: false,
+        enemyCount: 0,
+        isBossWave: false,
+        isEliteWave: false,
+        enemyTypes: [],
+      };
     }
 
     const result = this.waveManager.startWave(waveNumber);
     if (!result || 'error' in result) {
-      return { success: false, enemyCount: 0, isBossWave: false, isEliteWave: false, enemyTypes: [] };
+      return {
+        success: false,
+        enemyCount: 0,
+        isBossWave: false,
+        isEliteWave: false,
+        enemyTypes: [],
+      };
     }
 
     this.events.onWaveStart?.(waveNumber);
@@ -185,16 +199,36 @@ export class GameplayManager {
 
     difficultyManager.recordKill();
 
-    const waveResult = this.waveManager.onEnemyDefeated(enemyType);
+    // 波次推进的**唯一权威点**：GameplayManager 持有 WaveManager，由它把这次击杀计入波次。
+    // 历史上 EnemySystem.onEnemyKilled 也调过一次 onEnemyDefeated，导致一次击杀把
+    // enemiesRemaining 扣两次，波次会在敌人还剩一半时就判定完成。现在只保留这里一处。
+    const defeatResult = this.waveManager.onEnemyDefeated(enemyType);
+    const isWaveCompleted =
+      (defeatResult && !('error' in defeatResult) && defeatResult.isWaveComplete === true) ||
+      this.waveManager.getWaveState()?.currentState === 'completed';
+
     const statsResult = this.combatStats.onKill(enemyType, isBoss, isElite);
 
-    let scoreGained = 0;
-    if (waveResult && !('error' in waveResult) && waveResult.score) {
-      scoreGained = waveResult.score;
-    } else {
-      const baseScores: Record<string, number> = { basic: 100, fast: 150, tank: 250, shooter: 200, elite: 500, boss: 2000 };
-      scoreGained = baseScores[enemyType] || 100;
-    }
+    // 键同时覆盖引擎侧 EnemyType 取值（fighter/scout/bomber/…）与波次配置取值（basic/fast/…），
+    // 否则引擎路径下除 tank/elite/boss 外一律落到默认 100 分。
+    const baseScores: Record<string, number> = {
+      basic: 100,
+      fast: 150,
+      tank: 250,
+      shooter: 200,
+      elite: 500,
+      boss: 2000,
+      scout: 120,
+      fighter: 100,
+      bomber: 180,
+      assassin: 220,
+      drone: 90,
+      corvette: 260,
+      destroyer: 320,
+      boss_sentinel: 1500,
+      boss_overlord: 1800,
+    };
+    const scoreGained = baseScores[enemyType] || 100;
     this.currentScore += scoreGained;
     this.combatStats.addScore(scoreGained);
     this.events.onEnemyKilled?.(enemyType, scoreGained);
@@ -212,7 +246,7 @@ export class GameplayManager {
       this.events.onRankChange?.(this.currentRank, oldRank);
     }
 
-    if (waveResult && !('error' in waveResult) && waveResult.isWaveComplete) {
+    if (isWaveCompleted) {
       const waveState = this.getWaveState();
       const completedWave = waveState?.waveNumber || 0;
       this.combatStats.onWaveCompleted(completedWave);
@@ -220,7 +254,11 @@ export class GameplayManager {
 
       difficultyManager.recordWaveCompleted();
 
-      const reward = this.generateWaveReward(completedWave, waveState?.isBossWave || false, waveState?.isEliteWave || false);
+      const reward = this.generateWaveReward(
+        completedWave,
+        waveState?.isBossWave || false,
+        waveState?.isEliteWave || false,
+      );
       this.applyWaveReward(reward);
       this.events.onWaveReward?.(reward);
     }
@@ -298,12 +336,20 @@ export class GameplayManager {
     return [...this.unlockedAchievementsThisSession];
   }
 
-  public generateWaveReward(waveNumber: number, isBossWave: boolean, isEliteWave: boolean): WaveRewardResult {
+  public generateWaveReward(
+    waveNumber: number,
+    isBossWave: boolean,
+    isEliteWave: boolean,
+  ): WaveRewardResult {
     const rewards: WaveReward[] = [];
     let totalScoreBonus = 0;
 
     const baseScoreBonus = 500 + waveNumber * 100;
-    rewards.push({ type: 'score', amount: baseScoreBonus, label: `波次完成奖励 +${baseScoreBonus}` });
+    rewards.push({
+      type: 'score',
+      amount: baseScoreBonus,
+      label: `波次完成奖励 +${baseScoreBonus}`,
+    });
     totalScoreBonus += baseScoreBonus;
 
     if (isBossWave) {
@@ -315,7 +361,12 @@ export class GameplayManager {
 
       const powerupTypes: PowerupType[] = ['shield', 'invincible', 'triple_shot'];
       const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
-      rewards.push({ type: 'powerup', amount: 1, powerupType: randomPowerup, label: `特殊道具: ${randomPowerup}` });
+      rewards.push({
+        type: 'powerup',
+        amount: 1,
+        powerupType: randomPowerup,
+        label: `特殊道具: ${randomPowerup}`,
+      });
     } else if (isEliteWave) {
       const eliteBonus = 1000 + waveNumber * 150;
       rewards.push({ type: 'score', amount: eliteBonus, label: `精英波次奖励 +${eliteBonus}` });
@@ -330,7 +381,12 @@ export class GameplayManager {
       if (waveNumber % 2 === 0) {
         const powerupTypes: PowerupType[] = ['health', 'speed', 'damage'];
         const randomPowerup = powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
-        rewards.push({ type: 'powerup', amount: 1, powerupType: randomPowerup, label: `道具奖励: ${randomPowerup}` });
+        rewards.push({
+          type: 'powerup',
+          amount: 1,
+          powerupType: randomPowerup,
+          label: `道具奖励: ${randomPowerup}`,
+        });
       }
     }
 
@@ -412,7 +468,7 @@ export class GameplayManager {
 
   public getDifficulty(): DifficultyLevel | null {
     const state = this.getWaveState();
-    return state?.difficulty as DifficultyLevel || null;
+    return (state?.difficulty as DifficultyLevel) || null;
   }
 
   public setDifficulty(difficulty: DifficultyLevel): void {
@@ -435,7 +491,10 @@ export class GameplayManager {
   }
 
   /** 设置自适应难度配置（开关 + 强度） */
-  public setAdaptiveConfig(config: { enabled: boolean; intensity: 'low' | 'medium' | 'high' }): void {
+  public setAdaptiveConfig(config: {
+    enabled: boolean;
+    intensity: 'low' | 'medium' | 'high';
+  }): void {
     difficultyManager.setConfig({
       enabled: config.enabled,
       intensity: config.intensity,

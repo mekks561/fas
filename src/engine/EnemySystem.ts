@@ -7,6 +7,9 @@ import type { EnemyConfig as WaveEnemyConfig } from '../lua/wave/WaveManager';
 
 export type PowerupDropCallback = (position: pc.Vec3, enemyType: EnemyType) => void;
 
+/** 阵亡敌人整体回调：每帧把本帧所有阵亡敌人一次性交给上层统一结算 */
+export type EnemiesDefeatedCallback = (enemies: Enemy[]) => void;
+
 export class EnemySystem {
   private engine: PlayCanvasGameEngine;
   private player: PlayerShip;
@@ -16,6 +19,7 @@ export class EnemySystem {
   private spawnInterval: number = 1500;
   private waveActive: boolean = false;
   private powerupDropCallback: PowerupDropCallback | null = null;
+  private enemiesDefeatedCallback: EnemiesDefeatedCallback | null = null;
   private dropRate: number = 0.15;
   /** 难度自适应倍率（缩放敌人生命/速度/伤害/生成间隔） */
   private difficultyMultiplier: number = 1.0;
@@ -51,7 +55,16 @@ export class EnemySystem {
   }
 
   public update(dt: number): void {
-    this.enemies = this.enemies.filter((enemy) => enemy.isAlive());
+    // 先把本帧阵亡的敌人整体回调给上层结算，再从数组移除。
+    // 此前 filter 直接丢弃死敌，非武器击杀（技能/撞击/调试钩子）永远漏结算，
+    // 导致波次计数不推进、游戏打完一波就静止。
+    if (this.enemies.some((enemy) => !enemy.isAlive())) {
+      const deadEnemies = this.enemies.filter((enemy) => !enemy.isAlive());
+      this.enemies = this.enemies.filter((enemy) => enemy.isAlive());
+      if (deadEnemies.length > 0) {
+        this.enemiesDefeatedCallback?.(deadEnemies);
+      }
+    }
 
     if (this.waveActive && this.waveManager) {
       const now = Date.now();
@@ -131,15 +144,15 @@ export class EnemySystem {
     this.difficultyMultiplier = multiplier > 0 ? multiplier : 1.0;
   }
 
+  /**
+   * 单个敌人阵亡时的本地处理：返回该敌人的基础分（供上层统计），并按概率掉落道具。
+   *
+   * 注意：这里**不推进波次**。波次推进由 GameplayManager.onEnemyKilled 统一负责
+   * （GameplayManager 持有 WaveManager）。此前这里也调用过 waveManager.onEnemyDefeated，
+   * 与 GameplayManager 侧重复，一次击杀把 enemiesRemaining 扣两次，波次会提前完成。
+   */
   public onEnemyKilled(enemy: Enemy): number {
-    let score = 100;
-    if (this.waveManager) {
-      const result = this.waveManager.onEnemyDefeated(enemy.getType());
-      if (result.success) {
-        const r = result as { score: number; isWaveComplete: boolean };
-        score = r.score;
-      }
-    }
+    const score = 100;
 
     if (this.powerupDropCallback) {
       const isBoss = enemy.getType().includes('boss') || enemy.getType() === EnemyType.BOSS;
@@ -155,6 +168,10 @@ export class EnemySystem {
 
   public setPowerupDropCallback(callback: PowerupDropCallback): void {
     this.powerupDropCallback = callback;
+  }
+
+  public setEnemiesDefeatedCallback(callback: EnemiesDefeatedCallback): void {
+    this.enemiesDefeatedCallback = callback;
   }
 
   public setDropRate(rate: number): void {

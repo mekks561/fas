@@ -162,7 +162,7 @@ export class ParticlePoolItem implements Poolable {
 
   public play(): void {
     if (this.entity.particlesystem) {
-      this.entity.particlesystem.start();
+      this.entity.particlesystem.play();
     }
   }
 

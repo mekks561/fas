@@ -334,18 +334,31 @@ export class PlayCanvasGameEngine implements GameEngine {
       );
 
       const scale = 0.5 + Math.random() * 2.0;
-      // createStructure 第二参数是 ModelOptions（含 scale），不是 position
-      const asteroid = modelGen.createStructure('asteroid', { scale });
-      asteroid.setPosition(pos);
-      // 随机自转速度（存于 entity 上供 updateAsteroidField 旋转）
-      (asteroid as pc.Entity & { userData: { rotSpeed: pc.Vec3 } }).userData = {
+
+      // 每个小行星包一层 holder：holder 持有位置与自转速度，
+      // 内部放程序化模型作为占位，随后异步换成 Kenney 的真实岩石外壳。
+      // 包一层是必需的 —— updateAsteroidField 靠 container 直接子节点上的
+      // userData.rotSpeed 驱动自转，而 GLB 替换会销毁并替换 holder 的子节点。
+      const holder = new pc.Entity(`asteroid_${i}`);
+      holder.setPosition(pos);
+      (holder as pc.Entity & { userData: { rotSpeed: pc.Vec3 } }).userData = {
         rotSpeed: new pc.Vec3(
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5,
           (Math.random() - 0.5) * 0.5,
         ),
       };
-      container.addChild(asteroid);
+
+      // createStructure 第二参数是 ModelOptions（含 scale），不是 position
+      const placeholder = modelGen.createStructure('asteroid', { scale });
+      holder.addChild(placeholder);
+      container.addChild(holder);
+
+      // 9 种岩石外壳随机分配；失败则静默保留上面的程序化模型
+      this.getModelAssets().upgradeStructure(holder, placeholder, 'asteroid', {
+        scaleMultiplier: scale * ModelAssetProvider.structureScale(),
+        yaw: Math.random() * 360,
+      });
     }
 
     this.app.root.addChild(container);

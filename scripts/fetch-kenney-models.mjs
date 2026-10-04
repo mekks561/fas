@@ -58,6 +58,25 @@ const MAP = [
   // ---- Boss（2 个游戏中实际用到的模型类型）----
   ['bosses/boss-sentinel.glb', 'satelliteDish_large'],
   ['bosses/boss-overlord.glb', 'hangar_largeA'],
+
+  // ---- 场景结构物（本轮新增）----
+  // 小行星带是场景里数量最多的程序化物体（40 个），原先由 createAsteroid 用
+  // 「球体 + 方盒」拼出来。这里引入 9 种岩石/陨石外壳，运行时随机分配，
+  // 让环绕玩家的小行星带不再是一堆同款方块。
+  ['structures/meteor.glb', 'meteor'],
+  ['structures/meteor_detailed.glb', 'meteor_detailed'],
+  ['structures/meteor_half.glb', 'meteor_half'],
+  ['structures/rock_largeA.glb', 'rock_largeA'],
+  ['structures/rock_largeB.glb', 'rock_largeB'],
+  ['structures/rock_crystalsLargeA.glb', 'rock_crystalsLargeA'],
+  ['structures/rock_crystalsLargeB.glb', 'rock_crystalsLargeB'],
+  ['structures/rocks_smallA.glb', 'rocks_smallA'],
+  ['structures/rocks_smallB.glb', 'rocks_smallB'],
+
+  // 空间站与卫星：场景里的两个远景参照物（原先也是程序化图元拼装）。
+  // Kenney space 套件没有整装空间站，用大型机库外壳代替；卫星用带细节的碟形天线。
+  ['structures/station-hangar.glb', 'hangar_largeB'],
+  ['structures/satellite-dish.glb', 'satelliteDish_detailed'],
 ];
 
 // ============ GLB 结构校验 ============
@@ -137,8 +156,31 @@ function inspectGlb(buf) {
   return { problems, head };
 }
 
-/** 低于这个三角面数就认为不是可用素材（一个立方体是 12 面） */
-const MIN_TRIANGLES = 100;
+/**
+ * 低于这个三角面数就认为不是可用素材（一个立方体是 12 面，原先那批假模型是 12–32 面）。
+ * 默认 100 —— 对玩家舰/敌人这类需要看见细节的主角模型适用。
+ */
+const DEFAULT_MIN_TRIANGLES = 100;
+
+/**
+ * 按目标路径前缀覆盖阈值。
+ *
+ * 场景装饰类（小行星）是远景低模：Kenney 的整块陨石只有 44–68 面，
+ * 强行要求 100 面就只能全用 384 面的水晶岩，反而丢掉多样性；
+ * 而且小行星带一次渲染 40 个实例，低面数是优点而非缺陷。
+ * 但下限仍设在 40，高于假素材的 12–32 面 —— 阈值要拦的是「脚本烘出来的方块」，
+ * 不是「面数少的真素材」。
+ */
+const MIN_TRIANGLES_OVERRIDE = [
+  ['structures/', 40],
+];
+
+function minTrianglesFor(targetRel) {
+  for (const [prefix, value] of MIN_TRIANGLES_OVERRIDE) {
+    if (targetRel.startsWith(prefix)) return value;
+  }
+  return DEFAULT_MIN_TRIANGLES;
+}
 
 async function fetchOne(targetRel, sourceName) {
   const url = `${CDN}/${sourceName}.glb`;
@@ -175,8 +217,9 @@ async function main() {
     }
 
     const { problems, head } = inspectGlb(buf);
-    const tooSimple = head.triangles !== null && head.triangles < MIN_TRIANGLES;
-    if (tooSimple) problems.push(`三角面数 ${head.triangles} 低于阈值 ${MIN_TRIANGLES}`);
+    const minTriangles = minTrianglesFor(targetRel);
+    const tooSimple = head.triangles !== null && head.triangles < minTriangles;
+    if (tooSimple) problems.push(`三角面数 ${head.triangles} 低于阈值 ${minTriangles}`);
 
     if (problems.length === 0) {
       if (!checkOnly) {

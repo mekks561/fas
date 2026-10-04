@@ -1,5 +1,5 @@
 import * as pc from 'playcanvas';
-import type { ShipModelType, EnemyModelType } from './ProceduralModelGenerator';
+import type { ShipModelType, EnemyModelType, StructureModelType } from './ProceduralModelGenerator';
 
 /**
  * 真实模型资产提供器（GLB）
@@ -40,12 +40,48 @@ const ENEMY_FILES: Record<EnemyModelType, string> = {
 };
 
 /**
+ * 结构物 → 候选 GLB 路径（不含 .glb）。
+ *
+ * 与飞船/敌人不同，结构物是「一个类型 → 多个变体」：小行星带一次要放 40 个，
+ * 若全用同一个外壳会明显机械重复，因此这里给出一组候选，运行时随机取一个。
+ *
+ * 空数组表示「该类型暂无可替换素材」—— upgradeStructure 会直接返回，
+ * 调用方保留程序化模型。debris / mining_rig / defense_platform 三个类型
+ * 目前 createStructure 支持、但渲染路径上没有调用点，故不引入素材。
+ */
+const STRUCTURE_FILES: Record<StructureModelType, string[]> = {
+  asteroid: [
+    'structures/meteor',
+    'structures/meteor_detailed',
+    'structures/meteor_half',
+    'structures/rock_largeA',
+    'structures/rock_largeB',
+    'structures/rock_crystalsLargeA',
+    'structures/rock_crystalsLargeB',
+    'structures/rocks_smallA',
+    'structures/rocks_smallB',
+  ],
+  space_station: ['structures/station-hangar'],
+  satellite: ['structures/satellite-dish'],
+  debris: [],
+  mining_rig: [],
+  defense_platform: [],
+};
+
+/**
  * 尺寸换算：Kenney 的模型原始尺寸与原先程序化模型的尺度不同，需要按类别缩放。
  * 这几个值是配合渲染验证调出来的，改动后请重新跑一次画面验证。
  */
 const SHIP_SCALE = 1.6;
 const ENEMY_SCALE = 1.6;
 const BOSS_SCALE = 3.0;
+
+/**
+ * 结构物基础缩放。结构物的最终大小由调用方决定（小行星带每个都不同），
+ * 这里只做「Kenney 模型 ↔ 原程序化图元」的量级折算，调用方再乘自己的缩放。
+ * 切换占位与真模型时若大小跳变明显，调这个值。
+ */
+const STRUCTURE_SCALE = 1.0;
 
 /**
  * 朝向修正：不少 glTF 素材的「机头」指向与引擎默认的 +Z 不一致。
@@ -115,6 +151,15 @@ export class ModelAssetProvider {
     return BOSS_YAW;
   }
 
+  public static structureScale(): number {
+    return STRUCTURE_SCALE;
+  }
+
+  /** 该结构物类型是否有可替换素材。没有的话调用方不必包装实体、白跑一趟 */
+  public static hasStructureModel(type: StructureModelType): boolean {
+    return STRUCTURE_FILES[type].length > 0;
+  }
+
   /**
    * 把 parent 下现有的程序化模型替换成真实 GLB 模型。
    *
@@ -154,6 +199,27 @@ export class ModelAssetProvider {
       placeholder.destroy();
       console.log(`[ModelAssetProvider] ${relPath}.glb 已替换程序化模型`);
     });
+  }
+
+  /**
+   * 把 parent 下的程序化结构物替换成真实 GLB 模型。
+   *
+   * 与 upgrade 的差别只有一处：结构物是「一个类型对应多个候选外壳」，
+   * 这里随机挑一个，好让 40 个小行星不至于长得一模一样。
+   *
+   * 任一候选失败只影响那一个文件，下次调用仍会尝试其它候选。
+   */
+  public upgradeStructure(
+    parent: pc.Entity,
+    placeholder: pc.Entity,
+    type: StructureModelType,
+    options: AttachOptions = {},
+  ): void {
+    const variants = STRUCTURE_FILES[type];
+    if (variants.length === 0) return;
+
+    const relPath = variants[Math.floor(Math.random() * variants.length)];
+    this.upgrade(parent, placeholder, relPath, options);
   }
 
   /** 只加载，不做替换。用于需要在创建实体前就拿到资源的场景 */

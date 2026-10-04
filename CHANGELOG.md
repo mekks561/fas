@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-10-04
+
+### Added
+
+- **场景结构物换真模型（小行星带 / 空间站 / 卫星）** - 从 Kenney Space Kit 再引入 11 个 CC0 模型：
+  9 种岩石/陨石外壳（`meteor` / `meteor_detailed` / `meteor_half` / `rock_largeA/B` /
+  `rock_crystalsLargeA/B` / `rocks_smallA/B`）、空间站外壳（`hangar_largeB`）、卫星
+  （`satelliteDish_detailed`）。`ModelAssetProvider` 扩展 `upgradeStructure()`——结构物是
+  「一个类型对应多个候选外壳」，运行时随机选取，40 个小行星不再同款；沿用
+  「程序化模型先占位 + GLB 异步替换 + 失败静默回落」机制。`createAsteroidField` 的 40 个
+  小行星与场景中的空间站/卫星均已接线；实测 42 个实体替换成功、13 个模型文件全部 200、
+  运行时错误 0。被取代的 10 个坏 `structure-*.glb` 已删除。
+- **波次闭环推进（可完整通关）** - `GameScene` 新增 `waveTransitionRef`（待启动波次 + 倒计时）与
+  `WAVE_START_DELAY = 2.2s`。`onWaveComplete` 现在**无条件**为下一波排定启动，update 循环在非暂停
+  且未弹强化选择时倒计时到点后调用 `startWave(n+1)`。此前无任何代码推进波次，一波打完游戏永久静止。
+- **`EnemySystem.EnemiesDefeatedCallback`** - 新增 `(enemies: Enemy[]) => void` 类型与
+  `setEnemiesDefeatedCallback()`，每帧把本帧所有阵亡敌人**整体**回调给上层统一结算。
+- **DEV 调试钩子 `window.__waveDebug`** - `import.meta.env.DEV` 门控（生产构建不含）：
+  `startWave(n)` / `getState()` / `killAll()` / `godMode(on)` / `inspectEnemies()` / `killOne(i)`；
+  配套 `window.__waveDiag` 更新循环计数（`ticks` / `logicTicks` / `enemyUpdates`）。
+- **`scripts/verify-wave-progression.mjs`** - Playwright 闭环验证脚本，用调试钩子驱动 10 波全流程，
+  rAF 劫持计数 + 逐帧敌人采样 + 冻结检测。
+
+### Changed
+
+- **`fetch-kenney-models.mjs` 三角面阈值支持按类别覆盖** - 新增 `MIN_TRIANGLES_OVERRIDE`：
+  `structures/` 前缀阈值放宽到 40。背景装饰类低模（整块陨石仅 44–68 面）不应按
+  主角模型的标准（100 面）拒收，但下限仍须高于假素材的 12–32 面。
+- **波次推进收敛为唯一权威点** - 波次计数改由 `GameplayManager.onEnemyKilled` 统一负责
+  （它持有 `WaveManager`）；`EnemySystem.onEnemyKilled` 退化为「返回该敌人基础分 + 处理道具掉落」，
+  不再调用 `waveManager.onEnemyDefeated`。
+- **关卡完成判定改用权威信号** - 由 `currentWave >= totalWaves` 改为 `finalWaveClearedRef`
+  （由 `onWaveComplete(waveNumber >= totalWaves)` 置位），避免末波刚启动、敌人尚未生成时误判通关。
+- **`GameplayManager.baseScores` 补键** - 原表仅含 Lua stub 类型名（`basic`/`fast`/…），
+  补齐引擎侧 `EnemyType` 取值（`scout`/`fighter`/`bomber`/`assassin`/`drone`/`corvette`/
+  `destroyer`/`boss_sentinel`/`boss_overlord`），否则引擎路径下除 tank/elite/boss 外一律得 100 分。
+
+### Fixed
+
+- **打完一波后游戏永久静止、永远无法通关** - 波次推进逻辑完全缺失（详见 Added 第 1 条）。
+- **末波（第 10 波 / Boss 波）被整个跳过** - 关卡完成条件在末波**启动的同一帧**即成立
+  （波号已达上限、敌人要到下一帧才生成、`nextWave` 刚置 null）⇒ 立即触发 `onLevelComplete()`
+  → App 切到 GAME_OVER → GameScene 被 React 卸载 → `engine.destroy()` → PlayCanvas `app.destroy()`
+  → tick 链静默停止，表现为「游戏突然冻结」。现要求末波**真正被清空**才结算。
+- **非武器击杀漏结算** - `EnemySystem.update()` 原先把 `filter(isAlive)` 放在结算之前，导致
+  用技能/撞击等方式击杀的敌人分数、战斗统计、波次计数全部丢失（现象：`enemiesDefeated` 恒为 0）。
+  现改为**先回调结算、再 filter 移除**。
+- **一次击杀扣两次波次计数** - `EnemySystem` 与 `GameplayManager` 双方都调用 `onEnemyDefeated`，
+  波次会在敌人还剩一半时提前判定完成。
+- **击杀分数重复累加** - `GameScene` 的阵亡回调既 `addScore(totalScore)`，又经
+  `GameplayManager.onEnemyKilled` 事件再 `addScore(score)`。现只在事件链上记一次分。
+- **结算/暂停界面「消灭敌人」恒为 0** - store 的 `addKill()` 只累加 `killCount`，而
+  `GameOver` / `PauseMenu` 读取的是从未被写入的 `enemiesDefeated` 字段。现两者同步累加
+  （`resetGame` 本就会重置二者）。
+- **结算界面出现未翻译的键名 `gameOver.leaderboard`** - `zh.json` / `en.json` 的
+  `gameOver` 段缺少 `leaderboard` 键，按钮直接显示原始键名。已补「排行榜」/ `Leaderboard`。
+- **PlayCanvas 2 `ParticleSystemComponent` 无 `start()`** - `Enemy` / `ObjectPool` / `PowerupSystem` /
+  `SkillSystem` 中的 `particlesystem.start()` 改为 `play()`（Engine 2 仅提供 `play()`）。
+
+### Verification
+
+- `tsc --noEmit`：0 错误
+- `vitest run`：344 / 345 通过（唯一失败为 `GameResourceManager.test.ts` 的慢速下载用例，
+  该用例会真实发起网络下载，属环境相关的既有不稳定用例）
+- `vite build`：成功（另见下方 Note）
+- 波次闭环实测：波次 1→2→…→10 全通，第 10 波 `spawned=20 / defeated=20 / state=completed`，
+  关卡完成触发，结算界面「胜利！」出现，运行时错误 0
+
+### Note
+
+- `vite build` 直接执行会被沙箱的 safe-delete 防护拦截（Vite 需清空既有 `dist/assets`，359 文件
+  超过 50 的批量删除阈值）。本地校验可用 `npx vite build --outDir dist-verify`。
+
 ## [2.6.0] - 2026-07-20
 
 ### Added

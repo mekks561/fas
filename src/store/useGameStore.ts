@@ -382,7 +382,13 @@ export const useGameStore = create<GameState & GameActions>()(
 
       setTouchHandlers: (handlers) => set({ touchHandlers: handlers }),
 
-      addKill: () => set((state) => ({ killCount: state.killCount + 1 })),
+      // 同时累加 enemiesDefeated：结算界面（GameOver）与暂停菜单读的是这个字段，
+      // 此前只加 killCount，导致「消灭敌人」永远显示 0。
+      addKill: () =>
+        set((state) => ({
+          killCount: state.killCount + 1,
+          enemiesDefeated: state.enemiesDefeated + 1,
+        })),
       addPowerup: () => set((state) => ({ powerupsCollected: state.powerupsCollected + 1 })),
       addSkill: () => set((state) => ({ skillsUsed: state.skillsUsed + 1 })),
 

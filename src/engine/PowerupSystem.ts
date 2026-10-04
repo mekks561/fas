@@ -215,7 +215,7 @@ export class Powerup {
     });
 
     this.engine.addToScene(effect);
-    effect.particlesystem?.start();
+    effect.particlesystem?.play();
 
     setTimeout(() => effect.destroy(), 500);
   }

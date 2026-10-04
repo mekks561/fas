@@ -257,7 +257,7 @@ export class MissileStrikeSkill extends Skill {
     });
 
     this.engine.addToScene(explosion);
-    explosion.particlesystem?.start();
+    explosion.particlesystem?.play();
 
     setTimeout(() => explosion.destroy(), 500);
 

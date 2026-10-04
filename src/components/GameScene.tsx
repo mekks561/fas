@@ -12,6 +12,7 @@ import { UpgradeChoiceOverlay } from './UpgradeChoiceOverlay';
 import { gameplayManager } from '../engine/GameplayManager';
 import type { GameplayEvents } from '../engine/GameplayManager';
 import { dailyChallengeManager } from '../engine/DailyChallengeManager';
+import { ModelAssetProvider } from '../engine/ModelAssetProvider';
 import './GameScene.css';
 
 type PlayCanvasGameEngine = import('../engine/PlayCanvasEngine').PlayCanvasGameEngine;
@@ -41,6 +42,10 @@ const enginePowerupTypeToLua = (engineType: string): string | null => {
   return mapping[engineType] || null;
 };
 
+/** 一波清空后到下一波敌人开始出现的间隔（秒）。
+ *  给玩家喘息时间，并让「波次完成」提示来得及被看到。 */
+const WAVE_START_DELAY = 2.2;
+
 export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () => void }> =
   React.memo(({ onGameOver, onLevelComplete }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -57,6 +62,21 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const vfxSystemRef = useRef<VisualEffectSystem | null>(null);
     const asteroidSystemRef = useRef<AsteroidSystem | null>(null);
     const prevBoostRef = useRef(false);
+    /** 波间过渡调度：上一波清空后延迟启动下一波。
+     *  nextWave 为 null 表示当前没有待启动的波次。 */
+    const waveTransitionRef = useRef<{ nextWave: number | null; timer: number }>({
+      nextWave: null,
+      timer: 0,
+    });
+    /** 关卡完成只允许触发一次，避免最后一波反复结算 */
+    const levelCompleteFiredRef = useRef(false);
+    /**
+     * 末波是否「已真正打完」的权威标记（由 onWaveComplete(waveNumber >= totalWaves) 置位）。
+     * 不能用 currentWave >= totalWaves 代替：末波刚 startWave 的那一帧波号就已经等于上限，
+     * 而敌人要到下一帧才生成，会导致「末波刚开始就直接判定通关」，并把 GameScene 卸载、
+     * 引擎销毁，整局游戏永久冻结。
+     */
+    const finalWaveClearedRef = useRef(false);
 
     const [storyManager, setStoryManager] = useState<StoryMissionManager | null>(null);
     const [currentDialogue, setCurrentDialogue] = useState<Dialogue | null>(null);
@@ -216,6 +236,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       useGameStore.getState().setPendingUpgradeChoices(null);
       useGameStore.getState().setUpgradeChoiceVisible(false);
       useGameStore.getState().setGamePaused(false);
+
+      // 强化选完后，若已排定下一波，重置波间倒计时让 update 循环接着推进
+      const pending = waveTransitionRef.current;
+      if (pending.nextWave !== null) {
+        pending.timer = WAVE_START_DELAY;
+      }
     }, []);
 
     // 强化选择倒计时
@@ -298,12 +324,32 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         const { ProceduralModelGenerator: ModelGen } =
           await import('../engine/ProceduralModelGenerator');
         const modelGen = new ModelGen(engine.getApp());
-        const station = modelGen.createStructure('space_station', { scale: 2 });
-        station.setPosition(-50, 5, -40);
-        engine.addToScene(station);
-        const satellite = modelGen.createStructure('satellite', { scale: 1 });
-        satellite.setPosition(45, 12, -30);
-        engine.addToScene(satellite);
+        // 空间站和卫星作为远处空间参照物。
+        // 与飞船同款做法：包一层 holder 承载位置，内部程序化模型先顶上，
+        // GLB 加载好后异步替换；任何失败都保留程序化模型，不影响开局。
+        const stationHolder = new pc.Entity('stationHolder');
+        stationHolder.setPosition(-50, 5, -40);
+        const stationPlaceholder = modelGen.createStructure('space_station', { scale: 2 });
+        stationHolder.addChild(stationPlaceholder);
+        engine.addToScene(stationHolder);
+        engine
+          .getModelAssets()
+          .upgradeStructure(stationHolder, stationPlaceholder, 'space_station', {
+            scaleMultiplier: 2 * ModelAssetProvider.structureScale(),
+            yaw: 40,
+          });
+
+        const satelliteHolder = new pc.Entity('satelliteHolder');
+        satelliteHolder.setPosition(45, 12, -30);
+        const satellitePlaceholder = modelGen.createStructure('satellite', { scale: 1 });
+        satelliteHolder.addChild(satellitePlaceholder);
+        engine.addToScene(satelliteHolder);
+        engine
+          .getModelAssets()
+          .upgradeStructure(satelliteHolder, satellitePlaceholder, 'satellite', {
+            scaleMultiplier: ModelAssetProvider.structureScale(),
+            yaw: 200,
+          });
 
         // 雾效：增强深度感，远处物体渐隐（临时禁用排查黑屏）
         // engine.enableFog(new pc.Color(0.02, 0.02, 0.05), 0.008);
@@ -405,7 +451,23 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             }
           },
           onWaveComplete: (waveNumber, _score) => {
-            // 波次完成时触发三选一强化选择
+            // 最后一波清空：不再排下一波，标记「末波已清空」，
+            // 交由 update 循环在同一帧触发关卡完成结算。
+            const totalWaves = enemySystemRef.current?.getTotalWaves() ?? 10;
+            if (waveNumber >= totalWaves) {
+              waveTransitionRef.current.nextWave = null;
+              finalWaveClearedRef.current = true;
+              return;
+            }
+
+            // 排定下一波。无论后面是否弹出强化选择都必须排定，
+            // 否则一波打完游戏就永久静止（原实现的缺口就在这）。
+            waveTransitionRef.current = {
+              nextWave: waveNumber + 1,
+              timer: WAVE_START_DELAY,
+            };
+
+            // 波次完成时触发三选一强化选择（弹窗期间游戏暂停，波间倒计时不推进）
             const choices = buildSystemRef.current?.getUpgradeChoices(waveNumber) || [];
             if (choices.length > 0) {
               useGameStore.getState().setPendingUpgradeChoices(choices);
@@ -532,18 +594,158 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               );
             }
           });
+          // 击杀统一结算：EnemySystem 每帧把阵亡敌人整体回调（无论死因），
+          // 这里负责分数、战斗统计与剧情任务计数。
+          enemySystemRef.current.setEnemiesDefeatedCallback((deadEnemies) => {
+            if (deadEnemies.length === 0) return;
+            for (const enemy of deadEnemies) {
+              const type = enemy.getType();
+              // EnemySystem 侧只负责该敌人自身的掉落判定，不计分、不推进波次。
+              enemySystemRef.current?.onEnemyKilled(enemy);
+              if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
+                const isBoss = type.includes('boss');
+                const isElite = type === 'elite';
+                // 分数、击杀数、连击与波次推进统一在 GameplayManager 内完成；
+                // 其 onEnemyKilled 事件会回到上面注册的处理器 addScore/addKill。
+                // 注意不要在这里再 addScore，否则每次击杀会被计两次分。
+                gameplayManagerRef.current.onEnemyKilled(type, isBoss, isElite);
+              }
+            }
+            if (storyManagerRef.current) {
+              storyManagerRef.current.getActiveMissions().forEach((state) => {
+                storyManagerRef.current?.incrementObjective(
+                  state.mission.id,
+                  'destroy',
+                  deadEnemies.length,
+                );
+              });
+            }
+          });
         }
+
+        // 重置波次过渡状态（重开一局时避免残留上一局的待启动波次）
+        waveTransitionRef.current = { nextWave: null, timer: 0 };
+        levelCompleteFiredRef.current = false;
+        finalWaveClearedRef.current = false;
 
         gameplayManager.startWave(1);
         console.log('[GameScene] Gameplay manager initialized');
+
+        // dev 调试钩子：供自动化验证与开发期排查波次/战斗逻辑（生产构建不可用）。
+        // 背景：真实玩家打完一波需要枪法与生存，自动化验证用它直接驱动波次流转。
+        if (import.meta.env.DEV) {
+          // 更新循环存活诊断：区分「逻辑卡死」与「更新回调根本没跑」
+          const diag = { ticks: 0, logicTicks: 0, enemyUpdates: 0 };
+          (window as unknown as Record<string, unknown>)['__waveDiag'] = diag;
+
+          // 引擎静默停摆排查：PlayCanvas 的 tick 链只在 graphicsDevice 变 null（destroy）
+          // 或 WebGL 上下文丢失后不再重排时停止，且都不会抛异常 —— 所以必须显式埋点。
+          {
+            const rawApp = (
+              engineRef.current as unknown as { app?: Record<string, unknown> } | null
+            )?.app;
+            if (rawApp && typeof rawApp['on'] === 'function') {
+              (rawApp['on'] as (e: string, cb: () => void) => void)('destroy', () => {
+                console.warn('[diag] PlayCanvas Application destroy 触发 ← tick 链就此停止');
+              });
+            }
+            const cvs = canvasRef.current;
+            if (cvs) {
+              cvs.addEventListener('webglcontextlost', () =>
+                console.warn('[diag] webglcontextlost'),
+              );
+            }
+            document.addEventListener('visibilitychange', () =>
+              console.log(`[diag] visibilitychange hidden=${document.hidden}`),
+            );
+          }
+          (window as unknown as Record<string, unknown>)['__waveDebug'] = {
+            startWave: (n: number) => {
+              enemySystemRef.current?.startWave(n);
+              gameplayManagerRef.current?.startWave(n);
+            },
+            getState: () => ({
+              wave: enemySystemRef.current?.getCurrentWave() ?? -1,
+              totalWaves: enemySystemRef.current?.getTotalWaves() ?? -1,
+              waveActive: enemySystemRef.current?.isWaveActive() ?? false,
+              aliveEnemies: enemySystemRef.current?.getAliveCount() ?? -1,
+              remaining: enemySystemRef.current?.getRemainingCount() ?? -1,
+              upgradeVisible: useGameStore.getState().isUpgradeChoiceVisible,
+              gamePaused: useGameStore.getState().isGamePaused,
+              waveState: gameplayManagerRef.current?.getWaveState() ?? null,
+              sceneReady: useGameStore.getState().isSceneReady,
+              hasPlayer: playerRef.current !== null,
+              levelCompleteFired: levelCompleteFiredRef.current,
+              finalWaveCleared: finalWaveClearedRef.current,
+              raf:
+                (window as unknown as { __rafProbeCount?: () => number }).__rafProbeCount?.() ?? -1,
+              diag: { ...diag },
+              enemyInternals: (() => {
+                const es = enemySystemRef.current as unknown as Record<string, unknown> | null;
+                if (!es) return null;
+                return {
+                  waveActive: es['waveActive'],
+                  spawnInterval: es['spawnInterval'],
+                  lastSpawnTime: es['lastSpawnTime'],
+                  pool: (es['enemies'] as unknown[] | undefined)?.length ?? -1,
+                };
+              })(),
+            }),
+            /** 清空场上敌人（下一帧 GameScene 会按正常击杀流程结算：计数/分数/波次完成） */
+            killAll: () => {
+              enemySystemRef.current?.getEnemies().forEach((e) => e.takeDamage(99999));
+            },
+            /** 逐个敌人快照：排查敌人在无攻击情况下消失的问题 */
+            inspectEnemies: () => {
+              return (enemySystemRef.current?.getEnemies() ?? []).map((e, i) => {
+                const box = e as unknown as { health: number; isDying: boolean };
+                const p = e.getPosition();
+                return {
+                  i,
+                  health: box.health,
+                  isDying: box.isDying,
+                  pos: [p.x, p.y, p.z].map((v) => Math.round(v)),
+                };
+              });
+            },
+            /** 无敌模式：自动化验证用，避免玩家生存问题掩盖波次逻辑验证。
+             *  必须走 setInvincible（内部维护 invulnerabilityEndTime，
+             *  直接改 isInvulnerable 会被 update 每帧重算覆盖）。 */
+            godMode: (on: boolean) => {
+              const p = playerRef.current;
+              if (p && on) p.setInvincible(3_600_000);
+            },
+            /** 直接杀死指定敌人（按索引），便于逐个验证击杀结算 */
+            killOne: (index: number) => {
+              const enemies = enemySystemRef.current?.getEnemies() ?? [];
+              if (enemies[index]) enemies[index].takeDamage(99999);
+            },
+          };
+        }
 
         let frameCount = 0;
         let lastFpsUpdate = Date.now();
 
         engine.setUpdateCallback((dt: number) => {
           const gameState = useGameStore.getState();
+          if (import.meta.env.DEV) {
+            const d = (
+              window as unknown as {
+                __waveDiag?: { ticks: number; logicTicks: number; enemyUpdates: number };
+              }
+            ).__waveDiag;
+            if (d) d.ticks++;
+          }
 
           if (!gameState.isGamePaused && gameState.isSceneReady && playerRef.current) {
+            if (import.meta.env.DEV) {
+              const d = (
+                window as unknown as {
+                  __waveDiag?: { ticks: number; logicTicks: number; enemyUpdates: number };
+                }
+              ).__waveDiag;
+              if (d) d.logicTicks++;
+            }
             // 每帧同步 Build 修饰符到 PlayerShip 和 WeaponSystem
             if (buildSystemRef.current) {
               playerRef.current.setBuildModifiers(buildSystemRef.current.getPlayerModifiers());
@@ -593,6 +795,14 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
 
             if (enemySystemRef.current) {
               enemySystemRef.current.update(dt);
+              if (import.meta.env.DEV) {
+                const d = (
+                  window as unknown as {
+                    __waveDiag?: { ticks: number; logicTicks: number; enemyUpdates: number };
+                  }
+                ).__waveDiag;
+                if (d) d.enemyUpdates++;
+              }
             }
 
             if (skillSystemRef.current) {
@@ -603,36 +813,11 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               const enemies = enemySystemRef.current.getEnemies();
               const hits = weaponSystemRef.current.checkCollisions(enemies);
               if (hits > 0) {
-                // checkCollisions 已对击中敌人调用 takeDamage，遍历检测本帧真正被击杀的敌人
-                // （不能用 slice(0, hits)：击中的不一定是数组前 N 个，且击中 ≠ 击杀）
-                let totalScore = 0;
-                let killCount = 0;
-                for (const enemy of enemies) {
-                  if (enemy.isAlive()) continue;
-                  const score = enemySystemRef.current.onEnemyKilled(enemy);
-                  totalScore += score;
-                  killCount++;
-                  if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
-                    const type = enemy.getType();
-                    const isBoss = type.includes('boss') || type === 'boss';
-                    const isElite = type === 'elite';
-                    gameplayManagerRef.current.onEnemyKilled(type, isBoss, isElite);
-                  }
-                }
-                if (totalScore > 0) {
-                  useGameStore.getState().addScore(totalScore);
-                }
                 AudioManager.playSound('enemyHit');
-                if (storyManagerRef.current) {
-                  storyManagerRef.current.getActiveMissions().forEach((state) => {
-                    storyManagerRef.current?.incrementObjective(
-                      state.mission.id,
-                      'destroy',
-                      killCount,
-                    );
-                  });
-                }
               }
+              // 击杀结算统一走 EnemySystem 的 enemiesDefeated 回调：
+              // 敌人无论死于子弹、技能还是其他来源，都会在下一帧开头被
+              // EnemySystem 整体回调结算，保证波次计数不漏。
             }
 
             if (powerupSpawnerRef.current && playerRef.current) {
@@ -715,6 +900,24 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               });
             }
 
+            // 波间过渡：上一波清空后启动下一波。此前这里完全缺失，
+            // 导致打完第 1 波后游戏永久静止、也永远无法通关。
+            // 若正处于强化选择界面（游戏已暂停），不计时，等玩家选完再走。
+            const waveTransition = waveTransitionRef.current;
+            if (
+              waveTransition.nextWave !== null &&
+              !useGameStore.getState().isUpgradeChoiceVisible
+            ) {
+              waveTransition.timer -= dt;
+              if (waveTransition.timer <= 0) {
+                const nextWave = waveTransition.nextWave;
+                waveTransition.nextWave = null;
+                enemySystemRef.current?.startWave(nextWave);
+                gameplayManagerRef.current?.startWave(nextWave);
+                console.log(`[GameScene] Wave ${nextWave} started`);
+              }
+            }
+
             useGameStore.getState().updateSkillCooldowns(dt);
 
             frameCount++;
@@ -732,12 +935,17 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               onGameOver();
             }
 
-            if (enemySystemRef.current && onLevelComplete) {
-              const totalWaves = enemySystemRef.current.getTotalWaves();
-              const currentWave = enemySystemRef.current.getCurrentWave();
+            if (enemySystemRef.current && onLevelComplete && !levelCompleteFiredRef.current) {
               const enemies = enemySystemRef.current.getEnemies();
+              const finalWaveCleared = finalWaveClearedRef.current;
+              const noMoreWaves = waveTransitionRef.current.nextWave === null;
 
-              if (currentWave > totalWaves && enemies.length === 0) {
+              // 末波「被清空」且场上已无敌人 → 关卡完成结算。
+              // 注意判定依据是 finalWaveCleared（末波真正打完），而不是波号达到上限 ——
+              // 后者会在末波刚启动、敌人尚未生成时就成立，导致跳过末波并卸载 GameScene。
+              if (finalWaveCleared && noMoreWaves && enemies.length === 0) {
+                levelCompleteFiredRef.current = true;
+                console.log('[GameScene] Level complete: final wave cleared');
                 AudioManager.playSound('levelComplete');
                 onLevelComplete();
               }
@@ -770,6 +978,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         }, 500);
 
         return () => {
+          console.warn('[GameScene] Cleanup: React 卸载 → 即将销毁引擎（此后 rAF/tick 链会停止）');
           clearTimeout(initTimer);
 
           AudioManager.stopMusic();

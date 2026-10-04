@@ -403,7 +403,7 @@ export class Enemy {
     });
 
     this.engine.addToScene(explosion);
-    explosion.particlesystem?.start();
+    explosion.particlesystem?.play();
 
     setTimeout(() => explosion.destroy(), 800);
   }
