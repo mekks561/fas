@@ -43,12 +43,18 @@ coverage/
 .cache/
 .temp/
 
-# Babylon.js specific
+# 3D / texture binaries (keep the rule broad so node_modules, dist and
+# ad-hoc exporter dumps never sneak in)
 *.glb
 *.gltf
 *.hdr
 *.env
 *.dds
+
+# ...but the game's own model assets ARE shipped (45 files, ~712K total).
+# Without these a fresh clone boots into a game with no 3D models at all.
+# Whitelisting the source asset dir only — build output lives in dist/.
+!public/assets/**
 
 # Backup files
 *.backup
