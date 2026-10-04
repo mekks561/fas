@@ -1,3 +1,18 @@
+// ⚠️ 已停用 —— 本脚本产出的是「程序合成的占位音频」（正弦/白噪）。
+//    public/assets/audio 下现已全部替换为真实 CC0 素材，来源与许可见
+//    public/assets/audio/CREDITS.md，抓取脚本为 scripts/fetch-real-audio.mjs。
+//    直接运行会重新灌入 35 个假 WAV，因此默认拒绝执行。
+//    （另注：本文件是 CommonJS 写法，而 package.json 为 "type": "module"，
+//      因此即便加 --force 也无法在当前配置下直接运行。）
+//    这段守卫必须放在 require 之前，否则模块求值会先因 require 报错而失效。
+if (!process.argv.includes('--force')) {
+  console.error(
+    '[generate-audio] 已停用：真实音频素材已就位，本脚本会覆盖/污染它们。\n' +
+      '  想重新拉取真实素材：node scripts/fetch-real-audio.mjs'
+  );
+  process.exit(1);
+}
+
 const fs = require('fs');
 const path = require('path');
 

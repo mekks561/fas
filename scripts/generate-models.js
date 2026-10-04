@@ -1,3 +1,21 @@
+// ⚠️ 已停用 —— 本脚本产出的模型有两个致命问题，且已被真实 CC0 素材取代：
+//    1) 写出的 GLB 头是错的（version 位置写了 JSON 长度、总长位置写了缓冲长度，
+//       且两个 chunk 头整个缺失），任何标准加载器都会拒收；
+//    2) 每个模型仅 12–32 个三角面，没有画质价值。
+//    真素材来源与许可见 public/assets/models/CREDITS.md，
+//    抓取脚本为 scripts/fetch-kenney-models.mjs。本脚本会覆盖同名的真模型（.glb），
+//    因此默认拒绝执行。
+//    （另注：本文件是 CommonJS 写法，而 package.json 为 "type": "module"，
+//      因此即便加 --force 也无法在当前配置下直接运行。）
+//    这段守卫必须放在 require 之前，否则模块求值会先因 require 报错而失效。
+if (!process.argv.includes('--force')) {
+  console.error(
+    '[generate-models] 已停用：真实模型素材已就位，本脚本会用坏文件覆盖它们。\n' +
+      '  想重新拉取真实素材：node scripts/fetch-kenney-models.mjs'
+  );
+  process.exit(1);
+}
+
 const fs = require('fs');
 const path = require('path');
 

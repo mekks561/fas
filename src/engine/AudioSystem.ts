@@ -34,7 +34,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'menuMusic',
     type: 'music',
-    url: '/assets/audio/bgm/bgm-mainmenu.wav',
+    url: '/assets/audio/bgm/bgm-mainmenu.ogg',
     loop: true,
     volume: 0.6,
     spatial: false,
@@ -42,7 +42,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'gameMusic',
     type: 'music',
-    url: '/assets/audio/bgm/bgm-gameplay.wav',
+    url: '/assets/audio/bgm/bgm-gameplay.ogg',
     loop: true,
     volume: 0.5,
     spatial: false,
@@ -50,7 +50,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'victoryMusic',
     type: 'music',
-    url: '/assets/audio/bgm/bgm-victory.wav',
+    url: '/assets/audio/bgm/bgm-victory.mp3',
     loop: false,
     volume: 0.7,
     spatial: false,
@@ -58,7 +58,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'defeatMusic',
     type: 'music',
-    url: '/assets/audio/bgm/bgm-story.wav',
+    url: '/assets/audio/bgm/bgm-story.ogg',
     loop: false,
     volume: 0.5,
     spatial: false,
@@ -66,7 +66,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'bossMusic',
     type: 'music',
-    url: '/assets/audio/bgm/bgm-boss.wav',
+    url: '/assets/audio/bgm/bgm-boss.ogg',
     loop: true,
     volume: 0.6,
     spatial: false,
@@ -74,7 +74,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'playerShoot',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-laser.wav',
+    url: '/assets/audio/effects/sfx-laser.ogg',
     loop: false,
     volume: 0.4,
     spatial: true,
@@ -82,7 +82,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'playerHit',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-damage.wav',
+    url: '/assets/audio/effects/sfx-damage.ogg',
     loop: false,
     volume: 0.6,
     spatial: true,
@@ -90,7 +90,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'playerBoost',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-shield.wav',
+    url: '/assets/audio/effects/sfx-shield.ogg',
     loop: true,
     volume: 0.5,
     spatial: true,
@@ -98,7 +98,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'playerExplosion',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-explosion.wav',
+    url: '/assets/audio/effects/sfx-explosion.ogg',
     loop: false,
     volume: 0.8,
     spatial: true,
@@ -106,7 +106,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'enemyShoot',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-plasma.wav',
+    url: '/assets/audio/effects/sfx-plasma.ogg',
     loop: false,
     volume: 0.3,
     spatial: true,
@@ -114,7 +114,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'enemyHit',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-damage.wav',
+    url: '/assets/audio/effects/sfx-damage.ogg',
     loop: false,
     volume: 0.5,
     spatial: true,
@@ -122,7 +122,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'enemyExplosion',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-explosion.wav',
+    url: '/assets/audio/effects/sfx-explosion.ogg',
     loop: false,
     volume: 0.7,
     spatial: true,
@@ -130,7 +130,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'powerup',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-powerup.wav',
+    url: '/assets/audio/effects/sfx-powerup.ogg',
     loop: false,
     volume: 0.6,
     spatial: true,
@@ -138,7 +138,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'weaponUpgrade',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-powerup-spawn.wav',
+    url: '/assets/audio/effects/sfx-powerup-spawn.ogg',
     loop: false,
     volume: 0.5,
     spatial: true,
@@ -146,7 +146,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'shieldActivate',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-shield.wav',
+    url: '/assets/audio/effects/sfx-shield.ogg',
     loop: false,
     volume: 0.4,
     spatial: true,
@@ -154,7 +154,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'waveComplete',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-wave-start.wav',
+    url: '/assets/audio/effects/sfx-wave-start.ogg',
     loop: false,
     volume: 0.6,
     spatial: false,
@@ -162,7 +162,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'levelComplete',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-level-complete.wav',
+    url: '/assets/audio/effects/sfx-level-complete.ogg',
     loop: false,
     volume: 0.7,
     spatial: false,
@@ -170,7 +170,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'uiClick',
     type: 'sfx',
-    url: '/assets/audio/ui/ui-click.wav',
+    url: '/assets/audio/ui/ui-click.ogg',
     loop: false,
     volume: 0.3,
     spatial: false,
@@ -178,7 +178,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'uiHover',
     type: 'sfx',
-    url: '/assets/audio/ui/ui-select.wav',
+    url: '/assets/audio/ui/ui-select.ogg',
     loop: false,
     volume: 0.2,
     spatial: false,
@@ -186,7 +186,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'uiSelect',
     type: 'sfx',
-    url: '/assets/audio/ui/ui-select.wav',
+    url: '/assets/audio/ui/ui-select.ogg',
     loop: false,
     volume: 0.4,
     spatial: false,
@@ -194,7 +194,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'uiSuccess',
     type: 'sfx',
-    url: '/assets/audio/ui/ui-success.wav',
+    url: '/assets/audio/ui/ui-success.ogg',
     loop: false,
     volume: 0.5,
     spatial: false,
@@ -202,7 +202,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'uiError',
     type: 'sfx',
-    url: '/assets/audio/ui/ui-error.wav',
+    url: '/assets/audio/ui/ui-error.ogg',
     loop: false,
     volume: 0.4,
     spatial: false,
@@ -210,7 +210,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'uiLevelUp',
     type: 'sfx',
-    url: '/assets/audio/ui/ui-levelup.wav',
+    url: '/assets/audio/ui/ui-levelup.ogg',
     loop: false,
     volume: 0.6,
     spatial: false,
@@ -218,7 +218,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'uiAchievement',
     type: 'sfx',
-    url: '/assets/audio/ui/ui-achievement.wav',
+    url: '/assets/audio/ui/ui-achievement.ogg',
     loop: false,
     volume: 0.7,
     spatial: false,
@@ -226,7 +226,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'missile',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-missile.wav',
+    url: '/assets/audio/effects/sfx-missile.ogg',
     loop: false,
     volume: 0.5,
     spatial: true,
@@ -234,7 +234,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'heal',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-heal.wav',
+    url: '/assets/audio/effects/sfx-heal.ogg',
     loop: false,
     volume: 0.5,
     spatial: true,
@@ -242,7 +242,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'bossRoar',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-boss-roar.wav',
+    url: '/assets/audio/effects/sfx-boss-roar.ogg',
     loop: false,
     volume: 0.8,
     spatial: true,
@@ -250,7 +250,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'nuke',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-nuke.wav',
+    url: '/assets/audio/effects/sfx-nuke.ogg',
     loop: false,
     volume: 0.9,
     spatial: true,
@@ -258,7 +258,7 @@ const SOUND_DEFINITIONS: SoundDefinition[] = [
   {
     name: 'blackhole',
     type: 'sfx',
-    url: '/assets/audio/effects/sfx-blackhole.wav',
+    url: '/assets/audio/effects/sfx-blackhole.ogg',
     loop: false,
     volume: 0.7,
     spatial: true,
