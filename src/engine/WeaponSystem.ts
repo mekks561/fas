@@ -3,6 +3,7 @@ import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { Enemy } from './Enemy';
 import { LuaSkillBridge } from './LuaSkillBridge';
+import type { WeaponModifiers } from './BuildSystem';
 
 export type WeaponType = 'normal' | 'spread' | 'laser' | 'missile';
 
@@ -22,6 +23,10 @@ export class Projectile {
   public velocity: pc.Vec3;
   public active: boolean;
   public weaponType: WeaponType;
+  /** 剩余穿透次数（由 Build 修饰符注入） */
+  public pierceRemaining: number = 0;
+  /** 本帧已击中的敌人引用集合，避免穿透时重复命中同一敌人 */
+  public hitEnemyIds: Set<Enemy> = new Set();
 
   constructor(entity: pc.Entity, damage: number, velocity: pc.Vec3, weaponType: WeaponType) {
     this.entity = entity;
@@ -42,6 +47,23 @@ export class WeaponSystem {
   private luaSkillBridge: LuaSkillBridge | null = null;
   private playerLevel: number = 1;
   private learnedSkills: string[] = [];
+
+  // Build 系统修饰符（由 BuildSystem 每帧推送）
+  private buildMods: WeaponModifiers = {
+    damageMultiplier: 1,
+    fireRateMultiplier: 1,
+    pierceBonus: 0,
+    splitCount: 0,
+    splitDamageMultiplier: 0.5,
+    splitSeekingRange: 8,
+    critChanceBonus: 0,
+    critDamageMultiplier: 2,
+    ricochet: null,
+    chainLightning: null,
+    elemental: null,
+    stardustPickupRangeMultiplier: 1,
+    stardustDropAmountMultiplier: 1,
+  };
 
   // 武器配置
   private weaponConfigs: Record<WeaponType, WeaponConfig> = {
@@ -92,6 +114,10 @@ export class WeaponSystem {
 
   public setPlayer(player: PlayerShip): void {
     this.player = player;
+  }
+
+  public setBuildModifiers(mods: WeaponModifiers): void {
+    this.buildMods = mods;
   }
 
   public setLuaSkillBridge(bridge: LuaSkillBridge): void {
@@ -205,7 +231,9 @@ export class WeaponSystem {
     const now = Date.now();
     const config = this.getWeaponConfig();
 
-    if (now - this.lastShootTime < config.fireRate) return;
+    // 应用 Build 修饰符：射击间隔（fireRateMultiplier > 1 = 更慢，< 1 = 更快）
+    const effectiveFireRate = config.fireRate * this.buildMods.fireRateMultiplier;
+    if (now - this.lastShootTime < effectiveFireRate) return;
 
     const playerPos = this.player.getEntity().getPosition();
     const playerForward = this.player.getEntity().forward.clone();
@@ -232,16 +260,12 @@ export class WeaponSystem {
       );
 
       if (result.success) {
-        console.log(`[WeaponSystem] Lua skill cast: ${result.skillName}`);
-
-        // 应用 Lua 技能计算出的伤害
+        // Lua 技能系统调用成功，伤害计算结果可用于后续扩展
+        // （高频射击时避免 console.log 刷屏，按需在调试时临时开启）
         if (result.effects && result.effects.length > 0) {
           const damageEffect = result.effects.find((e: { type: string }) => e.type === 'damage');
-          if (damageEffect) {
-            console.log(
-              `[WeaponSystem] Calculated damage: ${damageEffect.value}, Critical: ${damageEffect.isCritical}`,
-            );
-          }
+          // TODO: 将 Lua 计算的 damageEffect.value 应用到实际子弹伤害
+          void damageEffect;
         }
       }
     }
@@ -281,14 +305,16 @@ export class WeaponSystem {
 
     this.engine.addToScene(projectile);
 
-    this.projectiles.push(
-      new Projectile(
-        projectile,
-        config.damage,
-        forward.clone().mulScalar(config.projectileSpeed),
-        'normal',
-      ),
+    // 应用 Build 修饰符：伤害倍率 + 穿透次数
+    const effectiveDamage = config.damage * this.buildMods.damageMultiplier;
+    const proj = new Projectile(
+      projectile,
+      effectiveDamage,
+      forward.clone().mulScalar(config.projectileSpeed),
+      'normal',
     );
+    proj.pierceRemaining = this.buildMods.pierceBonus;
+    this.projectiles.push(proj);
   }
 
   private createSpreadProjectiles(pos: pc.Vec3, forward: pc.Vec3, config: WeaponConfig): void {
@@ -311,7 +337,7 @@ export class WeaponSystem {
       this.projectiles.push(
         new Projectile(
           projectile,
-          config.damage,
+          config.damage * this.buildMods.damageMultiplier,
           direction.clone().mulScalar(config.projectileSpeed),
           'spread',
         ),
@@ -339,7 +365,7 @@ export class WeaponSystem {
     this.projectiles.push(
       new Projectile(
         projectile,
-        config.damage,
+        config.damage * this.buildMods.damageMultiplier,
         forward.clone().mulScalar(config.projectileSpeed),
         'laser',
       ),
@@ -365,21 +391,17 @@ export class WeaponSystem {
     flame.addComponent('particlesystem', {
       lifetime: 0.2,
       rate: 30,
-      speed: 5,
-      spread: 20,
-      colorGraph: {
-        graph: new pc.CurveSet(
-          [
-            [1, 0.5, 0],
-            [1, 0.8, 0.2],
-            [0, 0, 0],
-          ],
-          'color',
-        ),
-      },
-      sizeGraph: {
-        graph: new pc.Curve([0.2, 0.05]),
-      },
+      // Engine 2：speed 改名为 initialVelocity
+      initialVelocity: 5,
+      // 注：Engine 2 已移除 spread —— 发射方向改由 emitterShape 决定
+      //（box 沿本地 Z 轴、sphere 沿半径向外），故此处不再设置
+      // Engine 2：直接传曲线本体，并去掉会破坏曲线分组的 'color' 第二参数
+      colorGraph: new pc.CurveSet([
+        [1, 0.5, 0],
+        [1, 0.8, 0.2],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.2, 0.05]),
     });
     flame.setLocalPosition(0, -0.5, 0);
     missile.addChild(flame);
@@ -389,7 +411,7 @@ export class WeaponSystem {
     this.projectiles.push(
       new Projectile(
         missile,
-        config.damage,
+        config.damage * this.buildMods.damageMultiplier,
         forward.clone().mulScalar(config.projectileSpeed),
         'missile',
       ),
@@ -418,6 +440,9 @@ export class WeaponSystem {
         return false;
       }
 
+      // 清除本帧穿透命中记录
+      proj.hitEnemyIds.clear();
+
       const pos = proj.entity.getPosition();
       pos.add(proj.velocity.clone().mulScalar(dt));
       proj.entity.setPosition(pos);
@@ -439,6 +464,8 @@ export class WeaponSystem {
 
       enemies.forEach((enemy) => {
         if (!enemy.isAlive()) return;
+        // 穿透时跳过已击中的敌人
+        if (proj.hitEnemyIds.has(enemy)) return;
 
         const projPos = proj.entity.getPosition();
         const enemyPos = enemy.getPosition();
@@ -447,9 +474,34 @@ export class WeaponSystem {
         const collisionDistance = proj.weaponType === 'missile' ? 1.5 : 0.8;
 
         if (distance < collisionDistance) {
-          enemy.takeDamage(proj.damage);
-          proj.active = false;
+          // 应用 Build 修饰符：暴击
+          let damage = proj.damage;
+          const isCrit =
+            this.buildMods.critChanceBonus > 0 && Math.random() < this.buildMods.critChanceBonus;
+          if (isCrit) {
+            damage = Math.floor(damage * this.buildMods.critDamageMultiplier);
+          }
+
+          enemy.takeDamage(damage);
+          proj.hitEnemyIds.add(enemy);
           hits++;
+
+          // 应用 Build 修饰符：吸血
+          if (this.player.getLifestealRatio() > 0) {
+            this.player.healFromDamage(damage);
+          }
+
+          // 应用 Build 修饰符：分裂弹
+          if (this.buildMods.splitCount > 0) {
+            this.createSplitProjectiles(projPos, enemies, enemy);
+          }
+
+          // 应用 Build 修饰符：穿透（有剩余穿透次数时不销毁子弹）
+          if (proj.pierceRemaining > 0) {
+            proj.pierceRemaining--;
+          } else {
+            proj.active = false;
+          }
 
           // 导弹产生爆炸效果
           if (proj.weaponType === 'missile') {
@@ -462,6 +514,40 @@ export class WeaponSystem {
     return hits;
   }
 
+  /**
+   * 创建分裂弹：向附近其他敌人发射追踪弹
+   */
+  private createSplitProjectiles(origin: pc.Vec3, enemies: Enemy[], hitEnemy: Enemy): void {
+    const splitCount = this.buildMods.splitCount;
+    const splitDamage = this.buildMods.splitDamageMultiplier;
+    const seekRange = this.buildMods.splitSeekingRange;
+
+    // 寻找附近的敌人作为分裂弹目标
+    const nearbyEnemies = enemies
+      .filter((e) => e.isAlive() && e !== hitEnemy)
+      .map((e) => ({ enemy: e, dist: e.getPosition().clone().sub(origin).length() }))
+      .filter((item) => item.dist <= seekRange)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, splitCount);
+
+    for (const target of nearbyEnemies) {
+      const direction = target.enemy.getPosition().clone().sub(origin).normalize();
+      const projectile = this.createProjectileEntity(new pc.Color(1, 0.6, 0.2));
+      projectile.setPosition(origin.clone());
+
+      this.engine.addToScene(projectile);
+
+      const proj = new Projectile(
+        projectile,
+        this.getWeaponDamage() * this.buildMods.damageMultiplier * splitDamage,
+        direction.mulScalar(40),
+        'normal',
+      );
+      proj.pierceRemaining = 0;
+      this.projectiles.push(proj);
+    }
+  }
+
   private createExplosion(position: pc.Vec3): void {
     const explosion = new pc.Entity('explosion');
     explosion.setPosition(position);
@@ -469,23 +555,19 @@ export class WeaponSystem {
     explosion.addComponent('particlesystem', {
       lifetime: 0.5,
       rate: 0,
-      burst: 50,
-      speed: 15,
-      spread: 360,
-      colorGraph: {
-        graph: new pc.CurveSet(
-          [
-            [1, 0.8, 0.2],
-            [1, 0.5, 0],
-            [0.5, 0.2, 0],
-            [0, 0, 0],
-          ],
-          'color',
-        ),
-      },
-      sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5]),
-      },
+      // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
+      loop: false,
+      numParticles: 50,
+      // Engine 2：speed 改名为 initialVelocity
+      initialVelocity: 15,
+      // Engine 2：直接传曲线本体，并去掉会破坏曲线分组的 'color' 第二参数
+      colorGraph: new pc.CurveSet([
+        [1, 0.8, 0.2],
+        [1, 0.5, 0],
+        [0.5, 0.2, 0],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.5, 1.5]),
     });
 
     this.engine.addToScene(explosion);
@@ -516,7 +598,7 @@ export class WeaponSystem {
   private updateCurrentWeapon(): void {
     const levelConfig =
       this.levelConfigs[Math.min(this.weaponLevel - 1, this.levelConfigs.length - 1)];
-    this.currentWeapon = levelConfig[this.currentWeapon] as WeaponType || 'normal';
+    this.currentWeapon = (levelConfig[this.currentWeapon] as WeaponType) || 'normal';
   }
 
   public getCurrentWeapon(): WeaponType {

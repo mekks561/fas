@@ -126,7 +126,7 @@ describe('GameResourceManager', () => {
 
       expect(result).toHaveProperty('scenario', 'slow');
       expect(typeof result.duration).toBe('number');
-    }, 10000);
+    });
 
     it('should test interrupted download scenario', async () => {
       // 在Jest环境中，这个测试会因为fetch不可用而失败

@@ -1,0 +1,4 @@
+allowBuilds:
+  # msw 的 postinstall 只在 package.json 含 msw.workerDirectory 时才复制 worker 文件，
+  # 本项目没有该字段（且只使用 msw/node），脚本是空操作 → 明确拒绝，避免安装报错。
+  msw: false

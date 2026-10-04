@@ -345,22 +345,38 @@ end
         difficulty: 'normal',
         isBossWave: false,
         isEliteWave: false,
-        progress: 0
+        progress: 0,
       };
     }
 
     try {
       const stubModule = luaEngine.getStubModule('wave_manager_module');
       if (stubModule) {
-        const getWaveStateFunc = (stubModule as Record<string, unknown>)['getWaveState'] as (...args: unknown[]) => unknown;
+        const getWaveStateFunc = (stubModule as Record<string, unknown>)['getWaveState'] as (
+          ...args: unknown[]
+        ) => unknown;
         if (getWaveStateFunc) {
           const result = getWaveStateFunc();
           if (result && typeof result === 'object') {
-            return (result as Record<string, unknown>).state as WaveState;
+            return (result as Record<string, unknown>)['state'] as WaveState;
           }
         }
       }
-      return luaEngine.call<WaveState>('getWaveState');
+      return (
+        luaEngine.call<WaveState>('getWaveState') ?? {
+          waveNumber: 1,
+          maxWaves: 10,
+          currentState: 'waiting',
+          enemiesSpawned: 0,
+          enemiesDefeated: 0,
+          enemiesRemaining: 0,
+          elapsedTime: 0,
+          difficulty: 'normal',
+          isBossWave: false,
+          isEliteWave: false,
+          progress: 0,
+        }
+      );
     } catch (error) {
       console.error('[WaveManager] Failed to get wave state:', error);
       return {
@@ -374,7 +390,7 @@ end
         difficulty: 'normal',
         isBossWave: false,
         isEliteWave: false,
-        progress: 0
+        progress: 0,
       };
     }
   }
@@ -383,7 +399,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('setDifficulty', difficulty);
+      return luaEngine.call<boolean>('setDifficulty', difficulty) ?? false;
     } catch {
       return false;
     }
@@ -393,7 +409,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('setMaxWaves', maxWaves);
+      return luaEngine.call<boolean>('setMaxWaves', maxWaves) ?? false;
     } catch {
       return false;
     }
@@ -403,7 +419,7 @@ end
     if (!this.initialized) return 5;
 
     try {
-      return luaEngine.call<number>('calculateEnemyCount', waveNumber);
+      return luaEngine.call<number>('calculateEnemyCount', waveNumber) ?? 5;
     } catch {
       return 5;
     }
@@ -413,7 +429,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('isBossWave', waveNumber);
+      return luaEngine.call<boolean>('isBossWave', waveNumber) ?? false;
     } catch {
       return false;
     }
@@ -423,7 +439,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('isEliteWave', waveNumber);
+      return luaEngine.call<boolean>('isEliteWave', waveNumber) ?? false;
     } catch {
       return false;
     }
@@ -433,7 +449,7 @@ end
     if (!this.initialized) return [];
 
     try {
-      return luaEngine.call<string[]>('generateEnemyTypes', waveNumber);
+      return luaEngine.call<string[]>('generateEnemyTypes', waveNumber) ?? [];
     } catch {
       return [];
     }
@@ -443,13 +459,22 @@ end
     if (!this.initialized) return null;
 
     try {
-      return luaEngine.call<EnemyConfig>('getEnemyConfig', enemyType);
+      return luaEngine.call<EnemyConfig>('getEnemyConfig', enemyType) ?? null;
     } catch {
       return null;
     }
   }
 
-  startWave(waveNumber: number): { success: boolean; waveNumber: number; enemyCount: number; isBossWave: boolean; isEliteWave: boolean; enemyTypes: string[] } | { success: boolean; error: string } {
+  startWave(waveNumber: number):
+    | {
+        success: boolean;
+        waveNumber: number;
+        enemyCount: number;
+        isBossWave: boolean;
+        isEliteWave: boolean;
+        enemyTypes: string[];
+      }
+    | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
@@ -457,31 +482,44 @@ end
     try {
       const stubModule = luaEngine.getStubModule('wave_manager_module');
       if (stubModule) {
-        const startWaveFunc = (stubModule as Record<string, unknown>)['startWave'] as (...args: unknown[]) => unknown;
+        const startWaveFunc = (stubModule as Record<string, unknown>)['startWave'] as (
+          ...args: unknown[]
+        ) => unknown;
         if (startWaveFunc) {
           const result = startWaveFunc(waveNumber);
-          return result as { success: boolean; waveNumber: number; enemyCount: number; isBossWave: boolean; isEliteWave: boolean; enemyTypes: string[] } | { success: boolean; error: string };
+          return result as
+            | {
+                success: boolean;
+                waveNumber: number;
+                enemyCount: number;
+                isBossWave: boolean;
+                isEliteWave: boolean;
+                enemyTypes: string[];
+              }
+            | { success: boolean; error: string };
         }
       }
-      return luaEngine.call<{ success: boolean; waveNumber: number; enemyCount: number; isBossWave: boolean; isEliteWave: boolean; enemyTypes: string[] } | { success: boolean; error: string }>('startWave', waveNumber);
+      const result = luaEngine.call<
+        | {
+            success: boolean;
+            waveNumber: number;
+            enemyCount: number;
+            isBossWave: boolean;
+            isEliteWave: boolean;
+            enemyTypes: string[];
+          }
+        | { success: boolean; error: string }
+      >('startWave', waveNumber);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  spawnNextEnemy(): { success: boolean; enemy: EnemyConfig; spawnIndex: number; totalToSpawn: number } | { success: boolean; error: string } {
-    if (!this.initialized) {
-      return { success: false, error: 'not_initialized' };
-    }
-
-    try {
-      return luaEngine.call<{ success: boolean; enemy: EnemyConfig; spawnIndex: number; totalToSpawn: number } | { success: boolean; error: string }>('spawnNextEnemy');
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
-    }
-  }
-
-  onEnemyDefeated(enemyType: string): { success: boolean; enemiesDefeated: number; enemiesRemaining: number; isWaveComplete: boolean; score: number } | { success: boolean; error: string } {
+  spawnNextEnemy():
+    | { success: boolean; enemy: EnemyConfig; spawnIndex: number; totalToSpawn: number }
+    | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
@@ -489,12 +527,69 @@ end
     try {
       const stubModule = luaEngine.getStubModule('wave_manager_module');
       if (stubModule) {
-        const onEnemyDefeatedFunc = (stubModule as Record<string, unknown>)['onEnemyDefeated'] as (...args: unknown[]) => unknown;
-        if (onEnemyDefeatedFunc) {
-          return onEnemyDefeatedFunc(enemyType) as { success: boolean; enemiesDefeated: number; enemiesRemaining: number; isWaveComplete: boolean; score: number } | { success: boolean; error: string };
+        const spawnNextEnemyFunc = (stubModule as Record<string, unknown>)['spawnNextEnemy'] as (
+          ...args: unknown[]
+        ) => unknown;
+        if (spawnNextEnemyFunc) {
+          return spawnNextEnemyFunc() as
+            | { success: boolean; enemy: EnemyConfig; spawnIndex: number; totalToSpawn: number }
+            | { success: boolean; error: string };
         }
       }
-      return luaEngine.call<{ success: boolean; enemiesDefeated: number; enemiesRemaining: number; isWaveComplete: boolean; score: number } | { success: boolean; error: string }>('onEnemyDefeated', enemyType);
+      const result = luaEngine.call<
+        | { success: boolean; enemy: EnemyConfig; spawnIndex: number; totalToSpawn: number }
+        | { success: boolean; error: string }
+      >('spawnNextEnemy');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
+    }
+  }
+
+  onEnemyDefeated(enemyType: string):
+    | {
+        success: boolean;
+        enemiesDefeated: number;
+        enemiesRemaining: number;
+        isWaveComplete: boolean;
+        score: number;
+      }
+    | { success: boolean; error: string } {
+    if (!this.initialized) {
+      return { success: false, error: 'not_initialized' };
+    }
+
+    try {
+      const stubModule = luaEngine.getStubModule('wave_manager_module');
+      if (stubModule) {
+        const onEnemyDefeatedFunc = (stubModule as Record<string, unknown>)['onEnemyDefeated'] as (
+          ...args: unknown[]
+        ) => unknown;
+        if (onEnemyDefeatedFunc) {
+          return onEnemyDefeatedFunc(enemyType) as
+            | {
+                success: boolean;
+                enemiesDefeated: number;
+                enemiesRemaining: number;
+                isWaveComplete: boolean;
+                score: number;
+              }
+            | { success: boolean; error: string };
+        }
+      }
+      const result = luaEngine.call<
+        | {
+            success: boolean;
+            enemiesDefeated: number;
+            enemiesRemaining: number;
+            isWaveComplete: boolean;
+            score: number;
+          }
+        | { success: boolean; error: string }
+      >('onEnemyDefeated', enemyType);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
@@ -504,7 +599,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('pauseWave');
+      return luaEngine.call<boolean>('pauseWave') ?? false;
     } catch {
       return false;
     }
@@ -514,7 +609,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('resumeWave');
+      return luaEngine.call<boolean>('resumeWave') ?? false;
     } catch {
       return false;
     }
@@ -526,7 +621,12 @@ end
     }
 
     try {
-      return luaEngine.call<{ elapsedTime: number; state: string; enemiesRemaining: number }>('updateWave', deltaTime);
+      return (
+        luaEngine.call<{ elapsedTime: number; state: string; enemiesRemaining: number }>(
+          'updateWave',
+          deltaTime,
+        ) ?? { elapsedTime: 0, state: 'waiting', enemiesRemaining: 0 }
+      );
     } catch {
       return { elapsedTime: 0, state: 'waiting', enemiesRemaining: 0 };
     }
@@ -536,7 +636,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('resetWaveManager');
+      return luaEngine.call<boolean>('resetWaveManager') ?? false;
     } catch {
       return false;
     }
@@ -546,7 +646,7 @@ end
     if (!this.initialized) return null;
 
     try {
-      return luaEngine.call<number | null>('getNextWaveNumber');
+      return luaEngine.call<number | null>('getNextWaveNumber') ?? null;
     } catch {
       return null;
     }
@@ -556,7 +656,7 @@ end
     if (!this.initialized) return 1.0;
 
     try {
-      return luaEngine.call<number>('getWaveScoreMultiplier');
+      return luaEngine.call<number>('getWaveScoreMultiplier') ?? 1.0;
     } catch {
       return 1.0;
     }

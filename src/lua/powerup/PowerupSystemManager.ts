@@ -36,7 +36,8 @@ export interface PowerupEffect {
   powerupId?: number;
 }
 
-export type PowerupType = 'health' | 'shield' | 'speed' | 'damage' | 'triple_shot' | 'invincible' | 'magnet' | 'slow_time';
+export type PowerupType =
+  'health' | 'shield' | 'speed' | 'damage' | 'triple_shot' | 'invincible' | 'magnet' | 'slow_time';
 
 export class PowerupSystemManager {
   private initialized = false;
@@ -230,7 +231,8 @@ end
     if (!this.initialized) return [];
 
     try {
-      return luaEngine.call<PowerupConfig[]>('getPowerupTypes');
+      const result = luaEngine.call<PowerupConfig[]>('getPowerupTypes');
+      return result ?? [];
     } catch {
       return [];
     }
@@ -240,13 +242,24 @@ end
     if (!this.initialized) return null;
 
     try {
-      return luaEngine.call<PowerupConfig>('getPowerupConfig', powerupType);
+      const result = luaEngine.call<PowerupConfig>('getPowerupConfig', powerupType);
+      return result ?? null;
     } catch {
       return null;
     }
   }
 
-  applyPowerup(powerupType: PowerupType): { success: boolean; powerupType: string; config?: PowerupConfig; effects?: PowerupEffect[]; powerupId?: number } | { success: boolean; error: string } {
+  applyPowerup(
+    powerupType: PowerupType,
+  ):
+    | {
+        success: boolean;
+        powerupType: string;
+        config?: PowerupConfig;
+        effects?: PowerupEffect[];
+        powerupId?: number;
+      }
+    | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
@@ -254,12 +267,33 @@ end
     try {
       const stubModule = luaEngine.getStubModule('powerup_system_module');
       if (stubModule) {
-        const applyPowerupFunc = (stubModule as Record<string, unknown>)['applyPowerup'] as (...args: unknown[]) => unknown;
+        const applyPowerupFunc = (stubModule as Record<string, unknown>)['applyPowerup'] as (
+          ...args: unknown[]
+        ) => unknown;
         if (applyPowerupFunc) {
-          return applyPowerupFunc(powerupType, {}) as { success: boolean; powerupType: string; config?: PowerupConfig; effects?: PowerupEffect[]; powerupId?: number } | { success: boolean; error: string };
+          return applyPowerupFunc(powerupType, {}) as
+            | {
+                success: boolean;
+                powerupType: string;
+                config?: PowerupConfig;
+                effects?: PowerupEffect[];
+                powerupId?: number;
+              }
+            | { success: boolean; error: string };
         }
       }
-      return luaEngine.call<{ success: boolean; powerupType: string; config?: PowerupConfig; effects?: PowerupEffect[]; powerupId?: number } | { success: boolean; error: string }>('applyPowerup', powerupType);
+      const result = luaEngine.call<
+        | {
+            success: boolean;
+            powerupType: string;
+            config?: PowerupConfig;
+            effects?: PowerupEffect[];
+            powerupId?: number;
+          }
+        | { success: boolean; error: string }
+      >('applyPowerup', powerupType);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
@@ -271,12 +305,18 @@ end
     try {
       const stubModule = luaEngine.getStubModule('powerup_system_module');
       if (stubModule) {
-        const getActivePowerupsFunc = (stubModule as Record<string, unknown>)['getActivePowerups'] as (...args: unknown[]) => unknown;
+        const getActivePowerupsFunc = (stubModule as Record<string, unknown>)[
+          'getActivePowerups'
+        ] as (...args: unknown[]) => unknown;
         if (getActivePowerupsFunc) {
           const result = getActivePowerupsFunc();
           if (result && typeof result === 'object') {
             const resultObj = result as Record<string, unknown>;
-            return (resultObj.powerups as ActivePowerup[]) || (resultObj as unknown as ActivePowerup[]) || [];
+            return (
+              (resultObj['powerups'] as ActivePowerup[]) ||
+              (resultObj as unknown as ActivePowerup[]) ||
+              []
+            );
           }
         }
       }
@@ -286,13 +326,21 @@ end
     }
   }
 
-  update(deltaTime: number): { expired: { id: number; type: string; expired: boolean }[]; activeCount: number } {
+  update(deltaTime: number): {
+    expired: { id: number; type: string; expired: boolean }[];
+    activeCount: number;
+  } {
     if (!this.initialized) {
       return { expired: [], activeCount: 0 };
     }
 
     try {
-      return luaEngine.call<{ expired: { id: number; type: string; expired: boolean }[]; activeCount: number }>('updatePowerups', deltaTime);
+      const result = luaEngine.call<{
+        expired: { id: number; type: string; expired: boolean }[];
+        activeCount: number;
+      }>('updatePowerups', deltaTime);
+      if (!result) return { expired: [], activeCount: 0 };
+      return result;
     } catch {
       return { expired: [], activeCount: 0 };
     }
@@ -302,7 +350,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('removePowerup', powerupId);
+      const result = luaEngine.call<boolean>('removePowerup', powerupId);
+      return result ?? false;
     } catch {
       return false;
     }
@@ -312,7 +361,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('removeAllPowerups');
+      const result = luaEngine.call<boolean>('removeAllPowerups');
+      return result ?? false;
     } catch {
       return false;
     }
@@ -322,7 +372,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('hasActivePowerup', powerupType);
+      const result = luaEngine.call<boolean>('hasActivePowerup', powerupType);
+      return result ?? false;
     } catch {
       return false;
     }
@@ -334,19 +385,34 @@ end
     }
 
     try {
-      return luaEngine.call<{ multiplier: number; stacks: number }>('getPowerupMultiplier', powerupType);
+      const result = luaEngine.call<{ multiplier: number; stacks: number }>(
+        'getPowerupMultiplier',
+        powerupType,
+      );
+      if (!result) return { multiplier: 1.0, stacks: 0 };
+      return result;
     } catch {
       return { multiplier: 1.0, stacks: 0 };
     }
   }
 
-  getPowerupRemainingDuration(powerupType: PowerupType): { remainingDuration: number; totalDuration: number; progress: number } {
+  getPowerupRemainingDuration(powerupType: PowerupType): {
+    remainingDuration: number;
+    totalDuration: number;
+    progress: number;
+  } {
     if (!this.initialized) {
       return { remainingDuration: 0, totalDuration: 0, progress: 0 };
     }
 
     try {
-      return luaEngine.call<{ remainingDuration: number; totalDuration: number; progress: number }>('getPowerupRemainingDuration', powerupType);
+      const result = luaEngine.call<{
+        remainingDuration: number;
+        totalDuration: number;
+        progress: number;
+      }>('getPowerupRemainingDuration', powerupType);
+      if (!result) return { remainingDuration: 0, totalDuration: 0, progress: 0 };
+      return result;
     } catch {
       return { remainingDuration: 0, totalDuration: 0, progress: 0 };
     }
@@ -358,7 +424,11 @@ end
     }
 
     try {
-      return luaEngine.call<{ powerupType: string; config?: PowerupConfig }>('generateRandomPowerup');
+      const result = luaEngine.call<{ powerupType: string; config?: PowerupConfig }>(
+        'generateRandomPowerup',
+      );
+      if (!result) return { powerupType: 'health' };
+      return result;
     } catch {
       return { powerupType: 'health' };
     }
@@ -368,7 +438,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('resetPowerupSystem');
+      const result = luaEngine.call<boolean>('resetPowerupSystem');
+      return result ?? false;
     } catch {
       return false;
     }

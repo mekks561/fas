@@ -56,7 +56,6 @@ export type {
   ResourceType,
   SkillState,
 } from './skills/SkillSystemManager';
-export { runSkillSystemTests } from './skills/SkillSystem.test';
 
 // 波次管理
 export { WaveManager, waveManager } from './wave/WaveManager';
@@ -64,7 +63,12 @@ export type { EnemyConfig, WaveState } from './wave/WaveManager';
 
 // 道具增益系统
 export { PowerupSystemManager, powerupSystemManager } from './powerup/PowerupSystemManager';
-export type { PowerupConfig, ActivePowerup, PowerupEffect, PowerupType } from './powerup/PowerupSystemManager';
+export type {
+  PowerupConfig,
+  ActivePowerup,
+  PowerupEffect,
+  PowerupType,
+} from './powerup/PowerupSystemManager';
 
 // 战斗统计系统
 export { CombatStatsManager, combatStatsManager } from './combat/CombatStatsManager';

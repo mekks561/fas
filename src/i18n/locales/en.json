@@ -130,7 +130,12 @@
     "keepConnection": "Please keep your network connection stable",
     "textures": "Textures",
     "models": "Models",
-    "audio": "Audio"
+    "audio": "Audio",
+    "progress": "Progress",
+    "inProgress": "In Progress",
+    "failed": "Failed",
+    "currentResource": "Loading",
+    "chunk": "Chunk"
   },
   "error": {
     "title": "Game Load Failed",
@@ -198,5 +203,49 @@
     "mouseControls": "Use mouse to control direction",
     "fireControls": "Press Space to fire bullets",
     "boostControls": "Press Shift to boost"
+  },
+  "skillTree": {
+    "title": "Skill Tree",
+    "playerLevel": "Player Level:",
+    "talentPoints": "Talent Points:",
+    "stats": "Current Stats",
+    "noStats": "No stats yet",
+    "info": "Skill Tree Info",
+    "info1": "Gain 1 talent point per level",
+    "info2": "Talents must be unlocked in order",
+    "info3": "Some talents require specific level to unlock",
+    "info4": "Click reset to refund all talent points",
+    "reset": "Reset Talents"
+  },
+  "survival": {
+    "modeTitle": "Survival Mode",
+    "description": "Survive endless waves of enemies and climb the leaderboard!",
+    "highScore": "High Score",
+    "leaderboard": "Leaderboard",
+    "start": "Start Survival",
+    "back": "Back",
+    "wave": "Wave",
+    "preparing": "Preparing...",
+    "bossWave": "BOSS WAVE!",
+    "eliteWave": "ELITE WAVE!",
+    "remaining": "Remaining",
+    "time": "Time",
+    "kills": "Kills",
+    "combo": "Max Combo",
+    "waveComplete": "WAVE COMPLETE!",
+    "completed": "Completed",
+    "reward": "Wave Reward",
+    "nextWave": "Next Wave",
+    "gameOver": "GAME OVER",
+    "finalScore": "Final Score",
+    "wavesSurvived": "Waves Survived",
+    "survivalTime": "Survival Time",
+    "enemiesDefeated": "Enemies Defeated",
+    "maxCombo": "Max Combo",
+    "newHighScore": "NEW HIGH SCORE!",
+    "enterName": "Enter your name",
+    "submit": "Submit",
+    "playAgain": "Play Again",
+    "backToMenu": "Back to Menu"
   }
 }

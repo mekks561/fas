@@ -117,9 +117,14 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
 
   public addLight(name: string, config: LightConfig): pc.Entity;
   public addLight(name: string, position: pc.Vec3, color: pc.Color, intensity: number): pc.Entity;
-  public addLight(name: string, configOrPosition: LightConfig | pc.Vec3, color?: pc.Color, intensity?: number): pc.Entity {
+  public addLight(
+    name: string,
+    configOrPosition: LightConfig | pc.Vec3,
+    color?: pc.Color,
+    intensity?: number,
+  ): pc.Entity {
     const light = new pc.Entity(name);
-    
+
     if ('type' in configOrPosition) {
       const config = configOrPosition as LightConfig;
       light.setPosition(config.position || new pc.Vec3(0, 10, 0));
@@ -133,7 +138,10 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
       });
 
       if (config.castShadows) {
-        const lightComp = lightComponent as unknown as { shadowType?: number; shadowResolution?: number };
+        const lightComp = lightComponent as unknown as {
+          shadowType?: number;
+          shadowResolution?: number;
+        };
         lightComp.shadowType = pc.SHADOW_PCF1;
         lightComp.shadowResolution = 2048;
       }
@@ -173,7 +181,8 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     if (options.diffuse) material.diffuse = options.diffuse;
     if (options.emissive) material.emissive = options.emissive;
     if (options.specular) material.specular = options.specular;
-    if (options.shininess !== undefined) (material as unknown as { shininess: number }).shininess = options.shininess;
+    if (options.shininess !== undefined)
+      (material as unknown as { shininess: number }).shininess = options.shininess;
     if (options.roughness !== undefined) material.roughness = options.roughness;
     if (options.metalness !== undefined) material.metalness = options.metalness;
     if (options.opacity !== undefined) material.opacity = options.opacity;
@@ -192,12 +201,9 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     material: pc.Material,
   ): pc.Entity {
     const box = new pc.Entity(name);
-    box.addComponent('model', {
-      type: 'box',
-      width,
-      height,
-      depth,
-    });
+    box.addComponent('model', { type: 'box' });
+    // Engine 2：内建图元为单位尺寸，尺寸必须由 transform 承载（选项已移除且会被静默忽略）
+    box.setLocalScale(width, height, depth);
     if (box.model) box.model.material = material;
     this.scene.addChild(box);
     return box;
@@ -205,10 +211,9 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
 
   public createSphere(name: string, radius: number, material: pc.Material): pc.Entity {
     const sphere = new pc.Entity(name);
-    sphere.addComponent('model', {
-      type: 'sphere',
-      radius,
-    });
+    sphere.addComponent('model', { type: 'sphere' });
+    // Engine 2：sphere 直径 1，故缩放系数 = 2 × 半径
+    sphere.setLocalScale(radius * 2, radius * 2, radius * 2);
     if (sphere.model) sphere.model.material = material;
     this.scene.addChild(sphere);
     return sphere;
@@ -221,29 +226,34 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     material: pc.Material,
   ): pc.Entity {
     const cylinder = new pc.Entity(name);
-    cylinder.addComponent('model', {
-      type: 'cylinder',
-      radius,
-      height,
-    });
+    cylinder.addComponent('model', { type: 'cylinder' });
+    // Engine 2：cylinder 直径 1 / 高 1
+    cylinder.setLocalScale(radius * 2, height, radius * 2);
     if (cylinder.model) cylinder.model.material = material;
     this.scene.addChild(cylinder);
     return cylinder;
   }
 
+  /**
+   * 创建圆环体。
+   *
+   * 与 PlayCanvasEngine.createTorus 同理：Engine 2 的内建 'torus' 是固定尺寸（ring 0.3 / tube 0.2），
+   * radius / tubeRadius 会被静默忽略，且整体缩放无法独立控制环半径与管半径。
+   * 因此这里改用 pc.createTorus 生成自定义 Mesh（参数名是 ringRadius）。
+   */
   public createTorus(
     name: string,
     radius: number,
     tubeRadius: number,
     material: pc.Material,
   ): pc.Entity {
+    const mesh = pc.createTorus(this.app.graphicsDevice, { ringRadius: radius, tubeRadius });
+
     const torus = new pc.Entity(name);
-    torus.addComponent('model', {
-      type: 'torus',
-      radius,
-      tubeRadius,
-    });
-    if (torus.model) torus.model.material = material;
+    torus.addComponent('model');
+    if (torus.model) {
+      torus.model.meshInstances = [new pc.MeshInstance(mesh, material)];
+    }
     this.scene.addChild(torus);
     return torus;
   }
@@ -255,11 +265,9 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     material: pc.Material,
   ): pc.Entity {
     const plane = new pc.Entity(name);
-    plane.addComponent('model', {
-      type: 'plane',
-      width,
-      height,
-    });
+    plane.addComponent('model', { type: 'plane' });
+    // Engine 2：内建 plane 是 XZ 平面上的 1×1（Y 无厚度），width→X、height→Z
+    plane.setLocalScale(width, 1, height);
     if (plane.model) plane.model.material = material;
     this.scene.addChild(plane);
     return plane;
@@ -282,7 +290,9 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     const entity = new pc.Entity(name);
     entity.addComponent('model');
     if (entity.model) {
-      entity.model.meshInstances = [new pc.MeshInstance(mesh, material || new pc.StandardMaterial())];
+      entity.model.meshInstances = [
+        new pc.MeshInstance(mesh, material || new pc.StandardMaterial()),
+      ];
     }
     this.scene.addChild(entity);
 
@@ -363,7 +373,8 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     });
 
     if (options?.gravity) {
-      if (entity.rigidbody) (entity.rigidbody as unknown as { gravity?: pc.Vec3 }).gravity = options.gravity;
+      if (entity.rigidbody)
+        (entity.rigidbody as unknown as { gravity?: pc.Vec3 }).gravity = options.gravity;
     }
   }
 
@@ -445,10 +456,17 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     this.camera.lookAt(target);
   }
 
-  public addDirectionalLight(name: string, direction: pc.Vec3, color: pc.Color, intensity: number): pc.Entity {
+  public addDirectionalLight(
+    name: string,
+    direction: pc.Vec3,
+    color: pc.Color,
+    intensity: number,
+  ): pc.Entity {
     const light = new pc.Entity(name);
     light.setEulerAngles(
-      (Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)) * 180) / Math.PI,
+      (Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)) *
+        180) /
+        Math.PI,
       (Math.atan2(direction.x, direction.z) * 180) / Math.PI,
       0,
     );
@@ -463,8 +481,7 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     return light;
   }
 
-  public createStarField(_count?: number, _innerRadius?: number, _outerRadius?: number): void {
-  }
+  public createStarField(_count?: number, _innerRadius?: number, _outerRadius?: number): void {}
 
   public createNebula(_position: pc.Vec3, _scale?: number): pc.Entity {
     const nebula = new pc.Entity('nebula');
@@ -472,7 +489,12 @@ export class EnhancedPlayCanvasEngine implements GameEngine {
     return nebula;
   }
 
-  public createPlanet(name: string, position: pc.Vec3, _radius: number, _color: pc.Color): pc.Entity {
+  public createPlanet(
+    name: string,
+    position: pc.Vec3,
+    _radius: number,
+    _color: pc.Color,
+  ): pc.Entity {
     const planet = new pc.Entity(name);
     planet.setPosition(position);
     this.scene.addChild(planet);

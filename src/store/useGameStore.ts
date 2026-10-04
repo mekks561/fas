@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { DifficultySnapshot } from '../engine/DifficultyManager';
+import type { UpgradeChoice } from '../engine/BuildSystem';
+
+interface ActiveBuildUpgrade {
+  id: string;
+  name: string;
+  tag: string;
+  stacks: number;
+  rarity: string;
+}
 
 interface PlayerState {
   health: number;
@@ -83,6 +92,12 @@ interface GameState {
   waveRewardNotification: { waveNumber: number; rewards: { label: string }[] } | null;
   achievementNotifications: AchievementNotification[];
   difficultyInfo: DifficultySnapshot | null;
+  // Build 协同系统状态
+  pendingUpgradeChoices: UpgradeChoice[] | null;
+  isUpgradeChoiceVisible: boolean;
+  upgradeChoiceTimer: number;
+  activeBuildUpgrades: ActiveBuildUpgrade[];
+  activeResonances: string[];
 }
 
 interface AchievementNotification {
@@ -145,11 +160,26 @@ interface GameActions {
   setActivePowerups: (powerups: ActivePowerup[]) => void;
   addActivePowerup: (powerup: ActivePowerup) => void;
   removeActivePowerup: (type: string) => void;
-  setWaveInfo: (info: Partial<{ isBossWave: boolean; isEliteWave: boolean; enemiesSpawned: number; enemiesDefeated: number; enemiesRemaining: number }>) => void;
-  setWaveRewardNotification: (notification: { waveNumber: number; rewards: { label: string }[] } | null) => void;
+  setWaveInfo: (
+    info: Partial<{
+      isBossWave: boolean;
+      isEliteWave: boolean;
+      enemiesSpawned: number;
+      enemiesDefeated: number;
+      enemiesRemaining: number;
+    }>,
+  ) => void;
+  setWaveRewardNotification: (
+    notification: { waveNumber: number; rewards: { label: string }[] } | null,
+  ) => void;
   addAchievementNotification: (notification: AchievementNotification) => void;
   removeAchievementNotification: (id: string) => void;
   setDifficultyInfo: (info: DifficultySnapshot | null) => void;
+  // Build 协同系统 actions
+  setPendingUpgradeChoices: (choices: UpgradeChoice[] | null) => void;
+  setUpgradeChoiceVisible: (visible: boolean) => void;
+  setUpgradeChoiceTimer: (timer: number) => void;
+  setActiveBuild: (upgrades: ActiveBuildUpgrade[], resonances: string[]) => void;
 }
 
 const STORAGE_KEY = 'fighter-game-save';
@@ -255,6 +285,12 @@ const defaultState: GameState = {
   waveRewardNotification: null,
   achievementNotifications: [],
   difficultyInfo: null,
+  // Build 协同系统初始状态
+  pendingUpgradeChoices: null,
+  isUpgradeChoiceVisible: false,
+  upgradeChoiceTimer: 10,
+  activeBuildUpgrades: [],
+  activeResonances: [],
 };
 
 export const useGameStore = create<GameState & GameActions>()(
@@ -467,6 +503,14 @@ export const useGameStore = create<GameState & GameActions>()(
         })),
 
       setDifficultyInfo: (info) => set({ difficultyInfo: info }),
+
+      // Build 协同系统 actions
+      setPendingUpgradeChoices: (choices) =>
+        set({ pendingUpgradeChoices: choices, upgradeChoiceTimer: choices ? 10 : 0 }),
+      setUpgradeChoiceVisible: (visible) => set({ isUpgradeChoiceVisible: visible }),
+      setUpgradeChoiceTimer: (timer) => set({ upgradeChoiceTimer: timer }),
+      setActiveBuild: (upgrades, resonances) =>
+        set({ activeBuildUpgrades: upgrades, activeResonances: resonances }),
     }),
     {
       name: STORAGE_KEY,

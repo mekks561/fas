@@ -9,7 +9,8 @@ export interface SecurityConfig {
 
 const DEFAULT_CONFIG: SecurityConfig = {
   enableEncryption: true,
-  encryptionKey: 'fighter_game_secure_key_2024',
+  // 生产环境必须通过 VITE_SECURITY_KEY 配置;此回退值仅用于本地开发
+  encryptionKey: import.meta.env.VITE_SECURITY_KEY ?? 'dev-only-fallback-key-CHANGE-IN-PRODUCTION',
   enableInputSanitization: true,
   enableCheatDetection: true,
   maxScorePerSecond: 1000,
@@ -22,6 +23,8 @@ export class SecuritySystem {
   private lastScoreReport: { score: number; time: number } | null = null;
   private lastWaveReport: { wave: number; time: number } | null = null;
   private cheatReports: Array<{ type: string; data: unknown; time: number }> = [];
+  private cachedKey: CryptoKey | null = null;
+  private cachedKeySource: string = '';
 
   constructor(config: Partial<SecurityConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -33,18 +36,18 @@ export class SecuritySystem {
     }
 
     const jsonString = JSON.stringify(data);
-    const key = await this.generateKey(this.config.encryptionKey);
-    const iv = this.generateIV();
+    const key = await this.getDerivedKey();
+    // AES-GCM 推荐 12 字节 nonce
+    const iv = crypto.getRandomValues(new Uint8Array(12));
 
-    let encrypted = '';
-    for (let i = 0; i < jsonString.length; i++) {
-      const charCode = jsonString.charCodeAt(i);
-      const keyCode = key[i % key.length].charCodeAt(0);
-      const ivCode = iv[i % iv.length].charCodeAt(0);
-      encrypted += String.fromCharCode((charCode ^ keyCode ^ ivCode) & 0xff);
-    }
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      new TextEncoder().encode(jsonString),
+    );
 
-    return btoa(iv + '|||' + encrypted);
+    // 输出格式: base64(iv) + '.' + base64(ciphertext)
+    return `${this.toBase64(iv)}.${this.toBase64(new Uint8Array(ciphertext))}`;
   }
 
   public async decryptData<T>(encryptedData: string): Promise<T | null> {
@@ -57,49 +60,75 @@ export class SecuritySystem {
     }
 
     try {
-      const decoded = atob(encryptedData);
-      const parts = decoded.split('|||');
+      const parts = encryptedData.split('.');
       if (parts.length !== 2) {
         return null;
       }
 
-      const iv = parts[0];
-      const encrypted = parts[1];
-      const key = await this.generateKey(this.config.encryptionKey);
+      const iv = this.fromBase64(parts[0]);
+      const ciphertext = this.fromBase64(parts[1]);
+      const key = await this.getDerivedKey();
 
-      let decrypted = '';
-      for (let i = 0; i < encrypted.length; i++) {
-        const charCode = encrypted.charCodeAt(i);
-        const keyCode = key[i % key.length].charCodeAt(0);
-        const ivCode = iv[i % iv.length].charCodeAt(0);
-        decrypted += String.fromCharCode((charCode ^ keyCode ^ ivCode) & 0xff);
-      }
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
 
-      return JSON.parse(decrypted) as T;
+      return JSON.parse(new TextDecoder().decode(decrypted)) as T;
     } catch {
       return null;
     }
   }
 
-  private async generateKey(baseKey: string): Promise<string> {
-    let key = baseKey;
-    for (let i = 0; i < 100; i++) {
-      key = await this.sha256(key);
+  /**
+   * 使用 PBKDF2 从配置密钥派生 AES-GCM 256 位密钥,并缓存以避免重复派生。
+   * 替代原先"100 轮 sha256"的非标准密钥派生。
+   */
+  private async getDerivedKey(): Promise<CryptoKey> {
+    if (this.cachedKey && this.cachedKeySource === this.config.encryptionKey) {
+      return this.cachedKey;
     }
-    return key.substring(0, 32);
+
+    // 固定应用级 salt(不保密,仅防预计算);从应用标识派生
+    const saltBuffer = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode('fighter-game-security-salt-v1'),
+    );
+    const salt = new Uint8Array(saltBuffer).slice(0, 16);
+
+    const baseKey = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(this.config.encryptionKey),
+      'PBKDF2',
+      false,
+      ['deriveKey'],
+    );
+
+    const derivedKey = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+
+    this.cachedKey = derivedKey;
+    this.cachedKeySource = this.config.encryptionKey;
+    return derivedKey;
   }
 
-  private generateIV(): string {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Array.from(array, (byte) => String.fromCharCode(byte)).join('');
+  private toBase64(bytes: Uint8Array): string {
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
   }
 
-  private async sha256(input: string): Promise<string> {
-    const bytes = new TextEncoder().encode(input);
-    const hash = await crypto.subtle.digest('SHA-256', bytes);
-    const hashArray = Array.from(new Uint8Array(hash));
-    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  private fromBase64(b64: string): Uint8Array<ArrayBuffer> {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
   }
 
   public sanitizeInput(input: string): string {
@@ -231,7 +260,7 @@ export class SecuritySystem {
 
   public validateScore(
     score: number,
-    gameDuration: number
+    gameDuration: number,
   ): { valid: boolean; cheat?: boolean; reason?: string } {
     if (!this.config.enableCheatDetection) {
       return { valid: true };
@@ -265,7 +294,11 @@ export class SecuritySystem {
       if (timeDiff > 0 && scoreDiff > 0) {
         const rate = scoreDiff / (timeDiff / 1000);
         if (rate > this.config.maxScorePerSecond * 2) {
-          this.reportCheat('score_spike', { score, previousScore: this.lastScoreReport.score, timeDiff });
+          this.reportCheat('score_spike', {
+            score,
+            previousScore: this.lastScoreReport.score,
+            timeDiff,
+          });
           return {
             valid: false,
             cheat: true,
@@ -281,7 +314,7 @@ export class SecuritySystem {
 
   public validateWave(
     wave: number,
-    gameDuration: number
+    gameDuration: number,
   ): { valid: boolean; cheat?: boolean; reason?: string } {
     if (!this.config.enableCheatDetection) {
       return { valid: true };
@@ -324,7 +357,10 @@ export class SecuritySystem {
     return { valid: true };
   }
 
-  public validateKills(kills: number, wave: number): { valid: boolean; cheat?: boolean; reason?: string } {
+  public validateKills(
+    kills: number,
+    wave: number,
+  ): { valid: boolean; cheat?: boolean; reason?: string } {
     if (!this.config.enableCheatDetection) {
       return { valid: true };
     }

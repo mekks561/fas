@@ -8,6 +8,7 @@ import { PauseOverlay } from './PauseOverlay';
 import { TouchControlOverlay } from './TouchControlOverlay';
 import { DialogueSystem } from './DialogueSystem';
 import { QuestTracker } from './QuestTracker';
+import { UpgradeChoiceOverlay } from './UpgradeChoiceOverlay';
 import { gameplayManager } from '../engine/GameplayManager';
 import type { GameplayEvents } from '../engine/GameplayManager';
 import { dailyChallengeManager } from '../engine/DailyChallengeManager';
@@ -18,9 +19,13 @@ type PlayerShip = import('../engine/PlayerShip').PlayerShip;
 type EnemySystem = import('../engine/EnemySystem').EnemySystem;
 type WeaponSystem = import('../engine/WeaponSystem').WeaponSystem;
 type SkillSystem = import('../engine/SkillSystem').SkillSystem;
-type SkillType = import('../engine/SkillSystem').SkillType;
+import { SkillType } from '../engine/SkillSystem';
 type StoryMissionManager = import('../engine/StoryMissionManager').StoryMissionManager;
 type PowerupSpawner = import('../engine/PowerupSystem').PowerupSpawner;
+type BuildSystem = import('../engine/BuildSystem').BuildSystem;
+type CameraSystem = import('../engine/CameraSystem').CameraSystem;
+type VisualEffectSystem = import('../engine/VisualEffectSystem').VisualEffectSystem;
+type AsteroidSystem = import('../engine/AsteroidSystem').AsteroidSystem;
 
 const enginePowerupTypeToLua = (engineType: string): string | null => {
   const mapping: Record<string, string> = {
@@ -36,7 +41,6 @@ const enginePowerupTypeToLua = (engineType: string): string | null => {
   return mapping[engineType] || null;
 };
 
-
 export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () => void }> =
   React.memo(({ onGameOver, onLevelComplete }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,9 +49,14 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const enemySystemRef = useRef<EnemySystem | null>(null);
     const weaponSystemRef = useRef<WeaponSystem | null>(null);
     const skillSystemRef = useRef<SkillSystem | null>(null);
+    const buildSystemRef = useRef<BuildSystem | null>(null);
+    const cameraSystemRef = useRef<CameraSystem | null>(null);
     const storyManagerRef = useRef<StoryMissionManager | null>(null);
     const gameplayManagerRef = useRef<typeof gameplayManager | null>(null);
     const powerupSpawnerRef = useRef<PowerupSpawner | null>(null);
+    const vfxSystemRef = useRef<VisualEffectSystem | null>(null);
+    const asteroidSystemRef = useRef<AsteroidSystem | null>(null);
+    const prevBoostRef = useRef(false);
 
     const [storyManager, setStoryManager] = useState<StoryMissionManager | null>(null);
     const [currentDialogue, setCurrentDialogue] = useState<Dialogue | null>(null);
@@ -63,9 +72,9 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const playerScore = useGameStore((state) => state.player.score);
     const playerLevel = useGameStore((state) => state.player.level);
     const playerSpeed = useGameStore((state) => state.player.speed);
-  const isBoostActive = useGameStore((state) => state.player.isBoostActive);
-  const playerBoostEnergy = useGameStore((state) => state.player.boostEnergy);
-  const playerMaxBoostEnergy = useGameStore((state) => state.player.maxBoostEnergy);
+    const isBoostActive = useGameStore((state) => state.player.isBoostActive);
+    const playerBoostEnergy = useGameStore((state) => state.player.boostEnergy);
+    const playerMaxBoostEnergy = useGameStore((state) => state.player.maxBoostEnergy);
 
     const currentWave = useGameStore((state) => state.currentWave);
     const totalWaves = useGameStore((state) => state.totalWaves);
@@ -79,6 +88,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const isEliteWave = useGameStore((state) => state.isEliteWave);
     const killCount = useGameStore((state) => state.killCount);
 
+    // Build 协同系统状态
+    const pendingUpgradeChoices = useGameStore((state) => state.pendingUpgradeChoices);
+    const isUpgradeChoiceVisible = useGameStore((state) => state.isUpgradeChoiceVisible);
+    const upgradeChoiceTimer = useGameStore((state) => state.upgradeChoiceTimer);
+    const activeResonances = useGameStore((state) => state.activeResonances);
+
     const skillCooldowns = useGameStore((state) => state.skills.cooldowns);
     const skillMaxCooldowns = useGameStore((state) => state.skills.maxCooldowns);
 
@@ -89,14 +104,27 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       down: false,
       boost: false,
       fire: false,
+      pitchUp: false,
+      pitchDown: false,
+      rollLeft: false,
+      rollRight: false,
     });
 
-    const [isEngineInitialized, setIsEngineInitialized] = useState(false);
+    const audioManagerRef = useRef<typeof import('../engine/AudioSystem').AudioManager | null>(
+      null,
+    );
+
     const [isCanvasReady, setIsCanvasReady] = useState(false);
+    // 使用 ref 防止初始化状态变化触发 useEffect cleanup（避免引擎被销毁）
+    const initStartedRef = useRef(false);
 
     useEffect(() => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      console.log('[GameScene] Canvas ref:', canvas);
+      if (!canvas) {
+        console.error('[GameScene] Canvas ref is null in resize effect');
+        return;
+      }
 
       const resizeCanvas = () => {
         const rect = canvas.getBoundingClientRect();
@@ -107,7 +135,10 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       };
 
       resizeCanvas();
-      const readyTimer = setTimeout(() => setIsCanvasReady(true), 0);
+      const readyTimer = setTimeout(() => {
+        console.log('[GameScene] Setting isCanvasReady to true');
+        setIsCanvasReady(true);
+      }, 0);
       window.addEventListener('resize', resizeCanvas);
 
       return () => {
@@ -165,6 +196,42 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       }
     }, []);
 
+    // Build 强化选择处理
+    const handleUpgradeSelect = useCallback((upgradeId: string) => {
+      buildSystemRef.current?.selectUpgrade(upgradeId);
+      const build = buildSystemRef.current?.getActiveBuild();
+      if (build) {
+        const resonanceNames = buildSystemRef.current?.getActiveResonanceNames() || [];
+        useGameStore.getState().setActiveBuild(
+          build.upgrades.map((au) => ({
+            id: au.upgrade.id,
+            name: au.upgrade.name,
+            tag: au.upgrade.tag,
+            stacks: au.stacks,
+            rarity: au.upgrade.rarity,
+          })),
+          resonanceNames,
+        );
+      }
+      useGameStore.getState().setPendingUpgradeChoices(null);
+      useGameStore.getState().setUpgradeChoiceVisible(false);
+      useGameStore.getState().setGamePaused(false);
+    }, []);
+
+    // 强化选择倒计时
+    useEffect(() => {
+      if (!isUpgradeChoiceVisible) return;
+      const interval = setInterval(() => {
+        const current = useGameStore.getState().upgradeChoiceTimer;
+        if (current <= 0.1) {
+          clearInterval(interval);
+          return;
+        }
+        useGameStore.getState().setUpgradeChoiceTimer(current - 0.1);
+      }, 100);
+      return () => clearInterval(interval);
+    }, [isUpgradeChoiceVisible]);
+
     const initializeEngine = useCallback(async () => {
       if (!canvasRef.current) {
         console.error('[GameScene] Canvas ref is null');
@@ -174,7 +241,17 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
       console.log('[GameScene] Initializing game engine...');
 
       try {
-        const [pcModule, { PlayCanvasGameEngine }, { PlayerShip }, { EnemySystem }, { WeaponSystem }, { SkillSystem, SkillType }, { StoryMissionManager }, { AudioManager }, { PowerupSpawner, PowerupType: EnginePowerupType }] = await Promise.all([
+        const [
+          pcModule,
+          { PlayCanvasGameEngine },
+          { PlayerShip },
+          { EnemySystem },
+          { WeaponSystem },
+          { SkillSystem },
+          { StoryMissionManager },
+          { AudioManager },
+          { PowerupSpawner, PowerupType: EnginePowerupType },
+        ] = await Promise.all([
           import('playcanvas'),
           import('../engine/PlayCanvasEngine'),
           import('../engine/PlayerShip'),
@@ -198,6 +275,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
 
         AudioManager.initialize(engine.getApp());
         AudioManager.playMusic('gameMusic');
+        audioManagerRef.current = AudioManager;
         console.log('[GameScene] Audio system initialized');
 
         engine.setCameraPosition(0, 10, 15);
@@ -213,7 +291,36 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         engine.createNebula(new pc.Vec3(-30, -5, 25), 20);
         engine.createPlanet('planet1', new pc.Vec3(40, 15, 35), 5, new pc.Color(0.4, 0.6, 0.8));
         engine.createPlanet('planet2', new pc.Vec3(-35, -10, -25), 4, new pc.Color(0.8, 0.5, 0.3));
-        console.log('[GameScene] Environment created');
+
+        // 小行星带：在玩家活动区域外围生成 40 个小行星（半径 35-55），增强 3D 空间感知
+        engine.createAsteroidField(40, new pc.Vec3(0, 0, 0), 35, 55);
+        // 空间站和卫星作为远处空间参照物（createStructure 返回的 entity 未 addToScene，需手动添加）
+        const { ProceduralModelGenerator: ModelGen } =
+          await import('../engine/ProceduralModelGenerator');
+        const modelGen = new ModelGen(engine.getApp());
+        const station = modelGen.createStructure('space_station', { scale: 2 });
+        station.setPosition(-50, 5, -40);
+        engine.addToScene(station);
+        const satellite = modelGen.createStructure('satellite', { scale: 1 });
+        satellite.setPosition(45, 12, -30);
+        engine.addToScene(satellite);
+
+        // 雾效：增强深度感，远处物体渐隐（临时禁用排查黑屏）
+        // engine.enableFog(new pc.Color(0.02, 0.02, 0.05), 0.008);
+
+        // 后处理系统：接入已实现的 VisualEffectSystem（bloom/vignette/FXAA/colorCorrection）
+        // 临时禁用排查黑屏：VFX 后处理可能破坏渲染管线
+        // try {
+        //   const { VisualEffectSystem: VFXClass } = await import('../engine/VisualEffectSystem');
+        //   const vfxSystem = new VFXClass(engine.getApp(), engine.getCamera());
+        //   vfxSystem.applyPreset('cinematic');
+        //   vfxSystemRef.current = vfxSystem;
+        //   console.log('[GameScene] Visual effect system initialized (cinematic preset)');
+        // } catch (vfxError) {
+        //   console.warn('[GameScene] VisualEffectSystem init failed, running without post-effects:', vfxError);
+        // }
+
+        console.log('[GameScene] Environment created (with asteroid field, structures, fog, VFX)');
 
         const gameState = useGameStore.getState();
         const player = new PlayerShip({
@@ -225,6 +332,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         playerRef.current = player;
         console.log('[GameScene] Player created at position (0, 0, 0)');
 
+        // 小行星碰撞检测系统（需在 player 和小行星场都就绪后实例化）
+        const { AsteroidSystem: AsteroidSystemClass } = await import('../engine/AsteroidSystem');
+        const asteroidSystem = new AsteroidSystemClass(player, engine);
+        asteroidSystemRef.current = asteroidSystem;
+        console.log('[GameScene] Asteroid collision system created');
+
         const enemySystem = new EnemySystem(engine, player);
         enemySystemRef.current = enemySystem;
         console.log('[GameScene] Enemy system created');
@@ -233,6 +346,26 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         weaponSystem.setPlayer(player);
         weaponSystemRef.current = weaponSystem;
         console.log('[GameScene] Weapon system created');
+
+        const buildSystem = new (await import('../engine/BuildSystem')).BuildSystem();
+        buildSystemRef.current = buildSystem;
+        console.log('[GameScene] Build system created');
+
+        // 摄像机跟随系统：平滑追踪玩家位置和姿态
+        const { CameraSystem: CameraSystemClass } = await import('../engine/CameraSystem');
+        const cameraSystem = new CameraSystemClass(engine.getCamera());
+        cameraSystem.setTarget(player.getEntity());
+        cameraSystem.setMode('thirdPerson');
+        // 偏移 (0, 8, 15)：摄像机在玩家后方 15 单位、上方 8 单位
+        // offset.z 为正 → updateFollow 中 -offset.z 为负 → 摄像机在玩家身后
+        cameraSystem.setThirdPersonOffset(new pc.Vec3(0, 8, 15));
+        cameraSystem.setConstraints({ followSpeed: 0.15, minDistance: 10, maxDistance: 25 });
+        // 显式启用地平线稳定模式：摄像机不跟随玩家滚转，保持地平线水平
+        cameraSystem.setRollStabilized(true);
+        cameraSystemRef.current = cameraSystem;
+        console.log(
+          '[GameScene] Camera follow system created (offset: 0,8,15, followSpeed: 0.15, rollStabilized)',
+        );
 
         const powerupSpawner = new PowerupSpawner(engine);
         powerupSpawner.setSpawnInterval(8);
@@ -271,7 +404,14 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               });
             }
           },
-          onWaveComplete: (_waveNumber, _score) => {
+          onWaveComplete: (waveNumber, _score) => {
+            // 波次完成时触发三选一强化选择
+            const choices = buildSystemRef.current?.getUpgradeChoices(waveNumber) || [];
+            if (choices.length > 0) {
+              useGameStore.getState().setPendingUpgradeChoices(choices);
+              useGameStore.getState().setUpgradeChoiceVisible(true);
+              useGameStore.getState().setGamePaused(true);
+            }
           },
           onWaveReward: (reward) => {
             useGameStore.getState().addScore(reward.totalScoreBonus);
@@ -293,18 +433,16 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           },
           onComboUpdate: (comboCurrent, comboMax) => {
             const comboInfo = gameplayManager.getComboInfo();
-            useGameStore.getState().setCombo(
-              comboCurrent,
-              comboMax,
-              comboInfo?.comboTimer || 0,
-            );
+            useGameStore.getState().setCombo(comboCurrent, comboMax, comboInfo?.comboTimer || 0);
           },
           onRankChange: (newRank) => {
             useGameStore.getState().setRank(newRank);
           },
           onPowerupApplied: (powerupType) => {
             useGameStore.getState().addPowerup();
-            const config = gameplayManager.getPowerupConfig(powerupType as Parameters<typeof gameplayManager.getPowerupConfig>[0]);
+            const config = gameplayManager.getPowerupConfig(
+              powerupType as Parameters<typeof gameplayManager.getPowerupConfig>[0],
+            );
             const active = gameplayManager.getActivePowerups();
             const powerupData = active.find((p) => p.type === powerupType);
             if (powerupData) {
@@ -320,8 +458,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           onPowerupExpired: (powerupType) => {
             useGameStore.getState().removeActivePowerup(powerupType);
           },
-          onGameOver: (_finalScore, _rank) => {
-          },
+          onGameOver: (_finalScore, _rank) => {},
           onAchievementUnlocked: (achievement) => {
             useGameStore.getState().addAchievementNotification({
               id: achievement.id,
@@ -344,7 +481,8 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           try {
             const parsed = JSON.parse(savedSettings);
             if (parsed.difficulty) baseDifficulty = parsed.difficulty;
-            if (parsed.adaptiveDifficulty !== undefined) adaptiveEnabled = parsed.adaptiveDifficulty;
+            if (parsed.adaptiveDifficulty !== undefined)
+              adaptiveEnabled = parsed.adaptiveDifficulty;
             if (parsed.adaptiveIntensity) adaptiveIntensity = parsed.adaptiveIntensity;
           } catch {
             // 忽略解析错误，使用默认值
@@ -365,10 +503,16 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         }
 
         // 将自适应配置同步到 DifficultyManager
-        gameplayManager.setAdaptiveConfig({ enabled: adaptiveEnabled, intensity: adaptiveIntensity });
+        gameplayManager.setAdaptiveConfig({
+          enabled: adaptiveEnabled,
+          intensity: adaptiveIntensity,
+        });
 
         await gameplayManager.initialize(baseDifficulty);
         await gameplayManager.startGame(baseDifficulty);
+
+        // 在波次启动前设置 isSceneReady，确保update回调能执行游戏逻辑
+        useGameStore.getState().setSceneReady(true);
 
         if (enemySystemRef.current) {
           const waveMgr = gameplayManager.getWaveManager();
@@ -380,7 +524,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             if (powerupSpawnerRef.current) {
               const types = Object.values(EnginePowerupType);
               const randomType = types[Math.floor(Math.random() * types.length)];
-              powerupSpawnerRef.current.addPowerup(randomType, new pc.Vec3(position.x, 0, position.z), 1, 8);
+              powerupSpawnerRef.current.addPowerup(
+                randomType,
+                new pc.Vec3(position.x, 0, position.z),
+                1,
+                8,
+              );
             }
           });
         }
@@ -395,7 +544,43 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           const gameState = useGameStore.getState();
 
           if (!gameState.isGamePaused && gameState.isSceneReady && playerRef.current) {
+            // 每帧同步 Build 修饰符到 PlayerShip 和 WeaponSystem
+            if (buildSystemRef.current) {
+              playerRef.current.setBuildModifiers(buildSystemRef.current.getPlayerModifiers());
+              if (weaponSystemRef.current) {
+                weaponSystemRef.current.setBuildModifiers(
+                  buildSystemRef.current.getWeaponModifiers(),
+                );
+              }
+            }
+
             playerRef.current.update(dt, controlsRef.current);
+
+            // 小行星自转更新（增强空间动态感）
+            engineRef.current?.updateAsteroidField(dt);
+
+            // boost 状态边沿检测：触发 FOV 变化和摄像机抖动，增强速度感
+            const isBoosting = playerRef.current.isBoostingNow();
+            if (isBoosting && !prevBoostRef.current) {
+              cameraSystemRef.current?.zoom(75, 0.3); // FOV 拉大，增强速度感
+              cameraSystemRef.current?.shake(0.08, 0.4, 30, 1.5); // 轻微抖动
+            } else if (!isBoosting && prevBoostRef.current) {
+              cameraSystemRef.current?.zoom(60, 0.5); // FOV 回正
+            }
+            prevBoostRef.current = isBoosting;
+            // 动态摄像机偏移：boost 时拉远距离
+            cameraSystemRef.current?.setDynamicOffset(
+              playerRef.current.getSpeed() / 15,
+              isBoosting,
+            );
+
+            // 小行星碰撞检测（触发伤害和无敌帧）
+            asteroidSystemRef.current?.update(dt);
+
+            // 摄像机跟随更新（在玩家位置更新之后，确保追踪最新位置）
+            if (cameraSystemRef.current) {
+              cameraSystemRef.current.update(dt);
+            }
 
             if (controlsRef.current.fire && weaponSystemRef.current) {
               weaponSystemRef.current.shoot();
@@ -418,11 +603,15 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               const enemies = enemySystemRef.current.getEnemies();
               const hits = weaponSystemRef.current.checkCollisions(enemies);
               if (hits > 0) {
-                const killedEnemies = enemies.slice(0, hits);
+                // checkCollisions 已对击中敌人调用 takeDamage，遍历检测本帧真正被击杀的敌人
+                // （不能用 slice(0, hits)：击中的不一定是数组前 N 个，且击中 ≠ 击杀）
                 let totalScore = 0;
-                for (const enemy of killedEnemies) {
+                let killCount = 0;
+                for (const enemy of enemies) {
+                  if (enemy.isAlive()) continue;
                   const score = enemySystemRef.current.onEnemyKilled(enemy);
                   totalScore += score;
+                  killCount++;
                   if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
                     const type = enemy.getType();
                     const isBoss = type.includes('boss') || type === 'boss';
@@ -436,7 +625,11 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
                 AudioManager.playSound('enemyHit');
                 if (storyManagerRef.current) {
                   storyManagerRef.current.getActiveMissions().forEach((state) => {
-                    storyManagerRef.current?.incrementObjective(state.mission.id, 'destroy', hits);
+                    storyManagerRef.current?.incrementObjective(
+                      state.mission.id,
+                      'destroy',
+                      killCount,
+                    );
                   });
                 }
               }
@@ -444,7 +637,10 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
 
             if (powerupSpawnerRef.current && playerRef.current) {
               powerupSpawnerRef.current.update(dt);
-              const collected = powerupSpawnerRef.current.checkCollisions(playerRef.current, weaponSystemRef.current || undefined);
+              const collected = powerupSpawnerRef.current.checkCollisions(
+                playerRef.current,
+                weaponSystemRef.current || undefined,
+              );
               if (collected) {
                 AudioManager.playSound('powerup');
 
@@ -456,7 +652,17 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
                   const engineType = collected.getType();
                   const luaType = enginePowerupTypeToLua(engineType);
                   if (luaType) {
-                    gameplayManagerRef.current.applyPowerup(luaType as 'health' | 'shield' | 'speed' | 'damage' | 'triple_shot' | 'invincible' | 'magnet' | 'slow_time');
+                    gameplayManagerRef.current.applyPowerup(
+                      luaType as
+                        | 'health'
+                        | 'shield'
+                        | 'speed'
+                        | 'damage'
+                        | 'triple_shot'
+                        | 'invincible'
+                        | 'magnet'
+                        | 'slow_time',
+                    );
                   }
                 }
               }
@@ -493,7 +699,9 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               if (enemySystemRef.current) {
                 enemySystemRef.current.setDifficultyMultiplier(diffMultiplier);
               }
-              useGameStore.getState().setDifficultyInfo(gameplayManagerRef.current.getDifficultySnapshot());
+              useGameStore
+                .getState()
+                .setDifficultyInfo(gameplayManagerRef.current.getDifficultySnapshot());
             }
 
             if (enemySystemRef.current) {
@@ -540,95 +748,6 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         engine.start();
         console.log('[GameScene] Engine started');
 
-        const handleKeyDown = (e: KeyboardEvent) => {
-          switch (e.code) {
-            case 'KeyW':
-            case 'ArrowUp':
-              controlsRef.current.up = true;
-              e.preventDefault();
-              break;
-            case 'KeyS':
-            case 'ArrowDown':
-              controlsRef.current.down = true;
-              e.preventDefault();
-              break;
-            case 'KeyA':
-            case 'ArrowLeft':
-              controlsRef.current.left = true;
-              e.preventDefault();
-              break;
-            case 'KeyD':
-            case 'ArrowRight':
-              controlsRef.current.right = true;
-              e.preventDefault();
-              break;
-            case 'Space':
-              controlsRef.current.boost = true;
-              e.preventDefault();
-              break;
-            case 'KeyJ':
-              controlsRef.current.fire = true;
-              e.preventDefault();
-              break;
-            case 'KeyQ':
-              if (skillSystemRef.current) {
-                skillSystemRef.current.activateSkill(SkillType.MISSILE_STRIKE);
-                useGameStore.getState().setSkillCooldown('skill1', 8);
-                AudioManager.playSound('weaponUpgrade');
-              }
-              break;
-            case 'KeyE':
-              if (skillSystemRef.current) {
-                skillSystemRef.current.activateSkill(SkillType.SHIELD_BURST);
-                useGameStore.getState().setSkillCooldown('skill2', 10);
-                AudioManager.playSound('shieldActivate');
-              }
-              break;
-            case 'KeyT':
-              if (skillSystemRef.current) {
-                skillSystemRef.current.activateSkill(SkillType.TIME_SLOW);
-                useGameStore.getState().setSkillCooldown('skill3', 15);
-              }
-              break;
-            case 'KeyG':
-              if (skillSystemRef.current) {
-                skillSystemRef.current.activateSkill(SkillType.OVERDRIVE);
-                useGameStore.getState().setSkillCooldown('skill4', 20);
-              }
-              break;
-          }
-        };
-
-        const handleKeyUp = (e: KeyboardEvent) => {
-          switch (e.code) {
-            case 'KeyW':
-            case 'ArrowUp':
-              controlsRef.current.up = false;
-              break;
-            case 'KeyS':
-            case 'ArrowDown':
-              controlsRef.current.down = false;
-              break;
-            case 'KeyA':
-            case 'ArrowLeft':
-              controlsRef.current.left = false;
-              break;
-            case 'KeyD':
-            case 'ArrowRight':
-              controlsRef.current.right = false;
-              break;
-            case 'Space':
-              controlsRef.current.boost = false;
-              break;
-            case 'KeyJ':
-              controlsRef.current.fire = false;
-              break;
-          }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-
         useGameStore.getState().setTouchHandlers({
           onMove: handleTouchMove,
           onFire: handleTouchFire,
@@ -640,17 +759,18 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         });
 
         const initTimer = setTimeout(() => {
-          // eslint-disable-next-line @eslint-react/set-state-in-effect
-          setIsEngineInitialized(true);
-          useGameStore.getState().setSceneReady(true);
           useGameStore.getState().setLoading(false);
-          console.log('[GameScene] Scene ready - isSceneReady set to true');
+          console.log('[GameScene] Engine initialization complete');
+
+          // 自动聚焦canvas，确保键盘输入能正常工作
+          if (canvasRef.current) {
+            canvasRef.current.focus();
+            console.log('[GameScene] Canvas focused');
+          }
         }, 500);
 
         return () => {
           clearTimeout(initTimer);
-          window.removeEventListener('keydown', handleKeyDown);
-          window.removeEventListener('keyup', handleKeyUp);
 
           AudioManager.stopMusic();
           AudioManager.destroy();
@@ -658,6 +778,16 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
           if (powerupSpawnerRef.current) {
             powerupSpawnerRef.current.clearAll();
             powerupSpawnerRef.current = null;
+          }
+
+          // 清理后处理系统和小行星碰撞系统
+          if (vfxSystemRef.current) {
+            vfxSystemRef.current.dispose();
+            vfxSystemRef.current = null;
+          }
+          if (asteroidSystemRef.current) {
+            asteroidSystemRef.current.destroy();
+            asteroidSystemRef.current = null;
           }
 
           if (engineRef.current) {
@@ -671,16 +801,149 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         useGameStore.getState().setLoading(false);
         return () => {};
       }
-    }, [onGameOver, onLevelComplete, handleTouchMove, handleTouchFire, handleTouchBoost, handleTouchSkill1, handleTouchSkill2, handleTouchSkill3, handleTouchSkill4]);
+    }, [
+      onGameOver,
+      onLevelComplete,
+      handleTouchMove,
+      handleTouchFire,
+      handleTouchBoost,
+      handleTouchSkill1,
+      handleTouchSkill2,
+      handleTouchSkill3,
+      handleTouchSkill4,
+    ]);
 
     useEffect(() => {
-      if (isCanvasReady && !isEngineInitialized) {
+      // 使用 ref 守卫，避免 isEngineInitialized 状态变化触发 cleanup 导致引擎被销毁
+      if (isCanvasReady && !initStartedRef.current) {
+        initStartedRef.current = true;
+        console.log('[GameScene] Canvas ready, initializing engine...');
         const cleanupPromise = initializeEngine();
         return () => {
           cleanupPromise?.then((cleanup) => cleanup?.());
         };
       }
-    }, [isCanvasReady, isEngineInitialized, initializeEngine]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCanvasReady]);
+
+    // 独立的键盘事件处理，确保在整个游戏期间都有效
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        switch (e.code) {
+          // WASD = 节流(W/S) + 偏航(A/D)
+          case 'KeyW':
+            controlsRef.current.up = true;
+            e.preventDefault();
+            break;
+          case 'KeyS':
+            controlsRef.current.down = true;
+            e.preventDefault();
+            break;
+          case 'KeyA':
+            controlsRef.current.left = true;
+            e.preventDefault();
+            break;
+          case 'KeyD':
+            controlsRef.current.right = true;
+            e.preventDefault();
+            break;
+          // 方向键 = 俯仰(↑↓) + 滚转(←→)，实现六自由度飞行控制
+          case 'ArrowUp':
+            controlsRef.current.pitchUp = true;
+            e.preventDefault();
+            break;
+          case 'ArrowDown':
+            controlsRef.current.pitchDown = true;
+            e.preventDefault();
+            break;
+          case 'ArrowLeft':
+            controlsRef.current.rollLeft = true;
+            e.preventDefault();
+            break;
+          case 'ArrowRight':
+            controlsRef.current.rollRight = true;
+            e.preventDefault();
+            break;
+          case 'Space':
+            controlsRef.current.boost = true;
+            e.preventDefault();
+            break;
+          case 'KeyJ':
+            controlsRef.current.fire = true;
+            e.preventDefault();
+            break;
+          case 'KeyQ':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.MISSILE_STRIKE);
+              useGameStore.getState().setSkillCooldown('skill1', 8);
+              audioManagerRef.current?.playSound('weaponUpgrade');
+            }
+            break;
+          case 'KeyE':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.SHIELD_BURST);
+              useGameStore.getState().setSkillCooldown('skill2', 10);
+              audioManagerRef.current?.playSound('shieldActivate');
+            }
+            break;
+          case 'KeyT':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.TIME_SLOW);
+              useGameStore.getState().setSkillCooldown('skill3', 15);
+            }
+            break;
+          case 'KeyG':
+            if (skillSystemRef.current) {
+              skillSystemRef.current.activateSkill(SkillType.OVERDRIVE);
+              useGameStore.getState().setSkillCooldown('skill4', 20);
+            }
+            break;
+        }
+      };
+
+      const handleKeyUp = (e: KeyboardEvent) => {
+        switch (e.code) {
+          case 'KeyW':
+            controlsRef.current.up = false;
+            break;
+          case 'KeyS':
+            controlsRef.current.down = false;
+            break;
+          case 'KeyA':
+            controlsRef.current.left = false;
+            break;
+          case 'KeyD':
+            controlsRef.current.right = false;
+            break;
+          case 'ArrowUp':
+            controlsRef.current.pitchUp = false;
+            break;
+          case 'ArrowDown':
+            controlsRef.current.pitchDown = false;
+            break;
+          case 'ArrowLeft':
+            controlsRef.current.rollLeft = false;
+            break;
+          case 'ArrowRight':
+            controlsRef.current.rollRight = false;
+            break;
+          case 'Space':
+            controlsRef.current.boost = false;
+            break;
+          case 'KeyJ':
+            controlsRef.current.fire = false;
+            break;
+        }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keyup', handleKeyUp);
+
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+      };
+    }, []);
 
     const skills = useMemo(
       () => [
@@ -723,7 +986,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     const handleSkillActivate = useCallback((index: number) => {
       if (!skillSystemRef.current) return;
 
-      const skillTypes: SkillType[] = ['missile_strike', 'shield_burst', 'time_slow', 'overdrive'] as SkillType[];
+      const skillTypes: SkillType[] = [
+        'missile_strike',
+        'shield_burst',
+        'time_slow',
+        'overdrive',
+      ] as SkillType[];
       const skillKeys = ['skill1', 'skill2', 'skill3', 'skill4'];
       const cooldowns = [8, 10, 15, 20];
 
@@ -792,7 +1060,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
 
     return (
       <div className="game-scene">
-        <canvas ref={canvasRef} className="game-canvas" tabIndex={0} onClick={(e) => e.currentTarget.focus()} />
+        <canvas
+          ref={canvasRef}
+          className="game-canvas"
+          tabIndex={0}
+          onClick={(e) => e.currentTarget.focus()}
+        />
 
         {isSceneReady && <GameHUD {...hudProps} />}
 
@@ -805,6 +1078,15 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         {isLoading && <LoadingOverlay />}
 
         {isSceneReady && isGamePaused && <PauseOverlay />}
+
+        {isSceneReady && isUpgradeChoiceVisible && pendingUpgradeChoices && (
+          <UpgradeChoiceOverlay
+            choices={pendingUpgradeChoices}
+            timer={upgradeChoiceTimer}
+            onSelect={handleUpgradeSelect}
+            resonances={activeResonances}
+          />
+        )}
 
         {isSceneReady && (
           <TouchControlOverlay

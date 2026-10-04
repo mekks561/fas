@@ -93,13 +93,10 @@ export class InstancedRenderer {
     }
 
     const entity = new pc.Entity(config.id);
-    entity.addComponent('model', {
-      type: 'box',
-      width: 0.1,
-      height: 0.1,
-      depth: 0.1,
-    });
-    
+    entity.addComponent('model', { type: 'box' });
+    // Engine 2：内建 box 是 1×1×1，尺寸改用 setLocalScale（width/height/depth 选项已移除）
+    entity.setLocalScale(0.1, 0.1, 0.1);
+
     if (entity.model && meshAsset.resource && materialAsset.resource) {
       const typedModel = entity.model as unknown as { meshInstances?: pc.MeshInstance[] };
       const mesh = meshAsset.resource as pc.Mesh;
@@ -556,7 +553,12 @@ export class InstancedRenderer {
     this.totalInstances = 0;
   }
 
-  public getRendererInfo(): { webgpu: boolean; maxInstances: number; batches: number; lodEnabled: boolean } {
+  public getRendererInfo(): {
+    webgpu: boolean;
+    maxInstances: number;
+    batches: number;
+    lodEnabled: boolean;
+  } {
     return {
       webgpu: this.isWebGPUAvailable,
       maxInstances: this.maxTotalInstances,

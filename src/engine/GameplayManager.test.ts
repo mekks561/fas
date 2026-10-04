@@ -29,10 +29,12 @@ describe('GameplayManager', () => {
     it('should not reinitialize if already initialized', async () => {
       const initialStatus = gameplayManager.isInitialized();
       expect(initialStatus).toBe(true);
-      
-      const spy = vi.spyOn(gameplayManager as any, 'initialize').mockImplementation(() => Promise.resolve());
+
+      const spy = vi
+        .spyOn(gameplayManager as any, 'initialize')
+        .mockImplementation(() => Promise.resolve());
       await gameplayManager.initialize('normal');
-      
+
       expect(spy).toHaveBeenCalled();
       spy.mockRestore();
     });
@@ -193,7 +195,9 @@ describe('GameplayManager', () => {
 
     it('should calculate rank based on score', () => {
       for (let i = 0; i < 100; i++) {
-        gameplayManager.combatStats.addScore(100);
+        (
+          gameplayManager as unknown as { combatStats: { addScore: (points: number) => void } }
+        ).combatStats.addScore(100);
       }
 
       const stats = gameplayManager.getStats();

@@ -8,7 +8,7 @@ import { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 // 解析 DATABASE_URL (mysql://user:pass@host:port/dbname)
-const url = new URL(process.env.DATABASE_URL!);
+const url = new URL(process.env['DATABASE_URL']!);
 const adapter = new PrismaMariaDb({
   host: url.hostname,
   port: Number(url.port || 3306),

@@ -12,6 +12,8 @@ export interface ResourceDescriptor {
   cacheable?: boolean;
   dependencies?: string[];
   metadata?: Record<string, unknown>;
+  chunk?: string;
+  group?: string;
 }
 
 export interface LoadingProgress {
@@ -41,6 +43,8 @@ interface LoadQueueItem {
   descriptor: ResourceDescriptor;
   resolve: (entry: ResourceEntry) => void;
   reject: (error: Error) => void;
+  priority: number;
+  timestamp: number;
 }
 
 export class ResourceManager {
@@ -59,6 +63,12 @@ export class ResourceManager {
   private totalLoads: number = 0;
   private completedLoads: number = 0;
   private failedLoads: number = 0;
+  private chunks: Map<string, Set<string>> = new Map();
+  private groups: Map<string, Set<string>> = new Map();
+  private loadingChunks: Set<string> = new Set();
+  private preloadQueue: string[] = [];
+  private preloadInProgress: boolean = false;
+  private maxPreloadSize: number = 10 * 1024 * 1024;
 
   constructor(app?: pc.Application) {
     this.app = app || null;
@@ -82,6 +92,24 @@ export class ResourceManager {
     };
 
     this.resources.set(descriptor.id, entry);
+
+    if (descriptor.chunk) {
+      if (!this.chunks.has(descriptor.chunk)) {
+        this.chunks.set(descriptor.chunk, new Set());
+      }
+      this.chunks.get(descriptor.chunk)?.add(descriptor.id);
+    }
+
+    if (descriptor.group) {
+      if (!this.groups.has(descriptor.group)) {
+        this.groups.set(descriptor.group, new Set());
+      }
+      this.groups.get(descriptor.group)?.add(descriptor.id);
+    }
+
+    if (descriptor.preload) {
+      this.preloadQueue.push(descriptor.id);
+    }
   }
 
   public registerResources(descriptors: ResourceDescriptor[]): void {
@@ -150,12 +178,29 @@ export class ResourceManager {
 
   private enqueueLoad(entry: ResourceEntry): Promise<ResourceEntry> {
     return new Promise((resolve, reject) => {
-      this.loadQueue.push({
+      const priority = entry.descriptor.priority || 0;
+      const timestamp = Date.now();
+
+      const item: LoadQueueItem = {
         descriptor: entry.descriptor,
         resolve,
         reject,
-      });
+        priority,
+        timestamp,
+      };
+
+      this.loadQueue.push(item);
+      this.sortQueue();
       this.processQueue();
+    });
+  }
+
+  private sortQueue(): void {
+    this.loadQueue.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return b.priority - a.priority;
+      }
+      return a.timestamp - b.timestamp;
     });
   }
 
@@ -470,6 +515,144 @@ export class ResourceManager {
     return count;
   }
 
+  public async loadChunk(chunkId: string): Promise<void> {
+    if (this.loadingChunks.has(chunkId)) {
+      return;
+    }
+
+    const resourceIds = this.chunks.get(chunkId);
+    if (!resourceIds) {
+      throw new Error(`Chunk not found: ${chunkId}`);
+    }
+
+    this.loadingChunks.add(chunkId);
+    try {
+      await this.loadResources(Array.from(resourceIds));
+    } finally {
+      this.loadingChunks.delete(chunkId);
+    }
+  }
+
+  public unloadChunk(chunkId: string): void {
+    const resourceIds = this.chunks.get(chunkId);
+    if (!resourceIds) {
+      return;
+    }
+
+    resourceIds.forEach((id) => {
+      this.unloadResource(id);
+    });
+  }
+
+  public async loadGroup(groupId: string): Promise<void> {
+    const resourceIds = this.groups.get(groupId);
+    if (!resourceIds) {
+      throw new Error(`Group not found: ${groupId}`);
+    }
+
+    await this.loadResources(Array.from(resourceIds));
+  }
+
+  public unloadGroup(groupId: string): void {
+    const resourceIds = this.groups.get(groupId);
+    if (!resourceIds) {
+      return;
+    }
+
+    resourceIds.forEach((id) => {
+      this.unloadResource(id);
+    });
+  }
+
+  public async startPreload(): Promise<void> {
+    if (this.preloadInProgress) {
+      return;
+    }
+
+    this.preloadInProgress = true;
+    try {
+      let totalLoaded = 0;
+      const maxPreloadCount = Math.min(
+        this.preloadQueue.length,
+        Math.floor(this.maxPreloadSize / 1024),
+      );
+
+      for (let i = 0; i < maxPreloadCount; i++) {
+        const resourceId = this.preloadQueue[i];
+        if (!resourceId) continue;
+
+        try {
+          await this.loadResource(resourceId);
+          totalLoaded++;
+        } catch {}
+      }
+    } finally {
+      this.preloadInProgress = false;
+    }
+  }
+
+  public getChunkProgress(chunkId: string): LoadingProgress {
+    const resourceIds = this.chunks.get(chunkId);
+    if (!resourceIds) {
+      return {
+        total: 0,
+        loaded: 0,
+        failed: 0,
+        inProgress: 0,
+        percentage: 0,
+      };
+    }
+
+    let loaded = 0;
+    let failed = 0;
+    let inProgress = 0;
+
+    resourceIds.forEach((id) => {
+      const entry = this.resources.get(id);
+      if (!entry) return;
+
+      if (entry.isLoaded) {
+        loaded++;
+      } else if (this.activeLoads.has(id)) {
+        inProgress++;
+      }
+    });
+
+    const total = resourceIds.size;
+
+    return {
+      total,
+      loaded,
+      failed,
+      inProgress,
+      percentage: total > 0 ? (loaded / total) * 100 : 0,
+    };
+  }
+
+  public getAvailableChunks(): string[] {
+    return Array.from(this.chunks.keys());
+  }
+
+  public getAvailableGroups(): string[] {
+    return Array.from(this.groups.keys());
+  }
+
+  public isChunkLoading(chunkId: string): boolean {
+    return this.loadingChunks.has(chunkId);
+  }
+
+  public isPreloading(): boolean {
+    return this.preloadInProgress;
+  }
+
+  public getPreloadQueueSize(): number {
+    return this.preloadQueue.length;
+  }
+
+  public setMaxPreloadSize(size: number): void {
+    this.maxPreloadSize = Math.max(1024, size);
+  }
+
   public destroy(): void {
     this.resources.forEach((_, id) => this.unloadResource(id));
     this.resources.clear();
@@ -479,5 +662,10 @@ export class ResourceManager {
     this.cache.clear();
     this.progressCallbacks = [];
     this.errorCallbacks = [];
+    this.chunks.clear();
+    this.groups.clear();
+    this.loadingChunks.clear();
+    this.preloadQueue = [];
+    this.preloadInProgress = false;
   }
 }

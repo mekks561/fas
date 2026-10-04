@@ -23,6 +23,7 @@ export interface AnimationStateTransition {
   to: AnimationState;
   duration: number;
   condition?: () => boolean;
+  easing?: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'bounce';
 }
 
 export interface BlendInput {
@@ -42,6 +43,14 @@ export interface AnimatedEntity {
     string,
     { clip: AnimationClip; weight: number; time: number; frameIndex: number }
   >;
+  transition: {
+    active: boolean;
+    fromClip: AnimationClip;
+    toClip: AnimationClip;
+    progress: number;
+    duration: number;
+    easing: 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'bounce';
+  } | null;
 }
 
 export class AnimationSystem {
@@ -373,6 +382,7 @@ export class AnimationSystem {
       isPlaying: true,
       speed: 1.0,
       blendStates: new Map(),
+      transition: null,
     };
 
     this.entities.set(entity, animated);
@@ -407,10 +417,21 @@ export class AnimationSystem {
 
     if (animated.currentState === state) return true;
 
-    this.findTransition(animated.currentState, state);
+    const transition = this.findTransition(animated.currentState, state);
     const targetClip = this.findClipForState(state);
 
     if (!targetClip) return false;
+
+    if (transition && transition.duration > 0 && animated.currentClip) {
+      animated.transition = {
+        active: true,
+        fromClip: animated.currentClip,
+        toClip: targetClip,
+        progress: 0,
+        duration: transition.duration,
+        easing: transition.easing || 'easeInOut',
+      };
+    }
 
     animated.currentState = state;
     animated.currentClip = targetClip;
@@ -481,12 +502,33 @@ export class AnimationSystem {
 
       const effectiveDt = dt * animated.speed;
 
-      if (animated.blendStates.size > 0) {
+      if (animated.transition && animated.transition.active) {
+        this.updateTransition(animated, effectiveDt);
+      } else if (animated.blendStates.size > 0) {
         this.updateBlendedAnimation(animated, effectiveDt);
       } else if (animated.currentClip) {
         this.updateSingleAnimation(animated, effectiveDt);
       }
     });
+  }
+
+  private updateTransition(animated: AnimatedEntity, dt: number): void {
+    if (!animated.transition) return;
+
+    const { fromClip, toClip, duration, easing } = animated.transition;
+    animated.transition.progress += dt / duration;
+
+    const easedProgress = this.applyEasing(animated.transition.progress, easing);
+
+    const fromFrame = fromClip.frames[animated.currentFrameIndex] || fromClip.frames[0];
+    const toFrame = toClip.frames[0];
+
+    this.applyInterpolatedFrame(animated.entity, fromFrame, toFrame, easedProgress);
+
+    if (animated.transition.progress >= 1) {
+      animated.transition = null;
+      this.applyFrame(animated.entity, toFrame);
+    }
   }
 
   private updateSingleAnimation(animated: AnimatedEntity, dt: number): void {

@@ -1,0 +1,530 @@
+{
+  "$schema": "build-upgrades-v1",
+  "meta": {
+    "version": "1.0.0",
+    "description": "Phase 1 Build 协同系统配置：20 种局内强化 + 5 种协同共振规则",
+    "tags": ["firepower", "mobility", "defense", "special"],
+    "rarities": ["common", "rare", "epic", "legendary"],
+    "rarityWeights": {
+      "common": 100,
+      "rare": 45,
+      "epic": 15,
+      "legendary": 3
+    },
+    "choiceCount": 3,
+    "choiceTimeLimit": 10,
+    "notes": [
+      "weight 控制三选一出现概率，稀有度越高权重越低",
+      "unlockWave 控制该强化最早在第几波后进入候选池",
+      "effect.type 对应 BuildSystem 引擎模块的处理器标识符",
+      "stackable=true 时可重复获取，maxStacks 限制叠加次数",
+      "synergyContribution=true 的强化计入协同共振标签计数"
+    ]
+  },
+
+  "upgrades": [
+    {
+      "id": "fp_split_shot",
+      "name": "弹幕分裂",
+      "nameEn": "Projectile Split",
+      "description": "子弹击中敌人时分裂为 2 发追踪弹，各造成 50% 伤害",
+      "tag": "firepower",
+      "rarity": "rare",
+      "stackable": true,
+      "maxStacks": 3,
+      "unlockWave": 1,
+      "weight": 45,
+      "synergyContribution": true,
+      "effect": {
+        "type": "projectile_split",
+        "params": {
+          "splitCount": 2,
+          "splitAngleDeg": 30,
+          "splitDamageMultiplier": 0.5,
+          "splitSeeking": true,
+          "splitSeekingRange": 8
+        }
+      }
+    },
+    {
+      "id": "fp_piercing",
+      "name": "穿透弹头",
+      "nameEn": "Piercing Rounds",
+      "description": "子弹可额外穿透 1 个敌人，穿透后伤害衰减 30%",
+      "tag": "firepower",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 3,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "piercing",
+        "params": {
+          "pierceBonus": 1,
+          "falloffPerPierce": 0.3
+        }
+      }
+    },
+    {
+      "id": "fp_ricochet",
+      "name": "弹射弹道",
+      "nameEn": "Ricochet",
+      "description": "子弹击中敌人后弹射至 6 米内最近敌人，最多弹射 2 次",
+      "tag": "firepower",
+      "rarity": "rare",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 3,
+      "weight": 45,
+      "synergyContribution": true,
+      "effect": {
+        "type": "ricochet",
+        "params": {
+          "bounceRange": 6,
+          "maxBounces": 2,
+          "bounceDamageMultiplier": 0.6
+        }
+      }
+    },
+    {
+      "id": "fp_overcharge",
+      "name": "过载充能",
+      "nameEn": "Overcharge",
+      "description": "伤害 +25%，但射击间隔 +15%（高伤低频取舍）",
+      "tag": "firepower",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "damageMultiplier": 1.25,
+          "fireRateMultiplier": 1.15
+        }
+      }
+    },
+    {
+      "id": "fp_critical_focus",
+      "name": "暴击聚焦",
+      "nameEn": "Critical Focus",
+      "description": "暴击率 +15%，暴击伤害倍率提升至 2.5 倍",
+      "tag": "firepower",
+      "rarity": "epic",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 5,
+      "weight": 15,
+      "synergyContribution": true,
+      "effect": {
+        "type": "critical_enhance",
+        "params": {
+          "critChanceBonus": 0.15,
+          "critDamageMultiplier": 2.5
+        }
+      }
+    },
+    {
+      "id": "fp_elemental",
+      "name": "元素弹幕",
+      "nameEn": "Elemental Rounds",
+      "description": "子弹附带随机元素效果：燃烧/冻结/中毒，持续 2 秒",
+      "tag": "firepower",
+      "rarity": "epic",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 7,
+      "weight": 15,
+      "synergyContribution": true,
+      "effect": {
+        "type": "elemental_rounds",
+        "params": {
+          "statusTypes": ["burn", "freeze", "poison"],
+          "applyChance": 0.35,
+          "durationMs": 2000,
+          "intensity": 1
+        }
+      }
+    },
+
+    {
+      "id": "mb_dash_charge",
+      "name": "闪避充能",
+      "nameEn": "Dash Charge",
+      "description": "加速能量恢复速率 +50%，更频繁地使用冲刺",
+      "tag": "mobility",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "boostEnergyRechargeMultiplier": 1.5
+        }
+      }
+    },
+    {
+      "id": "mb_iframe_extend",
+      "name": "无敌帧延长",
+      "nameEn": "I-Frame Extend",
+      "description": "受击后无敌时间 +0.3 秒，容错窗口更大",
+      "tag": "mobility",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "invulnerabilityDurationBonusMs": 300
+        }
+      }
+    },
+    {
+      "id": "mb_phase_shift",
+      "name": "相位转移",
+      "nameEn": "Phase Shift",
+      "description": "冲刺期间获得 0.4 秒无敌，可穿越弹幕",
+      "tag": "mobility",
+      "rarity": "rare",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 3,
+      "weight": 45,
+      "synergyContribution": true,
+      "effect": {
+        "type": "dash_invulnerable",
+        "params": {
+          "invulnerableDurationMs": 400
+        }
+      }
+    },
+    {
+      "id": "mb_speed_overload",
+      "name": "速度过载",
+      "nameEn": "Speed Overload",
+      "description": "最大速度 +20%，但转向速度 -15%（直线突进型）",
+      "tag": "mobility",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "maxSpeedMultiplier": 1.2,
+          "rotationSpeedMultiplier": 0.85
+        }
+      }
+    },
+    {
+      "id": "mb_hover",
+      "name": "滞空机动",
+      "nameEn": "Hover Maneuver",
+      "description": "减速降低 40%，转向速度 +20%（灵活型操控）",
+      "tag": "mobility",
+      "rarity": "rare",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 4,
+      "weight": 45,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "decelerationMultiplier": 0.6,
+          "rotationSpeedMultiplier": 1.2
+        }
+      }
+    },
+
+    {
+      "id": "df_shield_regen",
+      "name": "护盾再生",
+      "nameEn": "Shield Regeneration",
+      "description": "护盾恢复速率 +50%，恢复延迟 -1 秒",
+      "tag": "defense",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "shieldRechargeRateMultiplier": 1.5,
+          "shieldRechargeDelayBonusMs": -1000
+        }
+      }
+    },
+    {
+      "id": "df_emergency_shield",
+      "name": "应急护盾",
+      "nameEn": "Emergency Shield",
+      "description": "血量低于 30% 时瞬间获得 30 点临时护盾，每波触发一次",
+      "tag": "defense",
+      "rarity": "rare",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 3,
+      "weight": 45,
+      "synergyContribution": true,
+      "effect": {
+        "type": "emergency_shield",
+        "params": {
+          "hpThreshold": 0.3,
+          "shieldAmount": 30,
+          "cooldownPerWave": 1
+        }
+      }
+    },
+    {
+      "id": "df_damage_reduction",
+      "name": "伤害减免",
+      "nameEn": "Damage Reduction",
+      "description": "受到的所有伤害 -15%",
+      "tag": "defense",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "damageTakenMultiplier": 0.85
+        }
+      }
+    },
+    {
+      "id": "df_max_health",
+      "name": "生命强化",
+      "nameEn": "Vitality Boost",
+      "description": "最大生命值 +25，并立即回复 25 点生命",
+      "tag": "defense",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 3,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stat_modifier",
+        "params": {
+          "maxHealthBonus": 25,
+          "healOnPickup": 25
+        }
+      }
+    },
+    {
+      "id": "df_thorns",
+      "name": "反伤力场",
+      "nameEn": "Thorns Field",
+      "description": "被敌人近身攻击时反弹 20% 伤害给攻击者",
+      "tag": "defense",
+      "rarity": "epic",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 5,
+      "weight": 15,
+      "synergyContribution": true,
+      "effect": {
+        "type": "thorns",
+        "params": {
+          "reflectMultiplier": 0.2,
+          "reflectRange": 4
+        }
+      }
+    },
+
+    {
+      "id": "sp_time_rift",
+      "name": "时间裂隙",
+      "nameEn": "Time Rift",
+      "description": "T 键技能（时间减缓）持续时间 +50%，减速效果 +10%",
+      "tag": "special",
+      "rarity": "rare",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 3,
+      "weight": 45,
+      "synergyContribution": true,
+      "effect": {
+        "type": "skill_enhance",
+        "params": {
+          "skillId": "time_slow",
+          "durationMultiplier": 1.5,
+          "effectIntensityBonus": 0.1
+        }
+      }
+    },
+    {
+      "id": "sp_chain_lightning",
+      "name": "连锁闪电",
+      "nameEn": "Chain Lightning",
+      "description": "攻击有 20% 概率触发连锁闪电，跳跃至 5 米内最多 3 个敌人，各造成 40% 伤害",
+      "tag": "special",
+      "rarity": "epic",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 6,
+      "weight": 15,
+      "synergyContribution": true,
+      "effect": {
+        "type": "chain_lightning",
+        "params": {
+          "triggerChance": 0.2,
+          "chainRange": 5,
+          "maxChains": 3,
+          "chainDamageMultiplier": 0.4
+        }
+      }
+    },
+    {
+      "id": "sp_vampiric",
+      "name": "吸血光环",
+      "nameEn": "Vampiric Aura",
+      "description": "造成伤害的 5% 转化为生命值回复",
+      "tag": "special",
+      "rarity": "rare",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 4,
+      "weight": 45,
+      "synergyContribution": true,
+      "effect": {
+        "type": "lifesteal",
+        "params": {
+          "lifestealRatio": 0.05
+        }
+      }
+    },
+    {
+      "id": "sp_stardust_magnet",
+      "name": "星尘磁吸",
+      "nameEn": "Stardust Magnet",
+      "description": "星尘拾取范围 +100%，敌人星尘掉落量 +20%",
+      "tag": "special",
+      "rarity": "common",
+      "stackable": true,
+      "maxStacks": 2,
+      "unlockWave": 1,
+      "weight": 100,
+      "synergyContribution": true,
+      "effect": {
+        "type": "stardust_magnet",
+        "params": {
+          "pickupRangeMultiplier": 2.0,
+          "dropAmountMultiplier": 1.2
+        }
+      }
+    }
+  ],
+
+  "resonances": [
+    {
+      "id": "res_bullet_storm",
+      "name": "弹幕风暴",
+      "nameEn": "Bullet Storm",
+      "description": "集齐 3 个火力标签：所有子弹获得 +1 穿透和 +20% 伤害",
+      "trigger": {
+        "tag": "firepower",
+        "minCount": 3
+      },
+      "effect": {
+        "type": "resonance_bullet_storm",
+        "params": {
+          "pierceBonus": 1,
+          "damageMultiplier": 1.2
+        }
+      }
+    },
+    {
+      "id": "res_phantom_dance",
+      "name": "幽灵舞步",
+      "nameEn": "Phantom Dance",
+      "description": "集齐 3 个机动标签：冲刺不消耗能量，并获得 10% 闪避概率",
+      "trigger": {
+        "tag": "mobility",
+        "minCount": 3
+      },
+      "effect": {
+        "type": "resonance_phantom_dance",
+        "params": {
+          "dashEnergyCostMultiplier": 0,
+          "dodgeChance": 0.1
+        }
+      }
+    },
+    {
+      "id": "res_immortal_bastion",
+      "name": "不朽壁垒",
+      "nameEn": "Immortal Bastion",
+      "description": "集齐 3 个防御标签：血量低于 20% 时伤害减免 50%，并每秒回复 2 点生命",
+      "trigger": {
+        "tag": "defense",
+        "minCount": 3
+      },
+      "effect": {
+        "type": "resonance_immortal_bastion",
+        "params": {
+          "hpThreshold": 0.2,
+          "damageReductionMultiplier": 0.5,
+          "regenPerSecond": 2
+        }
+      }
+    },
+    {
+      "id": "res_temporal_anomaly",
+      "name": "时空异常",
+      "nameEn": "Temporal Anomaly",
+      "description": "集齐 3 个特殊标签：所有技能冷却时间 -25%，技能伤害 +30%",
+      "trigger": {
+        "tag": "special",
+        "minCount": 3
+      },
+      "effect": {
+        "type": "resonance_temporal_anomaly",
+        "params": {
+          "cooldownMultiplier": 0.75,
+          "skillDamageMultiplier": 1.3
+        }
+      }
+    },
+    {
+      "id": "res_astral_echo",
+      "name": "星界共鸣",
+      "nameEn": "Astral Echo",
+      "description": "四种标签各集齐 2 个以上（共 8+）：全属性 +15%，击杀有 15% 概率额外掉落稀有星尘",
+      "trigger": {
+        "type": "balanced",
+        "requirements": [
+          { "tag": "firepower", "minCount": 2 },
+          { "tag": "mobility", "minCount": 2 },
+          { "tag": "defense", "minCount": 2 },
+          { "tag": "special", "minCount": 2 }
+        ]
+      },
+      "effect": {
+        "type": "resonance_astral_echo",
+        "params": {
+          "allStatsMultiplier": 1.15,
+          "bonusStardustChance": 0.15,
+          "bonusStardustRarity": "rare"
+        }
+      }
+    }
+  ]
+}

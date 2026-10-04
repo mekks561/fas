@@ -6,6 +6,7 @@
 import * as pc from 'playcanvas';
 import { EnhancedPlayCanvasEngine } from './EnhancedPlayCanvasEngine';
 import { EnhancedPlayerShip } from './EnhancedPlayerShip';
+import type { PrimitiveModelType } from '../types/game-types';
 
 export enum EnemyType {
   SCOUT = 'scout',
@@ -268,7 +269,8 @@ export class EnhancedEnemy {
     return material;
   }
 
-  private getModelType(): string {
+  // 返回类型收窄为引擎的合法图元联合：以前返回 string，非法图元名要到画面上才发现
+  private getModelType(): PrimitiveModelType {
     switch (this.type) {
       case EnemyType.SCOUT:
         return 'cylinder';

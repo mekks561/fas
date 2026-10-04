@@ -241,23 +241,19 @@ export class MissileStrikeSkill extends Skill {
     explosion.addComponent('particlesystem', {
       lifetime: 0.5,
       rate: 0,
-      burst: 50,
-      speed: 8,
-      spread: 360,
-      colorGraph: {
-        graph: new pc.CurveSet(
-          [
-            [1, 0.5, 0.2],
-            [1, 0.3, 0.1],
-            [0.5, 0.2, 0],
-            [0, 0, 0],
-          ],
-          'color',
-        ),
-      },
-      sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5, 2]),
-      },
+      // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
+      loop: false,
+      numParticles: 50,
+      // Engine 2：speed 改名为 initialVelocity
+      initialVelocity: 8,
+      // Engine 2：直接传曲线本体，并去掉会破坏曲线分组的 'color' 第二参数
+      colorGraph: new pc.CurveSet([
+        [1, 0.5, 0.2],
+        [1, 0.3, 0.1],
+        [0.5, 0.2, 0],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.5, 1.5, 2]),
     });
 
     this.engine.addToScene(explosion);

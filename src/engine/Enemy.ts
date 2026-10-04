@@ -64,15 +64,22 @@ export class Enemy {
 
     const stats = this.getStatsForType(config.type);
     // 应用难度倍率：生命/伤害按倍率缩放，速度仅轻微缩放（避免过快/过慢破坏体验）
-    const m = config.difficultyMultiplier && config.difficultyMultiplier > 0
-      ? config.difficultyMultiplier
-      : 1.0;
+    const m =
+      config.difficultyMultiplier && config.difficultyMultiplier > 0
+        ? config.difficultyMultiplier
+        : 1.0;
     const scaledHealth = Math.round(stats.health * m);
     const scaledDamage = Math.round(stats.damage * m);
     // 速度倍率压缩到 0.85 - 1.15 区间，避免极端值
     const speedScale = Math.max(0.85, Math.min(1.15, 1 + (m - 1) * 0.4));
     const scaledSpeed = stats.speed * speedScale;
-    this.stats = { ...stats, health: scaledHealth, maxHealth: scaledHealth, damage: scaledDamage, speed: scaledSpeed };
+    this.stats = {
+      ...stats,
+      health: scaledHealth,
+      maxHealth: scaledHealth,
+      damage: scaledDamage,
+      speed: scaledSpeed,
+    };
     this.health = scaledHealth;
     this.maxHealth = scaledHealth;
     this.speed = scaledSpeed;
@@ -83,6 +90,9 @@ export class Enemy {
     this.modelGenerator = new ProceduralModelGenerator(this.engine.getApp());
     this.entity = this.createEnemy(config.position);
     this.ai = EnemyAIFactory.createAI(config.type, this.entity, config.player, config.position);
+    // 同步 AI attackRadius 与 Enemy attackRange，确保 ATTACK 状态下能触发攻击
+    // （FighterAI 被多种敌人复用，attackRange 各不相同，必须按实际 stats 同步）
+    this.ai.syncAttackRange(this.stats.attackRange);
   }
 
   private getStatsForType(type: EnemyType): EnemyStats {
@@ -365,23 +375,19 @@ export class Enemy {
     explosion.addComponent('particlesystem', {
       lifetime: 0.8,
       rate: 0,
-      burst: particleCount,
-      speed: 8,
-      spread: 360,
-      colorGraph: {
-        graph: new pc.CurveSet(
-          [
-            [1, 0.8, 0.3],
-            [1, 0.5, 0.1],
-            [0.5, 0.2, 0],
-            [0, 0, 0],
-          ],
-          'color',
-        ),
-      },
-      sizeGraph: {
-        graph: new pc.Curve([0.5, 1.5, 2]),
-      },
+      // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
+      loop: false,
+      numParticles: particleCount,
+      // Engine 2：speed 改名为 initialVelocity
+      initialVelocity: 8,
+      // Engine 2：直接传 CurveSet，并去掉 Engine 1 遗留的 'color' 第二参数（会破坏曲线分组）
+      colorGraph: new pc.CurveSet([
+        [1, 0.8, 0.3],
+        [1, 0.5, 0.1],
+        [0.5, 0.2, 0],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.5, 1.5, 2]),
     });
 
     this.engine.addToScene(explosion);

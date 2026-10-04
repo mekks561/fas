@@ -1,4 +1,5 @@
 import * as pc from 'playcanvas';
+import type { PrimitiveModelType } from '../types/game-types';
 
 export type EditorMode = 'select' | 'move' | 'rotate' | 'scale' | 'place' | 'delete';
 
@@ -309,9 +310,14 @@ export class LevelEditor {
   private setupInputHandlers(): void {
     if (!this.app) return;
 
-    this.app.mouse.on(pc.EVENT_MOUSEDOWN, this.onMouseDown, this);
-    this.app.mouse.on(pc.EVENT_MOUSEMOVE, this.onMouseMove, this);
-    this.app.mouse.on(pc.EVENT_MOUSEUP, this.onMouseUp, this);
+    // Engine 2：app.mouse 类型变为可空，先收进局部变量再做守卫。
+    // 用 if 块而不是提前 return —— 鼠标不可用时键盘监听仍应注册。
+    const mouse = this.app.mouse;
+    if (mouse) {
+      mouse.on(pc.EVENT_MOUSEDOWN, this.onMouseDown, this);
+      mouse.on(pc.EVENT_MOUSEMOVE, this.onMouseMove, this);
+      mouse.on(pc.EVENT_MOUSEUP, this.onMouseUp, this);
+    }
 
     window.addEventListener('keydown', this.onKeyDown.bind(this));
   }
@@ -587,8 +593,9 @@ export class LevelEditor {
     this.app.root.addChild(this.previewEntity);
   }
 
-  private getMeshType(templateId: string): string {
-    const typeMap: Record<string, string> = {
+  // 返回类型收窄为引擎的合法图元联合：以前返回 string，非法图元名要到画面上才发现
+  private getMeshType(templateId: string): PrimitiveModelType {
+    const typeMap: Record<string, PrimitiveModelType> = {
       cube: 'box',
       sphere: 'sphere',
       cylinder: 'cylinder',

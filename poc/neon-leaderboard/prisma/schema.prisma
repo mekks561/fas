@@ -1,0 +1,73 @@
+// ===================================================================
+// Neon Leaderboard POC - Prisma Schema
+// 数据模型严格对齐前端 src/engine/CloudSaveSystem.ts 的 LeaderboardEntry
+// ===================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// 排行榜条目 - 对齐前端 LeaderboardEntry 接口
+model LeaderboardEntry {
+  /// cuid，避免自增 ID 暴露数据规模
+  id String @id @default(cuid())
+
+  /// 玩家唯一标识（前端生成的 player_xxx 字符串）
+  playerId String
+
+  /// 玩家显示名
+  playerName String
+
+  /// 本局分数
+  score Int
+
+  /// 达到波次
+  wave Int @default(1)
+
+  /// 击杀数
+  kills Int @default(0)
+
+  /// 命中率（0-1）
+  accuracy Float?
+
+  /// 最大连击数
+  maxCombo Int?
+
+  /// Boss 击杀数
+  bossesKilled Int?
+
+  /// 精英怪击杀数
+  elitesKilled Int?
+
+  /// 游戏时长（秒）
+  playTime Int?
+
+  /// 拾取道具数
+  powerupsCollected Int?
+
+  /// 造成伤害
+  damageDealt Int?
+
+  /// 承受伤害
+  damageTaken Int?
+
+  /// 评级（S/A/B/C/D）
+  rankGrade String?
+
+  /// 难度（对齐前端 GameSettings.difficulty: easy|normal|hard|expert）
+  difficulty String @default("normal")
+
+  /// 记录时间（服务器生成，避免客户端时钟偏差）
+  timestamp DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([score(sort: Desc)])
+  @@index([playerId, score(sort: Desc)])
+  @@index([difficulty, score(sort: Desc)])
+  @@index([timestamp])
+}

@@ -136,6 +136,18 @@ export abstract class EnemyAI {
     return playerPos.clone().sub(enemyPos).length();
   }
 
+  /**
+   * 同步 AI 的 attackRadius 与 Enemy 的 attackRange
+   * 确保 attackRadius <= attackRange，这样敌人进入 ATTACK 状态时一定在攻击范围内，
+   * 避免出现"敌人在 attackRadius 停下但 distance > attackRange 导致永不攻击"的问题
+   * （FighterAI 被多种敌人复用，各敌人 attackRange 不同，必须动态同步）
+   */
+  public syncAttackRange(attackRange: number): void {
+    if (attackRange > 0 && this.aiConfig.attackRadius > attackRange) {
+      this.aiConfig.attackRadius = attackRange;
+    }
+  }
+
   protected getDirectionToPlayer(): pc.Vec3 {
     const playerPos = this.player.getPosition();
     const enemyPos = this.entity.getPosition();
@@ -147,8 +159,19 @@ export abstract class EnemyAI {
     return this.patrolCenter.clone().sub(enemyPos).normalize();
   }
 
+  /**
+   * 计算 3D 垂直向量：用世界 up 与 direction 叉乘
+   * 替代旧的 `new pc.Vec3(-direction.z, 0, direction.x)`（y 硬编码 0 的 2D 写法）
+   * 这样敌人的 zigzag/strafe 机动在 Y 轴也有分量，实现真正的 3D 空间行为
+   */
+  protected getPerpendicular(direction: pc.Vec3): pc.Vec3 {
+    const worldUp = new pc.Vec3(0, 1, 0);
+    return new pc.Vec3().cross(direction, worldUp).normalize();
+  }
+
   protected moveTowards(direction: pc.Vec3, speed: number, dt: number): void {
-    const currentPos = this.entity.getPosition();
+    // Engine 2 的 getPosition() 返回 Readonly<Vec3>，就地改 x/y/z 会被拒；clone() 出一份可写副本
+    const currentPos = this.entity.getPosition().clone();
     const movement = direction.normalize().scale(speed * dt);
     currentPos.add(movement);
 
@@ -165,11 +188,14 @@ export abstract class EnemyAI {
 export class ScoutAI extends EnemyAI {
   private zigzagTimer: number = 0;
   private zigzagAmplitude: number = 3;
+  // 俯冲攻击模式：当敌人在玩家上方时强烈向下冲刺
+  private diveMode: boolean = false;
+  private diveCooldown: number = 0;
 
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     super(entity, player, initialPosition);
     this.aiConfig.patrolRadius = 8;
-    this.aiConfig.chaseRadius = 30;
+    this.aiConfig.chaseRadius = 35;
     this.aiConfig.attackRadius = 2;
   }
 
@@ -192,7 +218,8 @@ export class ScoutAI extends EnemyAI {
     this.zigzagTimer += dt;
 
     const centerDir = this.getDirectionToPatrolCenter();
-    const perpendicular = new pc.Vec3(-centerDir.z, 0, centerDir.x);
+    // 使用 3D 垂直向量（替代旧的 2D 硬编码 y=0）
+    const perpendicular = this.getPerpendicular(centerDir);
 
     const zigzagOffset = Math.sin(this.zigzagTimer * 2) * this.zigzagAmplitude;
     const movement = centerDir.clone().add(perpendicular.clone().scale(zigzagOffset));
@@ -205,15 +232,35 @@ export class ScoutAI extends EnemyAI {
 
   private executeChase(dt: number): void {
     this.zigzagTimer += dt;
+    this.diveCooldown -= dt;
 
     const direction = this.getDirectionToPlayer();
-    const perpendicular = new pc.Vec3(-direction.z, 0, direction.x);
-    const zigzagOffset = Math.sin(this.zigzagTimer * 4) * this.zigzagAmplitude;
+    const enemyPos = this.entity.getPosition();
+    const playerPos = this.player.getPosition();
+    const aboveBy = enemyPos.y - playerPos.y; // 敌人高于玩家的距离
 
-    const movement = direction.clone().add(perpendicular.clone().scale(zigzagOffset * 0.5));
+    // 俯冲模式：当敌人在玩家上方且冷却结束时触发
+    if (!this.diveMode && aboveBy > 4 && this.diveCooldown <= 0) {
+      this.diveMode = true;
+    }
+
+    if (this.diveMode) {
+      // 强烈向下冲向玩家（增加 Y 轴速度分量）
+      direction.y = Math.min(direction.y, -1) * 1.5;
+      // 到达玩家高度时结束俯冲，进入冷却
+      if (aboveBy <= 0.5) {
+        this.diveMode = false;
+        this.diveCooldown = 3; // 3 秒俯冲冷却
+      }
+    } else {
+      // 正常 XZ 平面 zigzag 机动（使用 3D 垂直向量）
+      const perpendicular = this.getPerpendicular(direction);
+      const zigzagOffset = Math.sin(this.zigzagTimer * 4) * this.zigzagAmplitude;
+      direction.add(perpendicular.scale(zigzagOffset * 0.5));
+    }
 
     const speed = 8 * this.getSpeedMultiplier();
-    this.moveTowards(movement, speed, dt);
+    this.moveTowards(direction, speed, dt);
 
     this.entity.lookAt(this.player.getPosition());
   }
@@ -238,7 +285,7 @@ export class FighterAI extends EnemyAI {
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     super(entity, player, initialPosition);
     this.aiConfig.patrolRadius = 12;
-    this.aiConfig.chaseRadius = 20;
+    this.aiConfig.chaseRadius = 35;
     this.aiConfig.attackRadius = 4;
     this.aiConfig.retreatRadius = 2;
   }
@@ -277,7 +324,7 @@ export class FighterAI extends EnemyAI {
     }
 
     const direction = this.getDirectionToPlayer();
-    const perpendicular = new pc.Vec3(-direction.z, 0, direction.x);
+    const perpendicular = this.getPerpendicular(direction);
 
     const movement = direction
       .clone()
@@ -313,7 +360,7 @@ export class TankAI extends EnemyAI {
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     super(entity, player, initialPosition);
     this.aiConfig.patrolRadius = 5;
-    this.aiConfig.chaseRadius = 15;
+    this.aiConfig.chaseRadius = 35;
     this.aiConfig.attackRadius = 5;
   }
 
@@ -386,11 +433,10 @@ export class TankAI extends EnemyAI {
 }
 
 export class EliteAI extends EnemyAI {
-
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     super(entity, player, initialPosition);
     this.aiConfig.patrolRadius = 15;
-    this.aiConfig.chaseRadius = 25;
+    this.aiConfig.chaseRadius = 35;
     this.aiConfig.attackRadius = 8;
   }
 
@@ -427,7 +473,7 @@ export class EliteAI extends EnemyAI {
 
   private executeAttack(dt: number): void {
     const direction = this.getDirectionToPlayer();
-    const perpendicular = new pc.Vec3(-direction.z, 0, direction.x);
+    const perpendicular = this.getPerpendicular(direction);
 
     this.aiConfig.strafeTimer += dt;
     if (this.aiConfig.strafeTimer >= 1.5) {
@@ -457,7 +503,7 @@ export class BossAI extends EnemyAI {
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     super(entity, player, initialPosition);
     this.aiConfig.patrolRadius = 20;
-    this.aiConfig.chaseRadius = 30;
+    this.aiConfig.chaseRadius = 35;
     this.aiConfig.attackRadius = 6;
   }
 
@@ -516,7 +562,7 @@ export class BossAI extends EnemyAI {
   }
 
   private executeCircleAttack(dt: number, direction: pc.Vec3): void {
-    const perpendicular = new pc.Vec3(-direction.z, 0, direction.x);
+    const perpendicular = this.getPerpendicular(direction);
 
     this.aiConfig.strafeTimer += dt * 0.5;
     const strafeAmount = Math.sin(this.aiConfig.strafeTimer) * 0.7;
@@ -528,7 +574,7 @@ export class BossAI extends EnemyAI {
   }
 
   private executeFlankAttack(dt: number, direction: pc.Vec3): void {
-    const perpendicular = new pc.Vec3(-direction.z, 0, direction.x);
+    const perpendicular = this.getPerpendicular(direction);
 
     const flankDir =
       this.aiConfig.strafeDirection > 0 ? perpendicular : perpendicular.clone().scale(-1);

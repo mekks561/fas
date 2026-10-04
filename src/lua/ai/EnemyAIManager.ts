@@ -200,21 +200,32 @@ end
 
     try {
       const enemy = luaEngine.call<AIConfig>('createEnemyAI', type);
-      return enemy;
+      return enemy ?? null;
     } catch (error) {
       console.error('[EnemyAIManager] Failed to create enemy:', error);
       return null;
     }
   }
 
-  update(enemy: AIConfig, playerX: number, playerY: number, deltaTime: number): { action: string; x?: number; y?: number; damage?: number } | null {
+  update(
+    enemy: AIConfig,
+    playerX: number,
+    playerY: number,
+    deltaTime: number,
+  ): { action: string; x?: number; y?: number; damage?: number } | null {
     if (!this.initialized) {
       console.warn('[EnemyAIManager] Not initialized');
       return null;
     }
 
     try {
-      return luaEngine.call<{ action: string; x?: number; y?: number; damage?: number } | null>('updateAI', enemy, playerX, playerY, deltaTime);
+      const result = luaEngine.call<{
+        action: string;
+        x?: number;
+        y?: number;
+        damage?: number;
+      } | null>('updateAI', enemy, playerX, playerY, deltaTime);
+      return result ?? null;
     } catch (error) {
       console.error('[EnemyAIManager] Failed to update AI:', error);
       return null;

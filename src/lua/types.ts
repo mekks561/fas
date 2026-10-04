@@ -6,6 +6,8 @@ export interface LuaEngineOptions {
   debug?: boolean;
   /** 最大栈大小 */
   stackSize?: number;
+  /** 是否强制使用 stub 模式(不加载真实 Lua 运行时) */
+  forceStub?: boolean;
 }
 
 export interface LuaFunction {
@@ -24,6 +26,10 @@ export interface LuaScriptModule {
   name: string;
   /** Lua 脚本内容 */
   script: string;
+  /** 脚本代码别名(兼容字段,等同于 script) */
+  code?: string;
+  /** 模块路径 */
+  path?: string;
   /** 加载优先级 */
   priority?: number;
 }

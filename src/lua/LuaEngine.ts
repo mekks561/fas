@@ -15,12 +15,10 @@ interface LuaState {
 export class LuaEngine {
   private lua: LuaState | null = null;
   private initialized = false;
-  private debug = false;
   private forceStub = false;
   private registeredModules: Map<string, string> = new Map();
 
   constructor(options: LuaEngineOptions = {}) {
-    this.debug = options.debug ?? false;
     this.forceStub = options.forceStub ?? false;
   }
 
@@ -31,7 +29,8 @@ export class LuaEngine {
     }
 
     try {
-      const factory = (wasmoon as unknown as { factory: { create: () => Promise<LuaState> } }).factory;
+      const factory = (wasmoon as unknown as { factory: { create: () => Promise<LuaState> } })
+        .factory;
       if (!this.forceStub && factory) {
         this.lua = await factory.create();
       } else {
@@ -55,12 +54,12 @@ export class LuaEngine {
     const waveState = {
       waveNumber: 1,
       maxWaves: 10,
-      currentState: 'waiting' as const,
+      currentState: 'waiting' as 'waiting' | 'active' | 'completed' | 'paused',
       enemiesSpawned: 0,
       enemiesDefeated: 0,
       enemiesRemaining: 5,
       elapsedTime: 0,
-      difficulty: 'normal' as const,
+      difficulty: 'normal' as 'easy' | 'normal' | 'hard' | 'nightmare',
       isBossWave: false,
       isEliteWave: false,
       progress: 0,
@@ -92,7 +91,16 @@ export class LuaEngine {
       skillsUsedBreakdown: {} as Record<string, number>,
     };
 
-    const activePowerups: Array<{ id: number; type: string; displayName: string; duration: number; remainingDuration: number; stacks: number; multiplier: number; progress: number }> = [];
+    const activePowerups: Array<{
+      id: number;
+      type: string;
+      displayName: string;
+      duration: number;
+      remainingDuration: number;
+      stacks: number;
+      multiplier: number;
+      progress: number;
+    }> = [];
     let powerupIdCounter = 0;
 
     const calculateRank = (score: number): string => {
@@ -106,21 +114,37 @@ export class LuaEngine {
     const waveManagerModule = {
       getWaveState: () => ({
         success: true,
-        state: { ...waveState, progress: waveState.enemiesDefeated / (waveState.enemiesDefeated + waveState.enemiesRemaining) || 0 },
+        state: {
+          ...waveState,
+          progress:
+            waveState.enemiesDefeated / (waveState.enemiesDefeated + waveState.enemiesRemaining) ||
+            0,
+        },
       }),
-      setDifficulty: (difficulty: string) => { waveState.difficulty = difficulty as typeof waveState.difficulty; return { success: true }; },
-      setMaxWaves: (maxWaves: number) => { waveState.maxWaves = maxWaves; return { success: true }; },
+      setDifficulty: (difficulty: string) => {
+        waveState.difficulty = difficulty as typeof waveState.difficulty;
+        return { success: true };
+      },
+      setMaxWaves: (maxWaves: number) => {
+        waveState.maxWaves = maxWaves;
+        return { success: true };
+      },
       calculateEnemyCount: (waveNumber: number) => {
         const baseCount = 5;
         const growthFactor = 1.1;
-        const diffMult = { easy: 0.8, normal: 1.0, hard: 1.2, nightmare: 1.5 }[waveState.difficulty];
+        const diffMult = { easy: 0.8, normal: 1.0, hard: 1.2, nightmare: 1.5 }[
+          waveState.difficulty
+        ];
         let count = Math.floor(baseCount * Math.pow(growthFactor, waveNumber - 1) * diffMult);
         if (waveNumber % 5 === 0) count = Math.max(1, Math.floor(count * 0.3));
         else if (waveNumber % 3 === 0) count = Math.floor(count * 0.8);
         return { success: true, count };
       },
       isBossWave: (waveNumber: number) => ({ success: true, isBoss: waveNumber % 5 === 0 }),
-      isEliteWave: (waveNumber: number) => ({ success: true, isElite: waveNumber % 3 === 0 && waveNumber % 5 !== 0 }),
+      isEliteWave: (waveNumber: number) => ({
+        success: true,
+        isElite: waveNumber % 3 === 0 && waveNumber % 5 !== 0,
+      }),
       generateEnemyTypes: (waveNumber: number) => {
         const types: string[] = [];
         if (waveNumber % 5 === 0) {
@@ -139,7 +163,10 @@ export class LuaEngine {
         return { success: true, enemyTypes: types };
       },
       getEnemyConfig: (enemyType: string) => {
-        const templates: Record<string, { type: string; health: number; damage: number; speed: number; score: number }> = {
+        const templates: Record<
+          string,
+          { type: string; health: number; damage: number; speed: number; score: number }
+        > = {
           basic: { type: 'basic', health: 50, damage: 10, speed: 2.0, score: 100 },
           fast: { type: 'fast', health: 30, damage: 8, speed: 4.0, score: 150 },
           tank: { type: 'tank', health: 100, damage: 15, speed: 1.0, score: 250 },
@@ -150,7 +177,9 @@ export class LuaEngine {
         const template = templates[enemyType];
         if (!template) return { success: false, error: 'unknown enemy type' };
         const waveMult = Math.pow(1.15, waveState.waveNumber - 1);
-        const diffMult = { easy: 0.8, normal: 1.0, hard: 1.2, nightmare: 1.5 }[waveState.difficulty];
+        const diffMult = { easy: 0.8, normal: 1.0, hard: 1.2, nightmare: 1.5 }[
+          waveState.difficulty
+        ];
         return {
           success: true,
           config: {
@@ -179,100 +208,354 @@ export class LuaEngine {
         waveState.isBossWave = isBoss;
         waveState.isEliteWave = isElite;
         waveState.spawnedEnemyTypes = types;
-        return { success: true, waveNumber, enemyCount, isBossWave: isBoss, isEliteWave: isElite, enemyTypes: types };
+        return {
+          success: true,
+          waveNumber,
+          enemyCount,
+          isBossWave: isBoss,
+          isEliteWave: isElite,
+          enemyTypes: types,
+        };
       },
       spawnNextEnemy: () => {
-        if (waveState.currentState !== 'active') return { success: false, error: 'wave is not active' };
-        if (waveState.enemiesSpawned >= waveState.spawnedEnemyTypes.length) return { success: false, error: 'no more enemies to spawn' };
+        if (waveState.currentState !== 'active')
+          return { success: false, error: 'wave is not active' };
+        if (waveState.enemiesSpawned >= waveState.spawnedEnemyTypes.length)
+          return { success: false, error: 'no more enemies to spawn' };
         waveState.enemiesSpawned++;
         const enemyType = waveState.spawnedEnemyTypes[waveState.enemiesSpawned - 1];
         const configResult = waveManagerModule.getEnemyConfig(enemyType);
         if (!configResult.success) return configResult;
-        return { success: true, enemy: configResult.config, spawnIndex: waveState.enemiesSpawned, totalToSpawn: waveState.spawnedEnemyTypes.length };
+        return {
+          success: true,
+          enemy: configResult.config,
+          spawnIndex: waveState.enemiesSpawned,
+          totalToSpawn: waveState.spawnedEnemyTypes.length,
+        };
       },
       onEnemyDefeated: (enemyType: string) => {
-        if (waveState.currentState !== 'active') return { success: false, error: 'wave is not active' };
+        if (waveState.currentState !== 'active')
+          return { success: false, error: 'wave is not active' };
         waveState.enemiesDefeated++;
         waveState.enemiesRemaining--;
         const isWaveComplete = waveState.enemiesRemaining <= 0;
         if (isWaveComplete) waveState.currentState = 'completed';
-        const templates: Record<string, number> = { basic: 100, fast: 150, tank: 250, shooter: 200, elite: 500, boss: 2000 };
-        return { success: true, enemiesDefeated: waveState.enemiesDefeated, enemiesRemaining: waveState.enemiesRemaining, isWaveComplete, score: templates[enemyType] || 100 };
+        const templates: Record<string, number> = {
+          basic: 100,
+          fast: 150,
+          tank: 250,
+          shooter: 200,
+          elite: 500,
+          boss: 2000,
+        };
+        return {
+          success: true,
+          enemiesDefeated: waveState.enemiesDefeated,
+          enemiesRemaining: waveState.enemiesRemaining,
+          isWaveComplete,
+          score: templates[enemyType] || 100,
+        };
       },
-      pauseWave: () => { if (waveState.currentState !== 'active') return { success: false, error: 'wave is not active' }; waveState.currentState = 'paused'; return { success: true }; },
-      resumeWave: () => { if (waveState.currentState !== 'paused') return { success: false, error: 'wave is not paused' }; waveState.currentState = 'active'; return { success: true }; },
-      update: (deltaTime: number) => { if (waveState.currentState === 'active') waveState.elapsedTime += deltaTime; return { success: true, elapsedTime: waveState.elapsedTime, state: waveState.currentState, enemiesRemaining: waveState.enemiesRemaining }; },
-      reset: () => { waveState.waveNumber = 1; waveState.currentState = 'waiting'; waveState.enemiesSpawned = 0; waveState.enemiesDefeated = 0; waveState.enemiesRemaining = 0; waveState.elapsedTime = 0; waveState.isBossWave = false; waveState.isEliteWave = false; waveState.spawnedEnemyTypes = []; return { success: true }; },
+      pauseWave: () => {
+        if (waveState.currentState !== 'active')
+          return { success: false, error: 'wave is not active' };
+        waveState.currentState = 'paused';
+        return { success: true };
+      },
+      resumeWave: () => {
+        if (waveState.currentState !== 'paused')
+          return { success: false, error: 'wave is not paused' };
+        waveState.currentState = 'active';
+        return { success: true };
+      },
+      update: (deltaTime: number) => {
+        if (waveState.currentState === 'active') waveState.elapsedTime += deltaTime;
+        return {
+          success: true,
+          elapsedTime: waveState.elapsedTime,
+          state: waveState.currentState,
+          enemiesRemaining: waveState.enemiesRemaining,
+        };
+      },
+      reset: () => {
+        waveState.waveNumber = 1;
+        waveState.currentState = 'waiting';
+        waveState.enemiesSpawned = 0;
+        waveState.enemiesDefeated = 0;
+        waveState.enemiesRemaining = 0;
+        waveState.elapsedTime = 0;
+        waveState.isBossWave = false;
+        waveState.isEliteWave = false;
+        waveState.spawnedEnemyTypes = [];
+        return { success: true };
+      },
       getNextWaveNumber: () => ({ success: true, waveNumber: waveState.waveNumber + 1 }),
-      getWaveScoreMultiplier: () => ({ success: true, multiplier: 1.0 + waveState.waveNumber * 0.1 }),
+      getWaveScoreMultiplier: () => ({
+        success: true,
+        multiplier: 1.0 + waveState.waveNumber * 0.1,
+      }),
     };
 
     const powerupSystemModule = {
-      getPowerupTypes: () => ({ success: true, types: [{ name: 'health', displayName: 'Health', type: 'instant', duration: 0 }, { name: 'speed', displayName: 'Speed', type: 'duration', duration: 8.0 }, { name: 'damage', displayName: 'Damage', type: 'duration', duration: 8.0 }] }),
-      getPowerupConfig: (powerupType: string) => ({ success: true, config: { name: powerupType, displayName: powerupType.charAt(0).toUpperCase() + powerupType.slice(1), type: powerupType === 'health' ? 'instant' : 'duration', value: 25, duration: 8.0, multiplier: 2.0, stackRule: 'extend', maxStacks: 1, stat: powerupType } }),
-      applyPowerup: (powerupType: string, params?: Record<string, unknown>) => {
-        if (powerupType === 'health') return { success: true, powerupType, config: { name: 'health', type: 'instant', stat: 'health' }, effects: [{ effectType: 'add', stat: 'health', value: 25 }], powerupId: null };
+      getPowerupTypes: () => ({
+        success: true,
+        types: [
+          { name: 'health', displayName: 'Health', type: 'instant', duration: 0 },
+          { name: 'speed', displayName: 'Speed', type: 'duration', duration: 8.0 },
+          { name: 'damage', displayName: 'Damage', type: 'duration', duration: 8.0 },
+        ],
+      }),
+      getPowerupConfig: (powerupType: string) => ({
+        success: true,
+        config: {
+          name: powerupType,
+          displayName: powerupType.charAt(0).toUpperCase() + powerupType.slice(1),
+          type: powerupType === 'health' ? 'instant' : 'duration',
+          value: 25,
+          duration: 8.0,
+          multiplier: 2.0,
+          stackRule: 'extend',
+          maxStacks: 1,
+          stat: powerupType,
+        },
+      }),
+      applyPowerup: (powerupType: string, _params?: Record<string, unknown>) => {
+        if (powerupType === 'health')
+          return {
+            success: true,
+            powerupType,
+            config: { name: 'health', type: 'instant', stat: 'health' },
+            effects: [{ effectType: 'add', stat: 'health', value: 25 }],
+            powerupId: null,
+          };
         powerupIdCounter++;
-        const newPowerup = { id: powerupIdCounter, type: powerupType, displayName: powerupType.charAt(0).toUpperCase() + powerupType.slice(1), duration: 8.0, remainingDuration: 8.0, stacks: 1, multiplier: 2.0, progress: 1.0 };
+        const newPowerup = {
+          id: powerupIdCounter,
+          type: powerupType,
+          displayName: powerupType.charAt(0).toUpperCase() + powerupType.slice(1),
+          duration: 8.0,
+          remainingDuration: 8.0,
+          stacks: 1,
+          multiplier: 2.0,
+          progress: 1.0,
+        };
         activePowerups.push(newPowerup);
-        return { success: true, powerupType, config: { name: powerupType, type: 'duration', stat: powerupType }, effects: [{ effectType: 'multiply', stat: powerupType, multiplier: 2.0 }], powerupId: powerupIdCounter };
+        return {
+          success: true,
+          powerupType,
+          config: { name: powerupType, type: 'duration', stat: powerupType },
+          effects: [{ effectType: 'multiply', stat: powerupType, multiplier: 2.0 }],
+          powerupId: powerupIdCounter,
+        };
       },
-      getActivePowerups: () => ({ success: true, powerups: activePowerups.filter(p => p.remainingDuration > 0) }),
+      getActivePowerups: () => ({
+        success: true,
+        powerups: activePowerups.filter((p) => p.remainingDuration > 0),
+      }),
       update: (deltaTime: number) => {
         const expired: Array<{ id: number; type: string; expired: boolean }> = [];
         for (let i = activePowerups.length - 1; i >= 0; i--) {
           activePowerups[i].remainingDuration -= deltaTime;
-          if (activePowerups[i].remainingDuration <= 0) { expired.push({ id: activePowerups[i].id, type: activePowerups[i].type, expired: true }); activePowerups.splice(i, 1); }
+          if (activePowerups[i].remainingDuration <= 0) {
+            expired.push({ id: activePowerups[i].id, type: activePowerups[i].type, expired: true });
+            activePowerups.splice(i, 1);
+          }
         }
         return { success: true, expired, activeCount: activePowerups.length };
       },
-      removePowerup: (powerupId: number) => { for (let i = 0; i < activePowerups.length; i++) { if (activePowerups[i].id === powerupId) { activePowerups.splice(i, 1); return { success: true }; } } return { success: false }; },
-      removeAllPowerups: () => { activePowerups.length = 0; powerupIdCounter = 0; return { success: true }; },
-      hasActivePowerup: (powerupType: string) => ({ success: true, has: activePowerups.some(p => p.type === powerupType && p.remainingDuration > 0) }),
-      getPowerupMultiplier: (powerupType: string) => { const p = activePowerups.find(p => p.type === powerupType && p.remainingDuration > 0); return { success: true, multiplier: p ? p.multiplier : 1.0, stacks: p ? p.stacks : 0 }; },
-      getPowerupRemainingDuration: (powerupType: string) => { const p = activePowerups.find(p => p.type === powerupType && p.remainingDuration > 0); if (!p) return { success: true, remainingDuration: 0, totalDuration: 0, progress: 0 }; return { success: true, remainingDuration: p.remainingDuration, totalDuration: p.duration, progress: p.remainingDuration / p.duration }; },
-      generateRandomPowerup: () => ({ success: true, powerupType: 'health', config: { name: 'health', stat: 'health' } }),
-      reset: () => { activePowerups.length = 0; powerupIdCounter = 0; return { success: true }; },
+      removePowerup: (powerupId: number) => {
+        for (let i = 0; i < activePowerups.length; i++) {
+          if (activePowerups[i].id === powerupId) {
+            activePowerups.splice(i, 1);
+            return { success: true };
+          }
+        }
+        return { success: false };
+      },
+      removeAllPowerups: () => {
+        activePowerups.length = 0;
+        powerupIdCounter = 0;
+        return { success: true };
+      },
+      hasActivePowerup: (powerupType: string) => ({
+        success: true,
+        has: activePowerups.some((p) => p.type === powerupType && p.remainingDuration > 0),
+      }),
+      getPowerupMultiplier: (powerupType: string) => {
+        const p = activePowerups.find((p) => p.type === powerupType && p.remainingDuration > 0);
+        return { success: true, multiplier: p ? p.multiplier : 1.0, stacks: p ? p.stacks : 0 };
+      },
+      getPowerupRemainingDuration: (powerupType: string) => {
+        const p = activePowerups.find((p) => p.type === powerupType && p.remainingDuration > 0);
+        if (!p) return { success: true, remainingDuration: 0, totalDuration: 0, progress: 0 };
+        return {
+          success: true,
+          remainingDuration: p.remainingDuration,
+          totalDuration: p.duration,
+          progress: p.remainingDuration / p.duration,
+        };
+      },
+      generateRandomPowerup: () => ({
+        success: true,
+        powerupType: 'health',
+        config: { name: 'health', stat: 'health' },
+      }),
+      reset: () => {
+        activePowerups.length = 0;
+        powerupIdCounter = 0;
+        return { success: true };
+      },
     };
 
     const combatStatsModule = {
       getStats: () => ({ success: true, stats: { ...combatStats } }),
       onKill: (enemyType: string, isBoss: boolean, isElite: boolean) => {
-        combatStats.kills++; combatStats.comboCurrent++; combatStats.comboTotal++;
-        if (combatStats.comboCurrent > combatStats.comboMax) combatStats.comboMax = combatStats.comboCurrent;
-        if (isBoss) combatStats.bossesKilled++; else if (isElite) combatStats.elitesKilled++;
+        combatStats.kills++;
+        combatStats.comboCurrent++;
+        combatStats.comboTotal++;
+        if (combatStats.comboCurrent > combatStats.comboMax)
+          combatStats.comboMax = combatStats.comboCurrent;
+        if (isBoss) combatStats.bossesKilled++;
+        else if (isElite) combatStats.elitesKilled++;
         combatStats.enemiesDefeated[enemyType] = (combatStats.enemiesDefeated[enemyType] || 0) + 1;
-        return { success: true, kills: combatStats.kills, comboCurrent: combatStats.comboCurrent, comboMax: combatStats.comboMax };
+        return {
+          success: true,
+          kills: combatStats.kills,
+          comboCurrent: combatStats.comboCurrent,
+          comboMax: combatStats.comboMax,
+        };
       },
-      onDeath: () => { combatStats.deaths++; combatStats.comboCurrent = 0; return { success: true, deaths: combatStats.deaths }; },
-      addDamageDealt: (damage: number) => { combatStats.damageDealt += damage; return { success: true, damageDealt: combatStats.damageDealt }; },
-      addDamageTaken: (damage: number) => { combatStats.damageTaken += damage; return { success: true, damageTaken: combatStats.damageTaken }; },
-      addDamageHealed: (healAmount: number) => { combatStats.damageHealed += healAmount; return { success: true, damageHealed: combatStats.damageHealed }; },
-      onSkillUse: (skillId: string, hit: boolean) => {
-        combatStats.skillsUsed++; if (hit) combatStats.skillsHit++;
+      onDeath: () => {
+        combatStats.deaths++;
+        combatStats.comboCurrent = 0;
+        return { success: true, deaths: combatStats.deaths };
+      },
+      addDamageDealt: (damage: number) => {
+        combatStats.damageDealt += damage;
+        return { success: true, damageDealt: combatStats.damageDealt };
+      },
+      addDamageTaken: (damage: number) => {
+        combatStats.damageTaken += damage;
+        return { success: true, damageTaken: combatStats.damageTaken };
+      },
+      addDamageHealed: (healAmount: number) => {
+        combatStats.damageHealed += healAmount;
+        return { success: true, damageHealed: combatStats.damageHealed };
+      },
+      onSkillUse: (_skillId: string, hit: boolean) => {
+        combatStats.skillsUsed++;
+        if (hit) combatStats.skillsHit++;
         const total = combatStats.projectilesFired + combatStats.skillsUsed;
-        combatStats.accuracy = total > 0 ? Math.floor((combatStats.projectilesHit + combatStats.skillsHit) / total * 100) : 0;
-        return { success: true, skillsUsed: combatStats.skillsUsed, skillsHit: combatStats.skillsHit, accuracy: combatStats.accuracy };
+        combatStats.accuracy =
+          total > 0
+            ? Math.floor(((combatStats.projectilesHit + combatStats.skillsHit) / total) * 100)
+            : 0;
+        return {
+          success: true,
+          skillsUsed: combatStats.skillsUsed,
+          skillsHit: combatStats.skillsHit,
+          accuracy: combatStats.accuracy,
+        };
       },
-      onPowerupCollected: (powerupType: string) => { combatStats.powerupsCollected++; return { success: true, powerupsCollected: combatStats.powerupsCollected }; },
-      onProjectileFired: () => { combatStats.projectilesFired++; return { success: true, projectilesFired: combatStats.projectilesFired }; },
-      onProjectileHit: () => { combatStats.projectilesHit++; return { success: true, projectilesHit: combatStats.projectilesHit }; },
-      updateCombo: (deltaTime: number) => { if (combatStats.comboCurrent > 0 && deltaTime > 2) combatStats.comboCurrent = 0; return { success: true, comboCurrent: combatStats.comboCurrent, comboTimer: deltaTime > 2 ? 0 : Math.max(0, 2 - deltaTime), comboTimeout: 2.0 }; },
-      addScore: (points: number) => { combatStats.score += points; combatStats.rank = calculateRank(combatStats.score); return { success: true, score: combatStats.score, rank: combatStats.rank }; },
-      updatePlayTime: (deltaTime: number) => { combatStats.playTime += deltaTime; return { success: true, playTime: combatStats.playTime }; },
-      onWaveCompleted: (waveNumber: number) => { combatStats.wavesCompleted++; return { success: true, wavesCompleted: combatStats.wavesCompleted }; },
-      getComboMultiplier: () => { if (combatStats.comboCurrent <= 1) return { success: true, multiplier: 1.0 }; if (combatStats.comboCurrent <= 5) return { success: true, multiplier: 1.5 }; if (combatStats.comboCurrent <= 10) return { success: true, multiplier: 2.0 }; if (combatStats.comboCurrent <= 20) return { success: true, multiplier: 3.0 }; return { success: true, multiplier: 5.0 }; },
-      getEfficiency: () => ({ success: true, efficiency: combatStats.playTime > 0 ? Math.floor(combatStats.damageDealt / combatStats.playTime) : 0 }),
-      getSurvivalRate: () => { if (combatStats.kills + combatStats.deaths === 0) return { success: true, rate: 0 }; return { success: true, rate: Math.floor((combatStats.kills / (combatStats.kills + combatStats.deaths)) * 100) }; },
+      onPowerupCollected: (_powerupType: string) => {
+        combatStats.powerupsCollected++;
+        return { success: true, powerupsCollected: combatStats.powerupsCollected };
+      },
+      onProjectileFired: () => {
+        combatStats.projectilesFired++;
+        return { success: true, projectilesFired: combatStats.projectilesFired };
+      },
+      onProjectileHit: () => {
+        combatStats.projectilesHit++;
+        return { success: true, projectilesHit: combatStats.projectilesHit };
+      },
+      updateCombo: (deltaTime: number) => {
+        if (combatStats.comboCurrent > 0 && deltaTime > 2) combatStats.comboCurrent = 0;
+        return {
+          success: true,
+          comboCurrent: combatStats.comboCurrent,
+          comboTimer: deltaTime > 2 ? 0 : Math.max(0, 2 - deltaTime),
+          comboTimeout: 2.0,
+        };
+      },
+      addScore: (points: number) => {
+        combatStats.score += points;
+        combatStats.rank = calculateRank(combatStats.score);
+        return { success: true, score: combatStats.score, rank: combatStats.rank };
+      },
+      updatePlayTime: (deltaTime: number) => {
+        combatStats.playTime += deltaTime;
+        return { success: true, playTime: combatStats.playTime };
+      },
+      onWaveCompleted: (_waveNumber: number) => {
+        combatStats.wavesCompleted++;
+        return { success: true, wavesCompleted: combatStats.wavesCompleted };
+      },
+      getComboMultiplier: () => {
+        if (combatStats.comboCurrent <= 1) return { success: true, multiplier: 1.0 };
+        if (combatStats.comboCurrent <= 5) return { success: true, multiplier: 1.5 };
+        if (combatStats.comboCurrent <= 10) return { success: true, multiplier: 2.0 };
+        if (combatStats.comboCurrent <= 20) return { success: true, multiplier: 3.0 };
+        return { success: true, multiplier: 5.0 };
+      },
+      getEfficiency: () => ({
+        success: true,
+        efficiency:
+          combatStats.playTime > 0 ? Math.floor(combatStats.damageDealt / combatStats.playTime) : 0,
+      }),
+      getSurvivalRate: () => {
+        if (combatStats.kills + combatStats.deaths === 0) return { success: true, rate: 0 };
+        return {
+          success: true,
+          rate: Math.floor((combatStats.kills / (combatStats.kills + combatStats.deaths)) * 100),
+        };
+      },
       calculateFinalScore: () => {
         const efficiencyResult = combatStatsModule.getEfficiency();
         const efficiencyBonus = efficiencyResult.success ? efficiencyResult.efficiency * 2 : 0;
         const survivalResult = combatStatsModule.getSurvivalRate();
         const survivalBonus = survivalResult.success ? survivalResult.rate * 10 : 0;
-        return { success: true, finalScore: combatStats.score + efficiencyBonus + survivalBonus, breakdown: { baseScore: combatStats.score, comboBonus: combatStats.comboMax * 50, accuracyBonus: combatStats.accuracy * 10, efficiencyBonus, survivalBonus } };
+        return {
+          success: true,
+          finalScore: combatStats.score + efficiencyBonus + survivalBonus,
+          breakdown: {
+            baseScore: combatStats.score,
+            comboBonus: combatStats.comboMax * 50,
+            accuracyBonus: combatStats.accuracy * 10,
+            efficiencyBonus,
+            survivalBonus,
+          },
+        };
       },
-      reset: () => { combatStats.kills = 0; combatStats.deaths = 0; combatStats.damageDealt = 0; combatStats.damageTaken = 0; combatStats.damageHealed = 0; combatStats.skillsUsed = 0; combatStats.skillsHit = 0; combatStats.powerupsCollected = 0; combatStats.projectilesFired = 0; combatStats.projectilesHit = 0; combatStats.comboMax = 0; combatStats.comboCurrent = 0; combatStats.comboTotal = 0; combatStats.accuracy = 0; combatStats.playTime = 0; combatStats.wavesCompleted = 0; combatStats.bossesKilled = 0; combatStats.elitesKilled = 0; combatStats.score = 0; combatStats.rank = 'D'; combatStats.enemiesDefeated = {}; combatStats.skillsUsedBreakdown = {}; return { success: true }; },
-      getRankThresholds: () => ({ success: true, thresholds: { S: 10000, A: 5000, B: 2500, C: 1000, D: 0 } }),
+      reset: () => {
+        combatStats.kills = 0;
+        combatStats.deaths = 0;
+        combatStats.damageDealt = 0;
+        combatStats.damageTaken = 0;
+        combatStats.damageHealed = 0;
+        combatStats.skillsUsed = 0;
+        combatStats.skillsHit = 0;
+        combatStats.powerupsCollected = 0;
+        combatStats.projectilesFired = 0;
+        combatStats.projectilesHit = 0;
+        combatStats.comboMax = 0;
+        combatStats.comboCurrent = 0;
+        combatStats.comboTotal = 0;
+        combatStats.accuracy = 0;
+        combatStats.playTime = 0;
+        combatStats.wavesCompleted = 0;
+        combatStats.bossesKilled = 0;
+        combatStats.elitesKilled = 0;
+        combatStats.score = 0;
+        combatStats.rank = 'D';
+        combatStats.enemiesDefeated = {};
+        combatStats.skillsUsedBreakdown = {};
+        return { success: true };
+      },
+      getRankThresholds: () => ({
+        success: true,
+        thresholds: { S: 10000, A: 5000, B: 2500, C: 1000, D: 0 },
+      }),
     };
 
     moduleCache['wave_manager_module'] = waveManagerModule;
@@ -283,7 +566,7 @@ export class LuaEngine {
     const skillCooldowns: Record<string, number> = {};
 
     const skillSystemModule = {
-      learnSkill: (skillId: string, playerLevel: number, learnedSkillIds: string[]): boolean => {
+      learnSkill: (skillId: string, playerLevel: number, _learnedSkillIds: string[]): boolean => {
         if (!skillId || playerLevel < 1) return false;
         learnedSkills[skillId] = 1;
         return true;
@@ -293,16 +576,39 @@ export class LuaEngine {
         learnedSkills[skillId]++;
         return [true, learnedSkills[skillId]];
       },
-      canCast: (skillId: string, resources: Record<string, number>): { canCast: boolean; reason: string } => {
+      canCast: (
+        skillId: string,
+        _resources: Record<string, number>,
+      ): { canCast: boolean; reason: string } => {
         if (!learnedSkills[skillId]) return { canCast: false, reason: 'not_learned' };
-        if (skillCooldowns[skillId] && skillCooldowns[skillId] > 0) return { canCast: false, reason: 'on_cooldown' };
+        if (skillCooldowns[skillId] && skillCooldowns[skillId] > 0)
+          return { canCast: false, reason: 'on_cooldown' };
         return { canCast: true, reason: '' };
       },
-      castSkill: (skillId: string, target: unknown, resources: Record<string, number>): { success: boolean; skillId?: string; skillName?: string; effects?: unknown[]; remainingCooldown?: number; costPaid?: number } => {
+      castSkill: (
+        skillId: string,
+        _target: unknown,
+        _resources: Record<string, number>,
+      ): {
+        success: boolean;
+        skillId?: string;
+        skillName?: string;
+        effects?: unknown[];
+        remainingCooldown?: number;
+        costPaid?: number;
+      } => {
         if (!learnedSkills[skillId]) return { success: false };
-        if (skillCooldowns[skillId] && skillCooldowns[skillId] > 0) return { success: false, remainingCooldown: skillCooldowns[skillId] };
+        if (skillCooldowns[skillId] && skillCooldowns[skillId] > 0)
+          return { success: false, remainingCooldown: skillCooldowns[skillId] };
         skillCooldowns[skillId] = 0.5;
-        return { success: true, skillId, skillName: skillId, effects: [], remainingCooldown: 0.5, costPaid: 10 };
+        return {
+          success: true,
+          skillId,
+          skillName: skillId,
+          effects: [],
+          remainingCooldown: 0.5,
+          costPaid: 10,
+        };
       },
       updateCooldowns: (deltaTime: number): void => {
         for (const skillId of Object.keys(skillCooldowns)) {
@@ -344,10 +650,10 @@ export class LuaEngine {
       getSkillLevel: (skillId: string): number => {
         return learnedSkills[skillId] || 0;
       },
-      startCombo: (comboName: string): boolean => {
+      startCombo: (_comboName: string): boolean => {
         return true;
       },
-      addToCombo: (skillId: string): boolean => {
+      addToCombo: (_skillId: string): boolean => {
         return true;
       },
       checkComboReward: (): { success: boolean; comboName: string; reward?: unknown } => {
@@ -359,8 +665,8 @@ export class LuaEngine {
       reloadScript: (): void => {},
       initialize: (): void => {},
       destroy: (): void => {
-        Object.keys(learnedSkills).forEach(key => delete learnedSkills[key]);
-        Object.keys(skillCooldowns).forEach(key => delete skillCooldowns[key]);
+        Object.keys(learnedSkills).forEach((key) => delete learnedSkills[key]);
+        Object.keys(skillCooldowns).forEach((key) => delete skillCooldowns[key]);
       },
     };
 
@@ -373,10 +679,25 @@ export class LuaEngine {
       upgradeSkill: (skillId: string): [boolean, number] => {
         return skillSystemModule.upgradeSkill(skillId);
       },
-      canCast: (skillId: string, resources: Record<string, number>): { canCast: boolean; reason: string } => {
+      canCast: (
+        skillId: string,
+        resources: Record<string, number>,
+      ): { canCast: boolean; reason: string } => {
         return skillSystemModule.canCast(skillId, resources);
       },
-      castSkill: (skillId: string, caster: unknown, target: unknown, resources: Record<string, number>): { success: boolean; skillId?: string; skillName?: string; effects?: unknown[]; remainingCooldown?: number; costPaid?: number } => {
+      castSkill: (
+        skillId: string,
+        _caster: unknown,
+        target: unknown,
+        resources: Record<string, number>,
+      ): {
+        success: boolean;
+        skillId?: string;
+        skillName?: string;
+        effects?: unknown[];
+        remainingCooldown?: number;
+        costPaid?: number;
+      } => {
         return skillSystemModule.castSkill(skillId, target, resources);
       },
       updateCooldowns: (deltaTime: number): string[] => {
@@ -396,9 +717,10 @@ export class LuaEngine {
       getSkillStatus: (skillId: string): unknown | null => {
         return skillSystemModule.getSkillStatus(skillId);
       },
-      canCastSkill: (skillId: string, resources: Record<string, number>): [boolean, string] => {
+      canCastSkill: (skillId: string, _resources: Record<string, number>): [boolean, string] => {
         if (!learnedSkills[skillId]) return [false, 'skill_not_learned'];
-        if (skillCooldowns[skillId] && skillCooldowns[skillId] > 0) return [false, 'skill_not_ready'];
+        if (skillCooldowns[skillId] && skillCooldowns[skillId] > 0)
+          return [false, 'skill_not_ready'];
         return [true, 'ready'];
       },
       resetCooldown: (skillId: string): boolean => {
@@ -490,7 +812,13 @@ export class LuaEngine {
     };
     globalVars['updateWave'] = (deltaTime: number) => {
       const result = waveManagerModule.update(deltaTime);
-      return result.success ? { elapsedTime: result.elapsedTime, state: result.state, enemiesRemaining: result.enemiesRemaining } : { elapsedTime: 0, state: 'waiting', enemiesRemaining: 0 };
+      return result.success
+        ? {
+            elapsedTime: result.elapsedTime,
+            state: result.state,
+            enemiesRemaining: result.enemiesRemaining,
+          }
+        : { elapsedTime: 0, state: 'waiting', enemiesRemaining: 0 };
     };
     globalVars['resetWaveManager'] = () => {
       return waveManagerModule.reset().success;
@@ -515,13 +843,15 @@ export class LuaEngine {
     globalVars['applyPowerup'] = (powerupType: string) => {
       return powerupSystemModule.applyPowerup(powerupType, {});
     };
-       globalVars['getActivePowerups'] = () => {
+    globalVars['getActivePowerups'] = () => {
       const result = powerupSystemModule.getActivePowerups();
       return result.success ? result.powerups : [];
     };
     globalVars['updatePowerups'] = (deltaTime: number) => {
       const result = powerupSystemModule.update(deltaTime);
-      return result.success ? { expired: result.expired, activeCount: result.activeCount } : { expired: [], activeCount: 0 };
+      return result.success
+        ? { expired: result.expired, activeCount: result.activeCount }
+        : { expired: [], activeCount: 0 };
     };
     globalVars['removePowerup'] = (powerupId: number) => {
       return powerupSystemModule.removePowerup(powerupId).success;
@@ -535,15 +865,25 @@ export class LuaEngine {
     };
     globalVars['getPowerupMultiplier'] = (powerupType: string) => {
       const result = powerupSystemModule.getPowerupMultiplier(powerupType);
-      return result.success ? { multiplier: result.multiplier, stacks: result.stacks } : { multiplier: 1.0, stacks: 0 };
+      return result.success
+        ? { multiplier: result.multiplier, stacks: result.stacks }
+        : { multiplier: 1.0, stacks: 0 };
     };
     globalVars['getPowerupRemainingDuration'] = (powerupType: string) => {
       const result = powerupSystemModule.getPowerupRemainingDuration(powerupType);
-      return result.success ? { remainingDuration: result.remainingDuration, totalDuration: result.totalDuration, progress: result.progress } : { remainingDuration: 0, totalDuration: 0, progress: 0 };
+      return result.success
+        ? {
+            remainingDuration: result.remainingDuration,
+            totalDuration: result.totalDuration,
+            progress: result.progress,
+          }
+        : { remainingDuration: 0, totalDuration: 0, progress: 0 };
     };
     globalVars['generateRandomPowerup'] = () => {
       const result = powerupSystemModule.generateRandomPowerup();
-      return result.success ? { powerupType: result.powerupType, config: result.config } : { powerupType: 'health', config: null };
+      return result.success
+        ? { powerupType: result.powerupType, config: result.config }
+        : { powerupType: 'health', config: null };
     };
     globalVars['resetPowerupSystem'] = () => {
       return powerupSystemModule.reset().success;
@@ -625,7 +965,7 @@ export class LuaEngine {
           if (name === 'package') return { preload: {} } as T;
           if (name === 'math') return Math as unknown as T;
           if (globalVars[name]) return globalVars[name] as T;
-          
+
           if (name.includes('.')) {
             const parts = name.split('.');
             let result: unknown = globalVars;
@@ -639,10 +979,12 @@ export class LuaEngine {
             }
             return result as T;
           }
-          
+
           return {} as T;
         },
-        set: (name: string, value: unknown) => { globalVars[name] = value; },
+        set: (name: string, value: unknown) => {
+          globalVars[name] = value;
+        },
       },
       close: () => {},
       getStubModule: (moduleName: string) => {
@@ -669,8 +1011,8 @@ export class LuaEngine {
     }
 
     try {
-      this.lua.doString(module.code);
-      this.registeredModules.set(module.name, module.path);
+      this.lua.doString(module.code ?? module.script);
+      this.registeredModules.set(module.name, module.path ?? '');
       console.log(`[LuaEngine] Loaded script: ${module.name}`);
     } catch (error) {
       console.error(`[LuaEngine] Failed to load script ${module.name}:`, error);
@@ -759,10 +1101,6 @@ export class LuaEngine {
     return new Map(this.registeredModules);
   }
 
-  getStubModule(moduleName: string): unknown {
-    return (this.lua as any)?.getStubModule?.(moduleName);
-  }
-
   registerModule(module: LuaScriptModule): void {
     if (!this.lua) {
       console.error('[LuaEngine] Not initialized');
@@ -771,6 +1109,25 @@ export class LuaEngine {
     this.registeredModules.set(module.name, module.script || '');
     this.lua.doString(module.script || '');
     console.log(`[LuaEngine] Registered module: ${module.name}`);
+  }
+
+  doString(script: string): void {
+    if (!this.lua) {
+      console.error('[LuaEngine] Not initialized');
+      return;
+    }
+    this.lua.doString(script);
+  }
+
+  reloadAllModules(): void {
+    if (!this.lua) {
+      console.error('[LuaEngine] Not initialized');
+      return;
+    }
+    for (const [name, script] of this.registeredModules) {
+      this.lua.doString(script);
+      console.log(`[LuaEngine] Reloaded module: ${name}`);
+    }
   }
 }
 

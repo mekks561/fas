@@ -44,7 +44,9 @@ export class EnemySystem {
       // 基础生成间隔随波次递减；难度倍率越高，生成越快（除以倍率），但不低于 350ms
       const baseInterval = r.isBossWave ? 2500 : Math.max(500, 1500 - waveNumber * 80);
       this.spawnInterval = Math.max(350, Math.round(baseInterval / this.difficultyMultiplier));
-      console.log(`[EnemySystem] Wave ${waveNumber} started: ${r.enemyCount} enemies (difficulty x${this.difficultyMultiplier.toFixed(2)})`);
+      console.log(
+        `[EnemySystem] Wave ${waveNumber} started: ${r.enemyCount} enemies (difficulty x${this.difficultyMultiplier.toFixed(2)})`,
+      );
     }
   }
 
@@ -53,8 +55,10 @@ export class EnemySystem {
 
     if (this.waveActive && this.waveManager) {
       const now = Date.now();
+
       if (now - this.lastSpawnTime >= this.spawnInterval) {
         const spawnResult = this.waveManager.spawnNextEnemy();
+
         if (spawnResult.success) {
           const r = spawnResult as { enemy: WaveEnemyConfig };
           this.spawnEnemy(r.enemy);
@@ -69,8 +73,12 @@ export class EnemySystem {
 
     if (this.waveActive && this.waveManager) {
       const state = this.waveManager.getWaveState();
-      if (state.currentState === 'completed' || (state.enemiesRemaining === 0 && this.enemies.length === 0)) {
+      if (
+        state.currentState === 'completed' ||
+        (state.enemiesRemaining === 0 && this.enemies.length === 0)
+      ) {
         this.waveActive = false;
+        console.log(`[EnemySystem] Wave completed`);
       }
     }
   }
@@ -97,15 +105,20 @@ export class EnemySystem {
   private spawnEnemy(waveConfig: WaveEnemyConfig): void {
     const type = this.enemyTypeFromString(waveConfig.type);
 
+    // 3D 球面均匀分布：使用 theta + phi 球坐标，让敌人在 Y 轴也随机分布
     const spawnRadius = 20 + Math.random() * 10;
-    const angle = Math.random() * Math.PI * 2;
-    const x = Math.cos(angle) * spawnRadius;
-    const z = Math.sin(angle) * spawnRadius;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1); // 球面均匀分布
+    const x = Math.cos(theta) * Math.sin(phi) * spawnRadius;
+    // Y 范围稍小（×0.6），避免极端垂直位置，并限制在玩家可达范围
+    const y = Math.sin(theta) * Math.sin(phi) * spawnRadius * 0.6;
+    const z = Math.cos(phi) * spawnRadius;
+    const clampedY = Math.max(-10, Math.min(10, y));
 
     const enemy = new Enemy({
       engine: this.engine,
       type,
-      position: new pc.Vec3(x, 0, z),
+      position: new pc.Vec3(x, clampedY, z),
       player: this.player,
       difficultyMultiplier: this.difficultyMultiplier,
     });

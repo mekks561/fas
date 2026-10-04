@@ -55,9 +55,11 @@ export class CameraSystem {
     maxHeight: 10,
     followSpeed: 0.1,
   };
-  private thirdPersonOffset: pc.Vec3 = new pc.Vec3(0, 5, -10);
+  private thirdPersonOffset: pc.Vec3 = new pc.Vec3(0, 8, 15);
   private firstPersonOffset: pc.Vec3 = new pc.Vec3(0, 1, 2);
   private isEnabled: boolean = true;
+  // 地平线稳定模式：true 时摄像机仅跟随目标 yaw/pitch，忽略 roll（保持地平线水平）
+  private rollStabilized: boolean = true;
 
   constructor(camera?: pc.Entity) {
     this.camera = camera || null;
@@ -167,6 +169,28 @@ export class CameraSystem {
     return this.thirdPersonOffset.clone();
   }
 
+  /**
+   * 启用/禁用地平线稳定模式。
+   * true：摄像机仅跟随目标 yaw/pitch，忽略 roll（保持地平线水平，适合战机游戏第三人称）
+   * false：摄像机完全跟随目标旋转（含 roll，适合座舱视角）
+   */
+  public setRollStabilized(enabled: boolean): void {
+    this.rollStabilized = enabled;
+  }
+
+  /**
+   * 动态调整第三人称偏移：boost 时拉远距离增强速度感
+   * @param speedRatio 当前速度与最大速度的比值 (0-1)
+   * @param boostActive 是否处于 boost 状态
+   */
+  public setDynamicOffset(speedRatio: number, boostActive: boolean): void {
+    const baseZ = 15;
+    // 速度越快摄像机稍微拉远，boost 时额外拉远，增强速度感
+    const targetZ = baseZ + speedRatio * 2 + (boostActive ? 1 : 0);
+    // 平滑过渡，避免突变
+    this.thirdPersonOffset.z += (targetZ - this.thirdPersonOffset.z) * 0.1;
+  }
+
   public enable(): void {
     this.isEnabled = true;
   }
@@ -255,11 +279,21 @@ export class CameraSystem {
           Math.min(this.constraints.maxHeight || 10, offset.y),
         );
 
+        // 提取目标 forward 向量（包含 pitch 和 yaw 分量）
         const forward = new pc.Vec3(0, 0, -1);
         this.target.getRotation().transformVector(forward);
 
-        const right = new pc.Vec3(1, 0, 0);
-        this.target.getRotation().transformVector(right);
+        let right: pc.Vec3;
+        if (this.rollStabilized) {
+          // 地平线稳定模式：用世界 up 与 forward 叉乘得出水平 right 向量
+          // 这样 right 始终在水平面内，摄像机不跟随目标的 roll（保持地平线水平）
+          const worldUp = new pc.Vec3(0, 1, 0);
+          right = new pc.Vec3().cross(forward, worldUp).normalize();
+        } else {
+          // 完全跟随模式：使用目标完整旋转（含 roll，适合座舱视角）
+          right = new pc.Vec3(1, 0, 0);
+          this.target.getRotation().transformVector(right);
+        }
 
         desiredPos.copy(targetPos);
         desiredPos.add(forward.mulScalar(-offset.z));
@@ -299,7 +333,9 @@ export class CameraSystem {
     const smoothPos = new pc.Vec3();
     const followSpeed = this.constraints.followSpeed || 0.1;
 
-    smoothPos.lerp(currentPos, desiredPos, dt * 60 * followSpeed);
+    // clamp lerp factor to [0, 1] 防止帧率波动时摄像机过冲
+    const lerpFactor = Math.min(1, dt * 60 * followSpeed);
+    smoothPos.lerp(currentPos, desiredPos, lerpFactor);
     smoothPos.add(this.shakeOffset);
 
     this.camera.setPosition(smoothPos);

@@ -204,15 +204,14 @@ export class Powerup {
     effect.addComponent('particlesystem', {
       lifetime: 0.5,
       rate: 0,
-      burst: 30,
-      speed: 5,
-      spread: 360,
-      colorGraph: {
-        graph: this.getColorCurve(),
-      },
-      sizeGraph: {
-        graph: new pc.Curve([0.3, 0.8, 1]),
-      },
+      // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
+      loop: false,
+      numParticles: 30,
+      // Engine 2：speed 改名为 initialVelocity；spread 已移除（方向改由 emitterShape 决定）
+      initialVelocity: 5,
+      // Engine 2：colorGraph / scaleGraph 直接接受曲线本体，已无 { graph } 包装层
+      colorGraph: this.getColorCurve(),
+      scaleGraph: new pc.Curve([0.3, 0.8, 1]),
     });
 
     this.engine.addToScene(effect);
@@ -221,116 +220,74 @@ export class Powerup {
     setTimeout(() => effect.destroy(), 500);
   }
 
-  private getColorCurve(): { graph: pc.CurveSet } {
+  // Engine 2：colorGraph 直接接受 CurveSet 本体，不再有 { graph } 包装层。
+  // 同时必须去掉 Engine 1 遗留的 'color' 第二参数 —— CurveSet 只要收到 2 个以上参数，
+  // 就会把每个参数各当成一条曲线，结果是曲线数错、取值时直接抛异常。
+  private getColorCurve(): pc.CurveSet {
     switch (this.type) {
       case PowerupType.HEALTH:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [1, 0.2, 0.2],
-              [1, 0.2, 0.2],
-              [1, 0.2, 0.2],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [1, 0.2, 0.2],
+          [1, 0.2, 0.2],
+          [1, 0.2, 0.2],
+          [0, 0, 0],
+        ]);
       case PowerupType.SHIELD:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [0.2, 0.5, 1],
-              [0.2, 0.5, 1],
-              [0.2, 0.5, 1],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [0.2, 0.5, 1],
+          [0.2, 0.5, 1],
+          [0.2, 0.5, 1],
+          [0, 0, 0],
+        ]);
       case PowerupType.WEAPON_UPGRADE:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [1, 0.8, 0.2],
-              [1, 0.8, 0.2],
-              [1, 0.8, 0.2],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [1, 0.8, 0.2],
+          [1, 0.8, 0.2],
+          [1, 0.8, 0.2],
+          [0, 0, 0],
+        ]);
       case PowerupType.SPEED_BOOST:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [0.2, 1, 0.2],
-              [0.2, 1, 0.2],
-              [0.2, 1, 0.2],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [0.2, 1, 0.2],
+          [0.2, 1, 0.2],
+          [0.2, 1, 0.2],
+          [0, 0, 0],
+        ]);
       case PowerupType.SCORE_BONUS:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [1, 1, 0.2],
-              [1, 1, 0.2],
-              [1, 1, 0.2],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [1, 1, 0.2],
+          [1, 1, 0.2],
+          [1, 1, 0.2],
+          [0, 0, 0],
+        ]);
       case PowerupType.INVINCIBILITY:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [1, 1, 1],
-              [1, 1, 1],
-              [1, 1, 1],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [1, 1, 1],
+          [1, 1, 1],
+          [1, 1, 1],
+          [0, 0, 0],
+        ]);
       case PowerupType.MISSILE:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [1, 0.3, 0.5],
-              [1, 0.3, 0.5],
-              [1, 0.3, 0.5],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [1, 0.3, 0.5],
+          [1, 0.3, 0.5],
+          [1, 0.3, 0.5],
+          [0, 0, 0],
+        ]);
       case PowerupType.LASER:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [0.3, 0.5, 1],
-              [0.3, 0.5, 1],
-              [0.3, 0.5, 1],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [0.3, 0.5, 1],
+          [0.3, 0.5, 1],
+          [0.3, 0.5, 1],
+          [0, 0, 0],
+        ]);
       default:
-        return {
-          graph: new pc.CurveSet(
-            [
-              [1, 1, 1],
-              [1, 1, 1],
-              [1, 1, 1],
-              [0, 0, 0],
-            ],
-            'color',
-          ),
-        };
+        return new pc.CurveSet([
+          [1, 1, 1],
+          [1, 1, 1],
+          [1, 1, 1],
+          [0, 0, 0],
+        ]);
     }
   }
 

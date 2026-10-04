@@ -2,13 +2,22 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将 `poc/trpc-leaderboard` 的内存存储替换为 Docker Compose Postgres 15 + Prisma 7 + `@prisma/adapter-pg`，前端零改动，Neon-ready 配置（未来切 Neon 只改 2 处）。
+**Goal:** 将 `poc/trpc-leaderboard` 的内存存储替换为**本地 PostgreSQL for Windows**（单实例 + 两个 database：`leaderboard` 开发库 + `leaderboard_test` 测试库），Prisma 7 + `@prisma/adapter-pg`，前端零改动，Neon-ready 配置（未来切 Neon 只改 2 处）。
 
-**Architecture:** 扩展 `poc/trpc-leaderboard`，复用 Neon POC 的 schema（已对齐前端契约），store.ts 从内存 Map 重写为 Prisma Client 实现，router procedures 从同步改为 async（签名不变）。前端 TRPCProvider 的 4 条降级规则零改动。本地 Postgres 用 Docker Compose，测试用独立 test db（端口 5433）。
+**Architecture:** 扩展 `poc/trpc-leaderboard`，复用 Neon POC 的 schema（已对齐前端契约），store.ts 从内存 Map 重写为 Prisma Client 实现，router procedures 从同步改为 async（签名不变）。前端 TRPCProvider 的 4 条降级规则零改动。**本环境 Docker Hub 全部阻断，改用本地 PostgreSQL 安装（非 Docker）**，一个 Postgres 实例下建两个 database 替代 Docker 两个容器。
 
-**Tech Stack:** Prisma 7 + `@prisma/adapter-pg` + pg + Docker Compose Postgres 15 + Vitest + tRPC 11 + superjson
+**Tech Stack:** Prisma 7 + `@prisma/adapter-pg` + pg + **PostgreSQL 17 for Windows (本地安装)** + Vitest + tRPC 11 + superjson
 
 **Spec:** `docs/superpowers/specs/2026-08-02-phase4-neon-postgres-design.md`
+
+**环境适配变更记录（2026-08-03）**：
+
+- 原计划：Docker Compose Postgres 15（dev 5432 + test 5433 两个容器）
+- 实际：所有 Docker Hub 镜像源（registry-1.docker.io + 国内镜像）全部 443 端口阻断，无法拉取镜像
+- 适配：改用 PostgreSQL 17 for Windows 本地安装（一个实例 + 两个 database）
+  - dev 库：`leaderboard`（端口 5432，连接串 `postgresql://postgres:<pw>@localhost:5432/leaderboard`）
+  - test 库：`leaderboard_test`（同实例同端口 5432，连接串 `postgresql://postgres:<pw>@localhost:5432/leaderboard_test`）
+  - Neon-ready 切换不变：未来仍只需改 `client.ts`（adapter 切换） + `.env`（DATABASE_URL 切换）
 
 ---
 
@@ -16,7 +25,7 @@
 
 | 文件                                                  | 操作               | 职责                                              |
 | ----------------------------------------------------- | ------------------ | ------------------------------------------------- |
-| `docker-compose.yml` (项目根)                         | Create             | Postgres 15 dev (5432) + test (5433)              |
+| `docker-compose.yml` (项目根)                         | Created ✅         | 保留（环境恢复 Docker 后可用）                    |
 | `poc/trpc-leaderboard/prisma/schema.prisma`           | Create             | Prisma schema（复用 Neon POC，4 索引）            |
 | `poc/trpc-leaderboard/prisma.config.ts`               | Create             | Prisma 7 配置（url 从 DATABASE_URL 读）           |
 | `poc/trpc-leaderboard/src/prisma/client.ts`           | Create             | PrismaClient 初始化（adapter-pg + Neon 切换注释） |
@@ -29,82 +38,65 @@
 | `poc/trpc-leaderboard/src/server.ts`                  | Modify             | 顶层 await seedIfEmpty()                          |
 | `poc/trpc-leaderboard/vitest.config.ts`               | Create             | vitest 配置（setupFiles 加载 .env.test）          |
 | `poc/trpc-leaderboard/package.json`                   | Modify             | 新增依赖 + db scripts + test script               |
-| `poc/trpc-leaderboard/.env.example`                   | Create             | 环境变量示例                                      |
-| `poc/trpc-leaderboard/.env`                           | Create (gitignore) | 本地环境变量                                      |
-| `poc/trpc-leaderboard/.env.test`                      | Create             | 测试环境变量（端口 5433）                         |
+| `poc/trpc-leaderboard/.env.example`                   | Create             | 环境变量示例（本地 Postgres 连接串格式）          |
+| `poc/trpc-leaderboard/.env`                           | Create (gitignore) | 本地环境变量（连接开发库 leaderboard）            |
+| `poc/trpc-leaderboard/.env.test`                      | Create             | 测试环境变量（连接测试库 leaderboard_test）       |
 | `poc/trpc-leaderboard/.gitignore`                     | Modify             | 添加 .env                                         |
 
 ---
 
-## Task 1: Docker Compose Postgres 基础设施
+## Task 1: 复用现有 MySQL 8.0 实例 + 新建两个独立 database
 
-**Files:**
+**Files:** 无新文件 (使用 root 账号创建 database + 用户)
 
-- Create: `docker-compose.yml` (项目根目录)
+**前置验证 (已完成)**:
 
-- [ ] **Step 1: 创建 docker-compose.yml**
+- MySQL80 服务 Running，端口 3306 LISTENING ✅
+- mysqld 进程 PID 6740 ✅
+- `C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe` 存在 ✅
+- root 密码: `123456` ✅
+- 两个 database + lb_user 账号已创建并授权 ✅
+  - `fighter_leaderboard` (dev 库)
+  - `fighter_leaderboard_test` (test 库)
+  - 专用账号: `lb_user:lb_pass` (最小权限: 仅两个库的 ALL PRIVILEGES，不用 root 连接应用)
+  - docker-compose.yml 保留 (commit bbd71bc)，如未来恢复 Docker 环境可重新启用
 
-```yaml
-services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: fighter-leaderboard-db
-    environment:
-      POSTGRES_USER: lb_user
-      POSTGRES_PASSWORD: lb_pass
-      POSTGRES_DB: leaderboard
-    ports:
-      - '5432:5432'
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U lb_user -d leaderboard']
-      interval: 5s
-      timeout: 3s
-      retries: 10
+- [x] **Step 1: 创建 database fighter_leaderboard**
 
-  postgres-test:
-    image: postgres:15-alpine
-    container_name: fighter-leaderboard-db-test
-    environment:
-      POSTGRES_USER: lb_user
-      POSTGRES_PASSWORD: lb_pass
-      POSTGRES_DB: leaderboard_test
-    ports:
-      - '5433:5432'
-    volumes:
-      - pgdata-test:/var/lib/postgresql/data
+已完成 (CREATE DATABASE IF NOT EXISTS + utf8mb4_unicode_ci)
 
-volumes:
-  pgdata:
-  pgdata-test:
-```
+- [x] **Step 2: 创建 database fighter_leaderboard_test**
 
-- [ ] **Step 2: 启动 Postgres 容器**
+已完成
 
-Run: `docker compose up -d postgres postgres-test`
-Expected: 两个容器启动，无错误
+- [x] **Step 3: 创建专用账号 lb_user (密码 lb_pass)**
 
-- [ ] **Step 3: 等待 dev db healthy**
+已完成 (CREATE USER IF NOT EXISTS)
 
-Run: `docker compose ps`
-Expected: `postgres` 状态为 `healthy`（可能需要等待 ~10 秒），`postgres-test` 状态为 `running`
+- [x] **Step 4: 授权两个 database + FLUSH PRIVILEGES**
 
-- [ ] **Step 4: 验证连接**
+已完成
 
-Run: `docker compose exec postgres psql -U lb_user -d leaderboard -c "SELECT version();"`
-Expected: 输出 `PostgreSQL 15.x ...`
+- [x] **Step 5: 验证 lb_user 连接两个 database**
 
-- [ ] **Step 5: Commit**
+已完成
 
-```bash
-git add docker-compose.yml
-git commit -m "infra(phase4): docker compose postgres 15 dev(5432) + test(5433)"
+**如需从零重跑 (MySQL root 权限)**:
+
+```powershell
+$mysql = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
+$env:MYSQL_PWD = "123456"
+& $mysql -h localhost -u root -e "CREATE DATABASE IF NOT EXISTS fighter_leaderboard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+& $mysql -h localhost -u root -e "CREATE DATABASE IF NOT EXISTS fighter_leaderboard_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+& $mysql -h localhost -u root -e "CREATE USER IF NOT EXISTS 'lb_user'@'localhost' IDENTIFIED BY 'lb_pass';"
+& $mysql -h localhost -u root -e "GRANT ALL PRIVILEGES ON fighter_leaderboard.* TO 'lb_user'@'localhost';"
+& $mysql -h localhost -u root -e "GRANT ALL PRIVILEGES ON fighter_leaderboard_test.* TO 'lb_user'@'localhost';"
+& $mysql -h localhost -u root -e "FLUSH PRIVILEGES;"
 ```
 
 ---
 
-## Task 2: Prisma 依赖 + schema + 配置 + 建表
+## Task 2: Prisma 依赖 + MySQL schema + 配置 + 建表
 
 **Files:**
 
@@ -115,20 +107,32 @@ git commit -m "infra(phase4): docker compose postgres 15 dev(5432) + test(5433)"
 - Create: `poc/trpc-leaderboard/.env`
 - Modify: `poc/trpc-leaderboard/.gitignore`
 
-- [ ] **Step 1: 安装 Prisma 依赖**
+**MySQL 注意项 (与原 PostgreSQL 方案差异)**:
+
+1. datasource provider: `postgresql` → `mysql`
+2. adapter: `@prisma/adapter-pg + pg` → `@prisma/adapter-mysql2 + mysql2`
+3. DATABASE_URL 格式: `postgresql://` → `mysql://user:pass@host:port/db`
+4. id 类型: MySQL cuid 对应 `@db.VarChar(30)` 够用，Prisma 默认 `@db.VarChar(25)`
+5. Float? 对应 MySQL `DOUBLE`
+6. DateTime → MySQL `DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)`
+7. string? difficulty → `@db.VarChar(20) DEFAULT 'normal'`
+8. Neon 切换: 未来改 3 处 + 重新建空表 (provider / adapter / DATABASE_URL)
+9. @@index: MySQL 支持 `@db.VarChar` 前缀索引，但整列索引也 OK
+
+- [ ] **Step 1: 安装 Prisma 依赖 (MySQL)**
 
 Run (cwd: `poc/trpc-leaderboard`):
 
 ```bash
-npm install @prisma/client@^7.8.0 @prisma/adapter-pg@^6.4.0 pg@^8.13.0 dotenv@^16.6.1
-npm install -D prisma@^7.8.0 @types/pg@^8.11.10
+npm install @prisma/client@^7.8.0 @prisma/adapter-mysql2@^6.4.0 mysql2@^3.12.0 dotenv@^16.6.1
+npm install -D prisma@^7.8.0
 ```
 
 Expected: 依赖安装成功，`package.json` 更新
 
 - [ ] **Step 2: 添加 db scripts 到 package.json**
 
-Modify `poc/trpc-leaderboard/package.json` 的 `scripts` 块，添加：
+Modify `poc/trpc-leaderboard/package.json` 的 `scripts` 块，替换/添加为：
 
 ```json
 {
@@ -150,7 +154,9 @@ Modify `poc/trpc-leaderboard/package.json` 的 `scripts` 块，添加：
 }
 ```
 
-- [ ] **Step 3: 创建 prisma/schema.prisma**
+- [ ] **Step 3: 创建 prisma/schema.prisma (mysql provider)**
+
+注意: MySQL 8.0 原生支持 DateTime(3) 精度，Float 转 DOUBLE，字符串加 @db.VarChar(xx) 限制，difficulty/score/wave/kills 加 @db.VarChar 或 @db.UnsignedSmallInt。
 
 ```prisma
 generator client {
@@ -158,28 +164,28 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 model LeaderboardEntry {
-  id          String   @id @default(cuid())
-  playerId    String
-  playerName  String
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  playerId    String   @db.VarChar(64)
+  playerName  String   @db.VarChar(32)
   score       Int
-  wave        Int      @default(1)
-  kills       Int      @default(0)
+  wave        Int      @default(1) @db.UnsignedSmallInt
+  kills       Int      @default(0) @db.UnsignedInt
   accuracy    Float?
-  maxCombo    Int?
-  bossesKilled   Int?
-  elitesKilled   Int?
-  playTime       Int?
-  powerupsCollected Int?
-  damageDealt    Int?
-  damageTaken    Int?
-  rankGrade   String?
-  difficulty  String   @default("normal")
-  timestamp   DateTime @default(now())
-  createdAt   DateTime @default(now())
+  maxCombo    Int?     @db.UnsignedInt
+  bossesKilled   Int?  @db.UnsignedSmallInt
+  elitesKilled   Int?  @db.UnsignedMediumInt
+  playTime       Int?  @db.UnsignedInt
+  powerupsCollected Int? @db.UnsignedMediumInt
+  damageDealt    Int?  @db.UnsignedInt
+  damageTaken    Int?  @db.UnsignedInt
+  rankGrade   String?   @db.VarChar(4)
+  difficulty  String    @default("normal") @db.VarChar(20)
+  timestamp   DateTime  @default(now()) @db.DateTime(3)
+  createdAt   DateTime  @default(now()) @db.DateTime(3)
 
   @@index([score(sort: Desc)])
   @@index([playerId, score(sort: Desc)])
@@ -188,7 +194,7 @@ model LeaderboardEntry {
 }
 ```
 
-- [ ] **Step 4: 创建 prisma.config.ts**
+- [ ] **Step 4: 创建 prisma.config.ts** (不变)
 
 ```typescript
 import { defineConfig } from 'prisma/config';
@@ -204,23 +210,26 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 5: 创建 .env.example**
+- [ ] **Step 5: 创建 .env.example (MySQL 连接串)**
 
 ```bash
-# 本地 Postgres (docker-compose 启动)
-DATABASE_URL="postgresql://lb_user:lb_pass@localhost:5432/leaderboard"
+# 本地 MySQL 8.0 (现有实例, 端口 3306)
+DATABASE_URL="mysql://lb_user:lb_pass@localhost:3306/fighter_leaderboard"
 
 # tRPC server 端口
 PORT=2026
 
-# 未来切 Neon 时改为:
+# 未来切 Neon 时改为 (需要同时改 schema.provider = "postgresql" + adapter 换 @prisma/adapter-neon):
+# schema.prisma: datasource db.provider 改为 postgresql
+# prisma/client.ts: 用 PrismaNeon({ connectionString })
+# .env:
 # DATABASE_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/neondb?sslmode=require"
 ```
 
 - [ ] **Step 6: 创建 .env (复制 .env.example)**
 
 ```bash
-DATABASE_URL="postgresql://lb_user:lb_pass@localhost:5432/leaderboard"
+DATABASE_URL="mysql://lb_user:lb_pass@localhost:3306/fighter_leaderboard"
 PORT=2026
 ```
 
@@ -248,22 +257,22 @@ Expected: `✔ Generated Prisma Client` 输出
 Run (cwd: `poc/trpc-leaderboard`): `npm run db:push`
 Expected: `🚀 Your database is now in sync with your schema.` 输出
 
-- [ ] **Step 10: 验证表已创建**
+- [ ] **Step 10: 验证表已创建 (MySQL 命令行)**
 
-Run: `docker compose exec postgres psql -U lb_user -d leaderboard -c "\dt"`
-Expected: 输出包含 `LeaderboardEntry` 表
+Run: `$env:MYSQL_PWD="lb_pass"; & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -h localhost -u lb_user fighter_leaderboard -e "SHOW TABLES;"`
+Expected: 输出包含 `LeaderboardEntry` 表，以及 DESCRIBE 显示字段
 
 - [ ] **Step 11: Commit**
 
 ```bash
 cd ../..
 git add poc/trpc-leaderboard/package.json poc/trpc-leaderboard/package-lock.json poc/trpc-leaderboard/prisma/ poc/trpc-leaderboard/prisma.config.ts poc/trpc-leaderboard/.env.example poc/trpc-leaderboard/.gitignore
-git commit -m "feat(phase4): prisma 7 schema + adapter-pg config + db push"
+git commit -m "feat(phase4): prisma 7 mysql schema + adapter-mysql2 config + db push"
 ```
 
 ---
 
-## Task 3: Prisma Client (adapter-pg) + Neon 切换注释
+## Task 3: Prisma Client (adapter-mysql2) + Neon 切换注释
 
 **Files:**
 
@@ -274,32 +283,39 @@ git commit -m "feat(phase4): prisma 7 schema + adapter-pg config + db push"
 ```typescript
 // ===================================================================
 // Prisma Client 初始化 - 依赖注入 adapter
-// 当前: @prisma/adapter-pg (本地 Postgres)
-// 未来切 Neon: 换为 @prisma/adapter-neon (见文件底部注释)
+// 当前: @prisma/adapter-mysql2 + mysql2 (本地 MySQL 8.0)
+// 未来切 Neon: 改 3 处 (schema.provider + adapter + DATABASE_URL), 见底部注释
 // ===================================================================
 
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { PrismaMysql2 } from '@prisma/adapter-mysql2';
+import mysql from 'mysql2/promise';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
+const pool = mysql.createPool({ uri: process.env.DATABASE_URL });
+const adapter = new PrismaMysql2(pool);
 
 export const prisma = new PrismaClient({ adapter });
 
 // ===================================================================
 // Neon 切换指南 (未来注册 Neon 后):
+// 注意: Neon 是 PostgreSQL Serverless, 需要同时改 datasource provider
 //
-// 1. 安装: npm install @prisma/adapter-neon
-// 2. 替换上面的 import 和 adapter 初始化为:
+// 改动 1/3: schema.prisma 改 datasource.db.provider
+//    datasource db {
+//      provider = "mysql"   // ← 改为 "postgresql"
+//    }
 //
+// 改动 2/3: 本文件 (client.ts) 替换 adapter
+//    npm uninstall mysql2 @prisma/adapter-mysql2
+//    npm install @prisma/adapter-neon
 //    import { PrismaNeon } from '@prisma/adapter-neon';
 //    const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
 //    export const prisma = new PrismaClient({ adapter });
 //
-// 3. 修改 .env 的 DATABASE_URL 为 Neon 连接串
-// 4. npm run db:push && npm run db:seed
-// 5. (可选) npm uninstall pg @prisma/adapter-pg @types/pg
+// 改动 3/3: .env 改 DATABASE_URL
+//    DATABASE_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/neondb?sslmode=require"
+//
+// 最后: npm run db:generate && npm run db:push (在 Neon 上重建空表)
 //
 // 注意: PrismaNeon 接受 { connectionString } 对象, 不接受 neon() 或 Pool 实例
 // ===================================================================
@@ -315,7 +331,7 @@ Expected: 退出码 0（无错误）
 ```bash
 cd ../..
 git add poc/trpc-leaderboard/src/prisma/client.ts
-git commit -m "feat(phase4): prisma client with adapter-pg + neon switch guide"
+git commit -m "feat(phase4): prisma client with adapter-mysql2 + neon switch guide (3 changes)"
 ```
 
 ---
@@ -341,7 +357,8 @@ Expected: vitest 安装成功
 - [ ] **Step 2: 创建 .env.test**
 
 ```bash
-DATABASE_URL="postgresql://lb_user:lb_pass@localhost:5433/leaderboard_test"
+# 本地 MySQL 8.0 test database (同实例, 独立 database, 端口仍 3306)
+DATABASE_URL="mysql://lb_user:lb_pass@localhost:3306/fighter_leaderboard_test"
 PORT=2026
 ```
 
@@ -373,10 +390,10 @@ import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: '.env.test' });
 
-// 确保 test db 连接串正确
-if (!process.env.DATABASE_URL?.includes('5433')) {
+// 确保 test db 连接串正确 (指向 fighter_leaderboard_test, 而非 fighter_leaderboard)
+if (!process.env.DATABASE_URL?.includes('fighter_leaderboard_test')) {
   throw new Error(
-    `[test-setup] DATABASE_URL 必须指向 test db (端口 5433), 当前: ${process.env.DATABASE_URL}`,
+    `[test-setup] DATABASE_URL 必须指向 test db (fighter_leaderboard_test), 当前: ${process.env.DATABASE_URL}`,
   );
 }
 ```
@@ -385,24 +402,29 @@ if (!process.env.DATABASE_URL?.includes('5433')) {
 
 Run (cwd: `poc/trpc-leaderboard`):
 
-```bash
-# 临时用 .env.test 的 DATABASE_URL 建 test db 表
-DATABASE_URL="postgresql://lb_user:lb_pass@localhost:5433/leaderboard_test" npm run db:push
+```powershell
+# 临时用 .env.test 的 DATABASE_URL 在 test db 建表
+$env:DATABASE_URL="mysql://lb_user:lb_pass@localhost:3306/fighter_leaderboard_test"; npm run db:push
 ```
 
 Expected: `🚀 Your database is now in sync with your schema.`
 
 - [ ] **Step 6: 验证 test db 表**
 
-Run: `docker compose exec postgres-test psql -U lb_user -d leaderboard_test -c "\dt"`
-Expected: 输出包含 `LeaderboardEntry` 表
+Run:
+
+```powershell
+$env:MYSQL_PWD="lb_pass"; & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -h localhost -u lb_user fighter_leaderboard_test -e "SHOW TABLES; DESCRIBE LeaderboardEntry;"
+```
+
+Expected: 输出包含 `LeaderboardEntry` 表及其字段
 
 - [ ] **Step 7: Commit**
 
 ```bash
 cd ../..
 git add poc/trpc-leaderboard/package.json poc/trpc-leaderboard/package-lock.json poc/trpc-leaderboard/vitest.config.ts poc/trpc-leaderboard/src/test-setup.ts poc/trpc-leaderboard/.env.test
-git commit -m "test(phase4): vitest config + test db isolation (port 5433)"
+git commit -m "test(phase4): vitest config + test db isolation (fighter_leaderboard_test)"
 ```
 
 ---

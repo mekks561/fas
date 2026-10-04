@@ -136,12 +136,16 @@ export class ParticlePoolItem implements Poolable {
   constructor() {
     this.entity = new pc.Entity('particle');
     this.entity.addComponent('particlesystem', {
-      type: 'box',
+      // Engine 2：发射器形状改用 emitterShape 常量（旧的 type 选项已移除），
+      // 盒子范围由 emitterExtents 控制；发射方向也改由形状决定，旧的 spread 选项已无对应项
+      emitterShape: pc.EMITTERSHAPE_BOX,
       lifetime: 0.5,
       rate: 0,
-      burst: 50,
-      speed: 15,
-      spread: 360,
+      // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
+      loop: false,
+      numParticles: 50,
+      // Engine 2：speed 改名为 initialVelocity
+      initialVelocity: 15,
     });
   }
 
@@ -172,8 +176,7 @@ export class ParticlePoolItem implements Poolable {
     this.entity.setPosition(pos);
   }
 
-  public setColor(_colors: [pc.Color, pc.Color, pc.Color, pc.Color]): void {
-  }
+  public setColor(_colors: [pc.Color, pc.Color, pc.Color, pc.Color]): void {}
 }
 
 export class EnemyPoolItem implements Poolable {
@@ -240,7 +243,9 @@ export class EnemyPoolItem implements Poolable {
         enemy.setLocalScale(1.5, 1, 1.5);
         break;
       case EnemyType.ELITE:
-        enemy.addComponent('model', { type: 'diamond' });
+        // 'diamond' 从来不是引擎支持的图元名（Engine 1 的类型更松所以没报出来），
+        // 这里改用合法图元 sphere：配合下面的非等比缩放会得到一个竖直的椭球精英舰体
+        enemy.addComponent('model', { type: 'sphere' });
         enemy.setLocalScale(0.8, 1, 0.8);
         break;
       case EnemyType.BOSS:
@@ -346,12 +351,15 @@ export class ExplosionPoolItem implements Poolable {
   constructor(_app: pc.Application) {
     this.entity = new pc.Entity('explosion');
     this.entity.addComponent('particlesystem', {
-      type: 'sphere',
+      // Engine 2：发射器形状改用 emitterShape 常量（旧的 type 选项已移除）
+      emitterShape: pc.EMITTERSHAPE_SPHERE,
       lifetime: this.maxDuration,
       rate: 0,
-      burst: 100,
-      speed: 20,
-      spread: 360,
+      // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
+      loop: false,
+      numParticles: 100,
+      // Engine 2：speed 改名为 initialVelocity
+      initialVelocity: 20,
     });
     this.particleSystem = this.entity.particlesystem;
     this.entity.enabled = false;

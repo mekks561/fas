@@ -53,3 +53,15 @@ coverage/
 # Backup files
 *.backup
 *.bak
+
+# Agent / editor tool workspaces (local only)
+.workbuddy/
+.trae/
+
+# Generated diagnostics
+tsc_errors.txt
+
+# One-off local rollback snapshots (git history is the real rollback now)
+package-lock.json.npm-bak
+package.json.pre-pc2-bak
+pnpm-lock.yaml.pre-pc2-bak

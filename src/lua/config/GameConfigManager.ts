@@ -49,7 +49,7 @@ export class GameConfigManager {
         throw new Error(`Failed to load game-config.lua: ${response.status}`);
       }
       const luaCode = await response.text();
-      
+
       return `
 ${luaCode}
 
@@ -190,14 +190,32 @@ end
   getDifficultyConfig(level: DifficultyLevel): DifficultyConfig {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
-      return { waveInterval: 7, enemySpawnRate: 1.5, enemySpeedMultiplier: 1, scoreMultiplier: 1.5 };
+      return {
+        waveInterval: 7,
+        enemySpawnRate: 1.5,
+        enemySpeedMultiplier: 1,
+        scoreMultiplier: 1.5,
+      };
     }
 
     try {
-      return luaEngine.call<DifficultyConfig>('getDifficultyConfig', level);
+      const result = luaEngine.call<DifficultyConfig>('getDifficultyConfig', level);
+      if (!result)
+        return {
+          waveInterval: 7,
+          enemySpawnRate: 1.5,
+          enemySpeedMultiplier: 1,
+          scoreMultiplier: 1.5,
+        };
+      return result;
     } catch (error) {
       console.error('[GameConfigManager] Failed to get difficulty config:', error);
-      return { waveInterval: 7, enemySpawnRate: 1.5, enemySpeedMultiplier: 1, scoreMultiplier: 1.5 };
+      return {
+        waveInterval: 7,
+        enemySpawnRate: 1.5,
+        enemySpeedMultiplier: 1,
+        scoreMultiplier: 1.5,
+      };
     }
   }
 
@@ -208,35 +226,57 @@ end
     }
 
     try {
-      return luaEngine.call<WeaponConfig>('getWeaponConfig', weaponType);
+      const result = luaEngine.call<WeaponConfig>('getWeaponConfig', weaponType);
+      if (!result) return { damage: 10, fireRate: 0.5, projectileSpeed: 10, range: 100 };
+      return result;
     } catch (error) {
       console.error('[GameConfigManager] Failed to get weapon config:', error);
       return { damage: 10, fireRate: 0.5, projectileSpeed: 10, range: 100 };
     }
   }
 
-  calculateDamage(baseDamage: number, playerBonus: number = 0, difficultyMultiplier: number = 1): number {
+  calculateDamage(
+    baseDamage: number,
+    playerBonus: number = 0,
+    difficultyMultiplier: number = 1,
+  ): number {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
       return baseDamage;
     }
 
     try {
-      return luaEngine.call<number>('calculateDamage', baseDamage, playerBonus, difficultyMultiplier);
+      const result = luaEngine.call<number>(
+        'calculateDamage',
+        baseDamage,
+        playerBonus,
+        difficultyMultiplier,
+      );
+      return result ?? baseDamage;
     } catch (error) {
       console.error('[GameConfigManager] Failed to calculate damage:', error);
       return baseDamage;
     }
   }
 
-  calculateScore(enemyType: string, difficultyLevel: DifficultyLevel, comboMultiplier: number = 1): number {
+  calculateScore(
+    enemyType: string,
+    difficultyLevel: DifficultyLevel,
+    comboMultiplier: number = 1,
+  ): number {
     if (!this.initialized) {
       console.warn('[GameConfigManager] Not initialized');
       return 100;
     }
 
     try {
-      return luaEngine.call<number>('calculateScore', enemyType, difficultyLevel, comboMultiplier);
+      const result = luaEngine.call<number>(
+        'calculateScore',
+        enemyType,
+        difficultyLevel,
+        comboMultiplier,
+      );
+      return result ?? 100;
     } catch (error) {
       console.error('[GameConfigManager] Failed to calculate score:', error);
       return 100;
@@ -247,7 +287,8 @@ end
     if (!this.initialized) return 5;
 
     try {
-      return luaEngine.call<number>('getWaveEnemyCount', waveNumber);
+      const result = luaEngine.call<number>('getWaveEnemyCount', waveNumber);
+      return result ?? 5;
     } catch {
       return 5;
     }
@@ -257,7 +298,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('isBossWave', waveNumber);
+      const result = luaEngine.call<boolean>('isBossWave', waveNumber);
+      return result ?? false;
     } catch {
       return false;
     }
@@ -267,7 +309,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('isEliteWave', waveNumber);
+      const result = luaEngine.call<boolean>('isEliteWave', waveNumber);
+      return result ?? false;
     } catch {
       return false;
     }

@@ -66,7 +66,18 @@ export interface EffectResult {
 }
 
 export type SkillType = 'active' | 'passive' | 'toggle' | 'ultimate';
-export type EffectType = 'damage' | 'dot' | 'heal' | 'hot' | 'buff' | 'debuff' | 'shield' | 'stun' | 'knockback' | 'summon' | 'area';
+export type EffectType =
+  | 'damage'
+  | 'dot'
+  | 'heal'
+  | 'hot'
+  | 'buff'
+  | 'debuff'
+  | 'shield'
+  | 'stun'
+  | 'knockback'
+  | 'summon'
+  | 'area';
 export type ResourceType = 'mana' | 'energy' | 'health' | 'cooldown' | 'charge';
 export type SkillState = 'ready' | 'cooldown' | 'active' | 'disabled' | 'locked';
 
@@ -264,7 +275,13 @@ end
     }
 
     try {
-      return luaEngine.call<boolean>('SkillSystem.learnSkill', skillId, playerLevel, learnedSkillIds);
+      const result = luaEngine.call<boolean>(
+        'SkillSystem.learnSkill',
+        skillId,
+        playerLevel,
+        learnedSkillIds,
+      );
+      return result ?? false;
     } catch (error) {
       console.error('[SkillSystemManager] Failed to learn skill:', error);
       return false;
@@ -276,6 +293,7 @@ end
 
     try {
       const result = luaEngine.call<[boolean, number]>('SkillSystem.upgradeSkill', skillId);
+      if (!result) return { success: false, newLevel: 0 };
       return { success: result[0], newLevel: result[1] };
     } catch (error) {
       console.error('[SkillSystemManager] Failed to upgrade skill:', error);
@@ -283,11 +301,19 @@ end
     }
   }
 
-  canCastSkill(skillId: string, resources: Record<string, number>): { canCast: boolean; reason: string } {
+  canCastSkill(
+    skillId: string,
+    resources: Record<string, number>,
+  ): { canCast: boolean; reason: string } {
     if (!this.initialized) return { canCast: false, reason: 'not_initialized' };
 
     try {
-      const result = luaEngine.call<[boolean, string]>('SkillSystem.canCastSkill', skillId, resources);
+      const result = luaEngine.call<[boolean, string]>(
+        'SkillSystem.canCastSkill',
+        skillId,
+        resources,
+      );
+      if (!result) return { canCast: false, reason: 'lua_call_failed' };
       return { canCast: result[0], reason: result[1] };
     } catch (error) {
       console.error('[SkillSystemManager] Failed to check skill:', error);
@@ -295,13 +321,26 @@ end
     }
   }
 
-  castSkill(skillId: string, caster: { x: number; y: number; stats: Record<string, number> }, target: { x: number; y: number } | null, resources: Record<string, number>): CastResult {
+  castSkill(
+    skillId: string,
+    caster: { x: number; y: number; stats: Record<string, number> },
+    target: { x: number; y: number } | null,
+    resources: Record<string, number>,
+  ): CastResult {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<CastResult>('SkillSystem.castSkill', skillId, caster, target, resources);
+      const result = luaEngine.call<CastResult>(
+        'SkillSystem.castSkill',
+        skillId,
+        caster,
+        target,
+        resources,
+      );
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       console.error('[SkillSystemManager] Failed to cast skill:', error);
       return { success: false, error: 'cast_error' };
@@ -312,7 +351,8 @@ end
     if (!this.initialized) return [];
 
     try {
-      return luaEngine.call<string[]>('SkillSystem.updateCooldowns', deltaTime);
+      const result = luaEngine.call<string[]>('SkillSystem.updateCooldowns', deltaTime);
+      return result ?? [];
     } catch (error) {
       console.error('[SkillSystemManager] Failed to update cooldowns:', error);
       return [];
@@ -323,7 +363,8 @@ end
     if (!this.initialized) return null;
 
     try {
-      return luaEngine.call<SkillInstance>('SkillSystem.getSkillStatus', skillId);
+      const result = luaEngine.call<SkillInstance>('SkillSystem.getSkillStatus', skillId);
+      return result ?? null;
     } catch (error) {
       console.error('[SkillSystemManager] Failed to get skill status:', error);
       return null;
@@ -334,7 +375,8 @@ end
     if (!this.initialized) return [];
 
     try {
-      return luaEngine.call<SkillInstance[]>('SkillSystem.getAllSkillStatus');
+      const result = luaEngine.call<SkillInstance[]>('SkillSystem.getAllSkillStatus');
+      return result ?? [];
     } catch (error) {
       console.error('[SkillSystemManager] Failed to get all skill status:', error);
       return [];
@@ -345,7 +387,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('SkillSystem.resetCooldown', skillId);
+      const result = luaEngine.call<boolean>('SkillSystem.resetCooldown', skillId);
+      return result ?? false;
     } catch (error) {
       console.error('[SkillSystemManager] Failed to reset cooldown:', error);
       return false;
@@ -356,7 +399,8 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('SkillSystem.startCombo');
+      const result = luaEngine.call<boolean>('SkillSystem.startCombo');
+      return result ?? false;
     } catch {
       return false;
     }
@@ -367,6 +411,7 @@ end
 
     try {
       const result = luaEngine.call<[boolean, string]>('SkillSystem.addToCombo', skillId);
+      if (!result) return { success: false, comboName: '' };
       return { success: result[0], comboName: result[1] };
     } catch {
       return { success: false, comboName: '' };
@@ -377,7 +422,10 @@ end
     if (!this.initialized) return null;
 
     try {
-      return luaEngine.call<{ type: string; multiplier: number } | null>('SkillSystem.checkComboBonus');
+      const result = luaEngine.call<{ type: string; multiplier: number } | null>(
+        'SkillSystem.checkComboBonus',
+      );
+      return result ?? null;
     } catch {
       return null;
     }
@@ -390,7 +438,10 @@ end
       luaEngine.registerModule({ name: 'skill_system', script: newScript });
       console.log('[SkillSystemManager] Skill script reloaded');
     } catch (error) {
-      console.warn('[SkillSystemManager] Failed to reload script (likely test environment):', error);
+      console.warn(
+        '[SkillSystemManager] Failed to reload script (likely test environment):',
+        error,
+      );
     }
   }
 

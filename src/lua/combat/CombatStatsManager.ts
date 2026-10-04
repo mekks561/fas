@@ -384,18 +384,28 @@ end
     try {
       const stubModule = luaEngine.getStubModule('combat_stats_module');
       if (stubModule) {
-        const getStatsFunc = (stubModule as Record<string, unknown>)['getStats'] as (...args: unknown[]) => unknown;
+        const getStatsFunc = (stubModule as Record<string, unknown>)['getStats'] as (
+          ...args: unknown[]
+        ) => unknown;
         if (getStatsFunc) {
           const result = getStatsFunc();
           if (result && typeof result === 'object') {
             const resultObj = result as Record<string, unknown>;
-            return (resultObj.stats as CombatStatsData) || (resultObj as unknown as CombatStatsData) || null;
+            return (
+              (resultObj['stats'] as CombatStatsData) ||
+              (resultObj as unknown as CombatStatsData) ||
+              null
+            );
           }
         }
       }
       const callResult = luaEngine.call<Record<string, unknown>>('getStats');
       if (callResult) {
-        return (callResult.stats as CombatStatsData) || (callResult as unknown as CombatStatsData) || null;
+        return (
+          (callResult['stats'] as CombatStatsData) ||
+          (callResult as unknown as CombatStatsData) ||
+          null
+        );
       }
       return null;
     } catch {
@@ -403,7 +413,13 @@ end
     }
   }
 
-  onKill(enemyType: string, isBoss = false, isElite = false): { success: boolean; kills?: number; comboCurrent?: number; comboMax?: number } | { success: boolean; error: string } {
+  onKill(
+    enemyType: string,
+    isBoss = false,
+    isElite = false,
+  ):
+    | { success: boolean; kills?: number; comboCurrent?: number; comboMax?: number }
+    | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
@@ -411,12 +427,21 @@ end
     try {
       const stubModule = luaEngine.getStubModule('combat_stats_module');
       if (stubModule) {
-        const onKillFunc = (stubModule as Record<string, unknown>)['onKill'] as (...args: unknown[]) => unknown;
+        const onKillFunc = (stubModule as Record<string, unknown>)['onKill'] as (
+          ...args: unknown[]
+        ) => unknown;
         if (onKillFunc) {
-          return onKillFunc(enemyType, isBoss, isElite) as { success: boolean; kills?: number; comboCurrent?: number; comboMax?: number } | { success: boolean; error: string };
+          return onKillFunc(enemyType, isBoss, isElite) as
+            | { success: boolean; kills?: number; comboCurrent?: number; comboMax?: number }
+            | { success: boolean; error: string };
         }
       }
-      return luaEngine.call<{ success: boolean; kills?: number; comboCurrent?: number; comboMax?: number } | { success: boolean; error: string }>('onKill', enemyType, isBoss, isElite);
+      const result = luaEngine.call<
+        | { success: boolean; kills?: number; comboCurrent?: number; comboMax?: number }
+        | { success: boolean; error: string }
+      >('onKill', enemyType, isBoss, isElite);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
@@ -428,151 +453,231 @@ end
     }
 
     try {
-      return luaEngine.call<{ success: boolean; deaths?: number } | { success: boolean; error: string }>('onDeath');
+      const result = luaEngine.call<
+        { success: boolean; deaths?: number } | { success: boolean; error: string }
+      >('onDeath');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  addDamageDealt(damage: number): { success: boolean; damageDealt?: number } | { success: boolean; error: string } {
+  addDamageDealt(
+    damage: number,
+  ): { success: boolean; damageDealt?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; damageDealt?: number } | { success: boolean; error: string }>('addDamageDealt', damage);
+      const result = luaEngine.call<
+        { success: boolean; damageDealt?: number } | { success: boolean; error: string }
+      >('addDamageDealt', damage);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  addDamageTaken(damage: number): { success: boolean; damageTaken?: number } | { success: boolean; error: string } {
+  addDamageTaken(
+    damage: number,
+  ): { success: boolean; damageTaken?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; damageTaken?: number } | { success: boolean; error: string }>('addDamageTaken', damage);
+      const result = luaEngine.call<
+        { success: boolean; damageTaken?: number } | { success: boolean; error: string }
+      >('addDamageTaken', damage);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  addDamageHealed(healAmount: number): { success: boolean; damageHealed?: number } | { success: boolean; error: string } {
+  addDamageHealed(
+    healAmount: number,
+  ): { success: boolean; damageHealed?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; damageHealed?: number } | { success: boolean; error: string }>('addDamageHealed', healAmount);
+      const result = luaEngine.call<
+        { success: boolean; damageHealed?: number } | { success: boolean; error: string }
+      >('addDamageHealed', healAmount);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  onSkillUse(skillId: string, hit = false): { success: boolean; skillsUsed?: number; skillsHit?: number; accuracy?: number } | { success: boolean; error: string } {
+  onSkillUse(
+    skillId: string,
+    hit = false,
+  ):
+    | { success: boolean; skillsUsed?: number; skillsHit?: number; accuracy?: number }
+    | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; skillsUsed?: number; skillsHit?: number; accuracy?: number } | { success: boolean; error: string }>('onSkillUse', skillId, hit);
+      const result = luaEngine.call<
+        | { success: boolean; skillsUsed?: number; skillsHit?: number; accuracy?: number }
+        | { success: boolean; error: string }
+      >('onSkillUse', skillId, hit);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  onPowerupCollected(powerupType: string): { success: boolean; powerupsCollected?: number } | { success: boolean; error: string } {
+  onPowerupCollected(
+    powerupType: string,
+  ): { success: boolean; powerupsCollected?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; powerupsCollected?: number } | { success: boolean; error: string }>('onPowerupCollected', powerupType);
+      const result = luaEngine.call<
+        { success: boolean; powerupsCollected?: number } | { success: boolean; error: string }
+      >('onPowerupCollected', powerupType);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  onProjectileFired(): { success: boolean; projectilesFired?: number } | { success: boolean; error: string } {
+  onProjectileFired():
+    { success: boolean; projectilesFired?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; projectilesFired?: number } | { success: boolean; error: string }>('onProjectileFired');
+      const result = luaEngine.call<
+        { success: boolean; projectilesFired?: number } | { success: boolean; error: string }
+      >('onProjectileFired');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  onProjectileHit(): { success: boolean; projectilesHit?: number } | { success: boolean; error: string } {
+  onProjectileHit():
+    { success: boolean; projectilesHit?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; projectilesHit?: number } | { success: boolean; error: string }>('onProjectileHit');
+      const result = luaEngine.call<
+        { success: boolean; projectilesHit?: number } | { success: boolean; error: string }
+      >('onProjectileHit');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  updateCombo(deltaTime: number): { success: boolean; comboCurrent?: number; comboTimer?: number; comboTimeout?: number } | { success: boolean; error: string } {
+  updateCombo(
+    deltaTime: number,
+  ):
+    | { success: boolean; comboCurrent?: number; comboTimer?: number; comboTimeout?: number }
+    | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; comboCurrent?: number; comboTimer?: number; comboTimeout?: number } | { success: boolean; error: string }>('updateCombo', deltaTime);
+      const result = luaEngine.call<
+        | { success: boolean; comboCurrent?: number; comboTimer?: number; comboTimeout?: number }
+        | { success: boolean; error: string }
+      >('updateCombo', deltaTime);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  addScore(points: number): { success: boolean; score?: number; rank?: string } | { success: boolean; error: string } {
+  addScore(
+    points: number,
+  ): { success: boolean; score?: number; rank?: string } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; score?: number; rank?: string } | { success: boolean; error: string }>('addScore', points);
+      const result = luaEngine.call<
+        { success: boolean; score?: number; rank?: string } | { success: boolean; error: string }
+      >('addScore', points);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  updatePlayTime(deltaTime: number): { success: boolean; playTime?: number } | { success: boolean; error: string } {
+  updatePlayTime(
+    deltaTime: number,
+  ): { success: boolean; playTime?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; playTime?: number } | { success: boolean; error: string }>('updatePlayTime', deltaTime);
+      const result = luaEngine.call<
+        { success: boolean; playTime?: number } | { success: boolean; error: string }
+      >('updatePlayTime', deltaTime);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  onWaveCompleted(waveNumber: number): { success: boolean; wavesCompleted?: number } | { success: boolean; error: string } {
+  onWaveCompleted(
+    waveNumber: number,
+  ): { success: boolean; wavesCompleted?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; wavesCompleted?: number } | { success: boolean; error: string }>('onWaveCompleted', waveNumber);
+      const result = luaEngine.call<
+        { success: boolean; wavesCompleted?: number } | { success: boolean; error: string }
+      >('onWaveCompleted', waveNumber);
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  getComboMultiplier(): { success: boolean; multiplier?: number } | { success: boolean; error: string } {
+  getComboMultiplier():
+    { success: boolean; multiplier?: number } | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; multiplier?: number } | { success: boolean; error: string }>('getComboMultiplier');
+      const result = luaEngine.call<
+        { success: boolean; multiplier?: number } | { success: boolean; error: string }
+      >('getComboMultiplier');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
@@ -584,7 +689,11 @@ end
     }
 
     try {
-      return luaEngine.call<{ success: boolean; efficiency?: number } | { success: boolean; error: string }>('getEfficiency');
+      const result = luaEngine.call<
+        { success: boolean; efficiency?: number } | { success: boolean; error: string }
+      >('getEfficiency');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
@@ -596,19 +705,30 @@ end
     }
 
     try {
-      return luaEngine.call<{ success: boolean; rate?: number } | { success: boolean; error: string }>('getSurvivalRate');
+      const result = luaEngine.call<
+        { success: boolean; rate?: number } | { success: boolean; error: string }
+      >('getSurvivalRate');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
   }
 
-  calculateFinalScore(): { success: boolean; finalScore?: number; breakdown?: ScoreBreakdown } | { success: boolean; error: string } {
+  calculateFinalScore():
+    | { success: boolean; finalScore?: number; breakdown?: ScoreBreakdown }
+    | { success: boolean; error: string } {
     if (!this.initialized) {
       return { success: false, error: 'not_initialized' };
     }
 
     try {
-      return luaEngine.call<{ success: boolean; finalScore?: number; breakdown?: ScoreBreakdown } | { success: boolean; error: string }>('calculateFinalScore');
+      const result = luaEngine.call<
+        | { success: boolean; finalScore?: number; breakdown?: ScoreBreakdown }
+        | { success: boolean; error: string }
+      >('calculateFinalScore');
+      if (!result) return { success: false, error: 'lua_call_failed' };
+      return result;
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'unknown_error' };
     }
@@ -618,7 +738,7 @@ end
     if (!this.initialized) return false;
 
     try {
-      return luaEngine.call<boolean>('resetCombatStats');
+      return luaEngine.call<boolean>('resetCombatStats') ?? false;
     } catch {
       return false;
     }
@@ -628,7 +748,7 @@ end
     if (!this.initialized) return {};
 
     try {
-      return luaEngine.call<Record<string, number>>('getRankThresholds');
+      return luaEngine.call<Record<string, number>>('getRankThresholds') ?? {};
     } catch {
       return {};
     }

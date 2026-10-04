@@ -18,6 +18,12 @@ export class InputManager {
   private comboTimeout: number | null = null;
   private isDebugMode = false;
 
+  private inputLatencyHistory: number[] = [];
+  private maxLatencyHistory = 60;
+  private lastInputTime = 0;
+  private inputPredictionEnabled = true;
+  private predictionFactor = 0.15;
+
   // 默认按键绑定
   private static defaultBindings: IKeyBindings = {
     forward: ['w', 'arrowup'],
@@ -200,7 +206,48 @@ export class InputManager {
       mouseSensitivity: this.mouseSensitivity,
       touchState: { ...this.touchState },
       inputHistorySize: this.inputHistory.length,
+      avgInputLatency: this.getAverageInputLatency(),
+      maxInputLatency: this.getMaxInputLatency(),
+      predictionFactor: this.predictionFactor,
     };
+  }
+
+  public getAverageInputLatency(): number {
+    if (this.inputLatencyHistory.length === 0) return 0;
+    const sum = this.inputLatencyHistory.reduce((a, b) => a + b, 0);
+    return Math.round(sum / this.inputLatencyHistory.length);
+  }
+
+  public getMaxInputLatency(): number {
+    if (this.inputLatencyHistory.length === 0) return 0;
+    return Math.max(...this.inputLatencyHistory);
+  }
+
+  public setPredictionFactor(factor: number): void {
+    this.predictionFactor = Math.max(0, Math.min(0.5, factor));
+  }
+
+  public getPredictionFactor(): number {
+    return this.predictionFactor;
+  }
+
+  public enableInputPrediction(enabled: boolean): void {
+    this.inputPredictionEnabled = enabled;
+  }
+
+  public isInputPredictionEnabled(): boolean {
+    return this.inputPredictionEnabled;
+  }
+
+  private trackInputLatency(): void {
+    const now = performance.now();
+    const latency = now - this.lastInputTime;
+    this.lastInputTime = now;
+
+    this.inputLatencyHistory.push(latency);
+    if (this.inputLatencyHistory.length > this.maxLatencyHistory) {
+      this.inputLatencyHistory.shift();
+    }
   }
 
   public clear(): void {
@@ -240,6 +287,8 @@ export class InputManager {
     const key = e.key.toLowerCase();
     this.keys[key] = true;
 
+    this.trackInputLatency();
+
     if (this.isDebugMode) {
       this.addToHistory('keydown', key);
     }
@@ -258,6 +307,8 @@ export class InputManager {
 
   private handleMouseDown = (e: MouseEvent) => {
     this.mouseButtons[e.button] = true;
+
+    this.trackInputLatency();
 
     if (this.isDebugMode) {
       this.addToHistory('mousedown', `mouse${e.button}`);
@@ -313,6 +364,8 @@ export class InputManager {
         this.mouseButtons[0] = true;
       }
     });
+
+    this.trackInputLatency();
 
     if (this.isDebugMode) {
       this.addToHistory('touchstart');
