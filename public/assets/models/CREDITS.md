@@ -41,7 +41,22 @@
 > 红系配色与缩放区分。这是素材数量约束下的取舍；若后续引入更多船型来源，
 > 优先替换这三个。
 
-## 尚未替换的
+## 尚未替换的（29 个旧坏文件，487 KB）
 
-`projectiles/`（9 个）与 `effects/`（8 个）的 `.glb` 仍是旧的坏文件，运行时走
-程序化生成，未接 GLB。`structures/` 同理（星球/星云这类天体用程序化球体更省体积）。
+本目录下 45 个 `.glb` 里，**只有 16 个是上一节列出的真模型**，其余 **29 个仍是
+`generate-models.js` 产出的坏文件**（GLB 头错误、12–32 面），按目录分布如下：
+
+| 目录           | 坏文件数 | 体积   | 运行时是否引用                                                          |
+| -------------- | -------- | ------ | ----------------------------------------------------------------------- |
+| `projectiles/` | 9        | 119 KB | 否（仅 `GameResources.ts`，该清单未接线）                               |
+| `effects/`     | 8        | 194 KB | 否（同上）                                                              |
+| `structures/`  | 10       | 146 KB | 否（同上；星球/星云用程序化球体更省体积）                               |
+| `bosses/`      | 2        | 28 KB  | 否（`boss-collector.glb` 连清单都没引用；`boss-tyrant.glb` 仅清单引用） |
+
+- 渲染路径只会用到 `ModelAssetProvider` 里登记的那 16 个（`ModelAssetProvider` 对
+  boss 只映射了 `boss_sentinel` / `boss_overlord` 两个）。
+- `GameResources.ts` → `GameResourceManager` → `ResourceDownloadTester` 这条链
+  **没有任何应用侧入口**（`ResourceDownloadTester` 只被自己引用），因此这些引用
+  不代表真的会去下载。
+- 结论：这 29 个文件目前是**纯死重量**，删掉不会影响运行；但那属于独立的清理动作，
+  未经确认不擅自删除。
