@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **粒子特效贴图（消除「纯色光团」廉价感）** - 此前所有粒子系统（引擎尾焰/导弹尾焰/命中
+  爆炸/敌机死亡爆炸/道具拾取/技能爆炸）的 colorMap 都是引擎默认的纯白小圆点——视觉上
+  是一团纯色。本轮从备用库 Kenney Particle Pack 挑选 7 张白色发光形状贴图（512×512
+  透明 PNG，共 ~430 KB，CC0），利用 PlayCanvas 粒子着色器的 `tex.rgb × colorGraph.rgb`
+  特性：**只需换贴图、无需动任何颜色配置**，颜色仍由各系统既有 colorGraph 染出。
+  引擎侧新增 `preloadParticleTextures()`（开局一次性预加载，7 张全部就绪后新建粒子
+  同步取用）与 `addParticleSystem()`（`colorMapUrl` 就绪即应用、未就绪登记回填——
+  覆盖「常驻尾焰创建于贴图加载前」的时序）。敌机死亡爆炸按体量分贴图（普通用环形
+  冲击波光球，Boss/重型用六芒星光）。配套 `scripts/verify-particle-textures.mjs`
+  （9 断言全绿：7/7 就绪 → 常驻尾焰 colorMap 已回填 → 爆炸截图可见贴图纹理）。
 - **生存模式接通（又一个 1,064 行「做完没接」的半成品）** - `SurvivalModeManager`（437 行
   - 374 行测试）+ `SurvivalModeUI`（253 行）此前零消费：`update(dt)` / `recordEnemyDefeat`
     没有任何生产代码调用（状态机永远停在 menu），UI 没有入口，连 CSS 都不存在。

@@ -142,7 +142,9 @@ export class PlayerShip {
     // 尾焰位于飞船后方（+Z 方向，因为飞船 forward 是 -Z）
     trail.setLocalPosition(0, 0, 1.2);
 
-    trail.addComponent('particlesystem', {
+    // colorMap：Kenney 火焰形状贴图（白色），颜色仍由下方 colorGraph 染成蓝白。
+    // 贴图由引擎开局预加载；未就绪时先用默认白点，就绪后由引擎回填。
+    this.engine.addParticleSystem(trail, {
       loop: true,
       autoPlay: true,
       numParticles: 60,
@@ -162,6 +164,7 @@ export class PlayerShip {
       ]),
       // Engine 2：sizeGraph 已更名为 scaleGraph
       scaleGraph: new pc.Curve([0.3, 0.05]), // 尺寸从大到小
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.engineFlame,
     });
 
     return trail;

@@ -201,7 +201,8 @@ export class Powerup {
     const effect = new pc.Entity('collectEffect');
     effect.setPosition(this.entity.getPosition());
 
-    effect.addComponent('particlesystem', {
+    // colorMap：四芒星光贴图；颜色由 getColorCurve 按道具类型染出
+    this.engine.addParticleSystem(effect, {
       lifetime: 0.5,
       rate: 0,
       // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
@@ -212,6 +213,7 @@ export class Powerup {
       // Engine 2：colorGraph / scaleGraph 直接接受曲线本体，已无 { graph } 包装层
       colorGraph: this.getColorCurve(),
       scaleGraph: new pc.Curve([0.3, 0.8, 1]),
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.powerupStar,
     });
 
     this.engine.addToScene(effect);

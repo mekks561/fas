@@ -238,7 +238,8 @@ export class MissileStrikeSkill extends Skill {
     const explosion = new pc.Entity('explosion');
     explosion.setPosition(missile.getPosition());
 
-    explosion.addComponent('particlesystem', {
+    // colorMap：镜头光晕贴图（中心亮点 + 横向光条），配橙色曲线做技能爆闪
+    this.engine.addParticleSystem(explosion, {
       lifetime: 0.5,
       rate: 0,
       // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
@@ -254,6 +255,7 @@ export class MissileStrikeSkill extends Skill {
         [0, 0, 0],
       ]),
       scaleGraph: new pc.Curve([0.5, 1.5, 2]),
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.skillFlare,
     });
 
     this.engine.addToScene(explosion);

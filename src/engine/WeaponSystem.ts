@@ -386,9 +386,9 @@ export class WeaponSystem {
     missile.setLocalScale(0.15, 0.8, 0.15);
     missile.setLocalEulerAngles(90, 0, 0);
 
-    // 导弹尾焰
+    // 导弹尾焰（colorMap：火焰形状贴图，颜色由 colorGraph 染成橙黄）
     const flame = new pc.Entity('missileFlame');
-    flame.addComponent('particlesystem', {
+    this.engine.addParticleSystem(flame, {
       lifetime: 0.2,
       rate: 30,
       // Engine 2：speed 改名为 initialVelocity
@@ -402,6 +402,7 @@ export class WeaponSystem {
         [0, 0, 0],
       ]),
       scaleGraph: new pc.Curve([0.2, 0.05]),
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.missileFlame,
     });
     flame.setLocalPosition(0, -0.5, 0);
     missile.addChild(flame);
@@ -552,7 +553,8 @@ export class WeaponSystem {
     const explosion = new pc.Entity('explosion');
     explosion.setPosition(position);
 
-    explosion.addComponent('particlesystem', {
+    // colorMap：柔和光球贴图；50 个粒子 additive 叠成一团命中火光
+    this.engine.addParticleSystem(explosion, {
       lifetime: 0.5,
       rate: 0,
       // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
@@ -568,6 +570,7 @@ export class WeaponSystem {
         [0, 0, 0],
       ]),
       scaleGraph: new pc.Curve([0.5, 1.5]),
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.hitLight,
     });
 
     this.engine.addToScene(explosion);

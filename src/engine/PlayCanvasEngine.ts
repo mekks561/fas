@@ -452,6 +452,94 @@ export class PlayCanvasGameEngine implements GameEngine {
     console.log(`[PlayCanvasEngine] Fog enabled (density: ${density})`);
   }
 
+  // ─── 粒子贴图：预加载 + 共享缓存 ───────────────────────────────────────────
+  //
+  // 粒子的外观 = colorMap（贴图）× colorGraph（颜色曲线）。引擎默认 colorMap 是一个
+  // 纯白小圆点，这就是此前所有粒子（尾焰/爆炸/光晕）看起来是"纯色光团"的原因。
+  // 这里换成 Kenney Particle Pack 的白色发光形状（512×512 透明 PNG，CC0），
+  // 颜色依旧由各粒子系统的 colorGraph 染出，所以只需换贴图、无需动颜色配置。
+
+  /** 粒子贴图 url 常量（public/assets/textures/particles/，来源见该目录 CREDITS.md）。 */
+  public static readonly PARTICLE_TEXTURES = {
+    engineFlame: '/assets/textures/particles/particle-engine-flame.png',
+    missileFlame: '/assets/textures/particles/particle-missile-flame.png',
+    hitLight: '/assets/textures/particles/particle-hit-light.png',
+    explosionRing: '/assets/textures/particles/particle-explosion-ring.png',
+    bossBurst: '/assets/textures/particles/particle-boss-burst.png',
+    powerupStar: '/assets/textures/particles/particle-powerup-star.png',
+    skillFlare: '/assets/textures/particles/particle-skill-flare.png',
+  } as const;
+
+  /** 全部粒子贴图 url（开局一次性预加载）。 */
+  public static get ALL_PARTICLE_TEXTURE_URLS(): string[] {
+    return Object.values(PlayCanvasGameEngine.PARTICLE_TEXTURES);
+  }
+
+  /** 已就绪/加载中的粒子贴图缓存（key = url；值为 undefined 表示加载中）。 */
+  private particleTextures = new Map<string, pc.Texture | undefined>();
+  /** 在贴图就绪前创建的粒子系统，就绪后回填 colorMap（如常驻的引擎尾焰）。 */
+  private pendingColorMaps: { component: pc.ParticleSystemComponent; url: string }[] = [];
+
+  /**
+   * 预加载粒子贴图（开局调用一次）。之后创建的粒子系统可同步取到贴图；
+   * 未就绪时创建的会登记进 pendingColorMaps，就绪后自动回填。
+   */
+  public preloadParticleTextures(
+    urls: string[] = PlayCanvasGameEngine.ALL_PARTICLE_TEXTURE_URLS,
+  ): void {
+    for (const url of urls) this.loadParticleTexture(url);
+  }
+
+  /** 同步取已就绪的粒子贴图；未就绪返回 undefined（粒子回落引擎默认白点）。 */
+  public getParticleTexture(url: string): pc.Texture | undefined {
+    return this.particleTextures.get(url) || undefined;
+  }
+
+  private loadParticleTexture(url: string): void {
+    if (this.particleTextures.has(url)) return;
+    this.particleTextures.set(url, undefined); // 占位防重复发起
+    const asset = new pc.Asset(`particleTex:${url}`, 'texture', { url });
+    this.app.assets.add(asset);
+    this.app.assets.load(asset);
+    asset.once('load', () => {
+      const tex = asset.resource as pc.Texture;
+      this.particleTextures.set(url, tex);
+      // 回填给在就绪前创建的粒子系统（组件可能已随短命实体销毁，尽力而为）
+      this.pendingColorMaps = this.pendingColorMaps.filter((p) => {
+        if (p.url !== url) return true;
+        try {
+          p.component.colorMap = tex;
+        } catch {
+          /* 实体已销毁 */
+        }
+        return false;
+      });
+      console.log(`[PlayCanvasEngine] Particle texture loaded: ${url}`);
+    });
+    asset.once('error', (err: string) => {
+      console.warn(`[PlayCanvasEngine] Particle texture load failed (回落默认白点): ${url}`, err);
+    });
+  }
+
+  /**
+   * 创建带贴图的粒子系统组件。等价于 entity.addComponent('particlesystem', options)，
+   * 额外支持 colorMapUrl：贴图已就绪则立即应用，未就绪则登记等待回填。
+   */
+  public addParticleSystem(
+    entity: pc.Entity,
+    options: Record<string, unknown> & { colorMapUrl?: string },
+  ): pc.ParticleSystemComponent | null {
+    const { colorMapUrl, ...psOptions } = options;
+    const tex = colorMapUrl ? this.particleTextures.get(colorMapUrl) : undefined;
+    if (tex) psOptions['colorMap'] = tex;
+    entity.addComponent('particlesystem', psOptions);
+    const ps = (entity.particlesystem ?? null) as pc.ParticleSystemComponent | null;
+    if (ps && colorMapUrl && !tex) {
+      this.pendingColorMaps.push({ component: ps, url: colorMapUrl });
+    }
+    return ps;
+  }
+
   public getApp(): pc.Application {
     return this.app;
   }

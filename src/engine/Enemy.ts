@@ -384,7 +384,8 @@ export class Enemy {
     const particleCount =
       this.type === EnemyType.BOSS ? 150 : this.type === EnemyType.TANK ? 80 : 50;
 
-    explosion.addComponent('particlesystem', {
+    // colorMap 按体量选：Boss/重型用六芒星光，普通敌机用环形冲击波光球
+    this.engine.addParticleSystem(explosion, {
       lifetime: 0.8,
       rate: 0,
       // Engine 2：burst 已从引擎中彻底移除，一次喷发 N 个的写法改为 loop:false + numParticles
@@ -400,6 +401,10 @@ export class Enemy {
         [0, 0, 0],
       ]),
       scaleGraph: new pc.Curve([0.5, 1.5, 2]),
+      colorMapUrl:
+        this.type === EnemyType.BOSS || this.type === EnemyType.TANK
+          ? PlayCanvasGameEngine.PARTICLE_TEXTURES.bossBurst
+          : PlayCanvasGameEngine.PARTICLE_TEXTURES.explosionRing,
     });
 
     this.engine.addToScene(explosion);

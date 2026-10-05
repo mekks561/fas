@@ -393,6 +393,10 @@ export const GameScene: React.FC<{
       // 挂在相机下 ⇒ 无限远背景；单 draw call；加载失败回落深色，不影响开局。
       engine.createSkyDome('/assets/textures/skybox-space.png', 400);
 
+      // 粒子贴图：开局预加载全部 7 张（尾焰/导弹/命中/爆炸/道具/技能，共 ~430KB），
+      // 之后所有粒子系统创建时同步取用；未就绪期间回落引擎默认白点、就绪后自动回填。
+      engine.preloadParticleTextures();
+
       // 近景星星只保留 120 颗提供运动视差；远处的星空交给天幕贴图
       engine.createStarField(120, 20, 60);
       engine.createNebula(new pc.Vec3(30, 10, -30), 25);
@@ -899,6 +903,29 @@ export const GameScene: React.FC<{
           /** 清空技能树与其 localStorage，保证验证可重复 */
           resetTree: () => skillTreeManager.reset(),
         };
+
+        // 粒子贴图观测钩子：报告 7 张贴图的就绪状态与引擎缓存数量（只读生产对象）
+        const engine = engineRef.current;
+        if (engine) {
+          (window as unknown as Record<string, unknown>)['__particleDebug'] = {
+            status: () =>
+              PlayCanvasGameEngine.ALL_PARTICLE_TEXTURE_URLS.map((url) => ({
+                url: url.replace('/assets/textures/particles/', ''),
+                ready: !!engine.getParticleTexture(url),
+              })),
+            readyCount: () =>
+              PlayCanvasGameEngine.ALL_PARTICLE_TEXTURE_URLS.filter((u) =>
+                engine.getParticleTexture(u),
+              ).length,
+            /** 常驻尾焰的 colorMap 是否已回填（验证 pending 补设路径） */
+            trailColorMapSet: () => {
+              const player = playerRef.current as unknown as {
+                engineTrail?: { particlesystem?: { colorMap?: unknown } } | null;
+              } | null;
+              return !!player?.engineTrail?.particlesystem?.colorMap;
+            },
+          };
+        }
 
         // 生存模式调试钩子。同样**只观测生产对象**（survivalModeManager 单例 /
         // PlayerShip / EnemySystem），并提供一个「吃掉倒计时」的加速入口，
