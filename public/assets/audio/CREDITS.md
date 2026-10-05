@@ -61,17 +61,41 @@
 
 > 体积合计 535 KB，时长合计 22.4 秒。
 
+## 接线状态（2026-10-05 已接入并通过实测）
+
+25 个音频文件此前**只有 `gameMusic` 一处真正被播放**，其余 4 首 BGM 与全部 7 个 UI 音效
+都是「定义了但全项目 grep 不到调用点」的死定义。现已全部接线，实测通过
+（`scripts/verify-audio-wiring.mjs`，9/9 断言、24 个音频请求全 2xx、运行时错误 0）：
+
+| 声音                                   | 播放时机                          | 通路                            |
+| -------------------------------------- | --------------------------------- | ------------------------------- |
+| `bgm-mainmenu.ogg`                     | 主菜单 / 关卡选择 / 各面板        | GlobalAudio                     |
+| `bgm-gameplay.ogg`                     | 战斗（第 1–9 波）                 | GlobalAudio                     |
+| `bgm-boss.ogg`                         | **末波（Boss 波）**               | GlobalAudio                     |
+| `bgm-victory.mp3`                      | 通关结算界面                      | GlobalAudio                     |
+| `bgm-story.ogg`                        | 阵亡结算界面                      | GlobalAudio                     |
+| `ui-*.ogg`（7 个）                     | 菜单/结算按钮点击、悬停；强化选定 | GlobalAudio                     |
+| `sfx-level-complete` / `sfx-explosion` | 通关音刺 / 阵亡爆炸               | GlobalAudio（必须活过 Unmount） |
+| 其余 `sfx-*.ogg`                       | 开火、命中、爆炸、道具、护盾等    | AudioManager（需要 3D 定位）    |
+
+**为什么音乐必须走 GlobalAudio**：音乐原先挂在 GameScene 上（`AudioManager.playMusic`），
+而结算/返回菜单时 GameScene 被 React 卸载 → `PlayCanvasEngine` 销毁 →
+`pc.Application.destroy()` → `soundManager` 随之销毁 → 正在播的声音**当场被掐断**。
+所以「胜利音乐」「主菜单音乐」放在 GameScene 里等于没有。现在音乐与跨界面音效走
+`src/engine/GlobalAudio.ts`（基于 HTMLAudioElement，不依赖 PlayCanvas 生命周期），
+战斗内的空间音效仍留在 `AudioSystem`。
+
 ## 已知遗留问题
 
-1. **`menuMusic` 与 `bossMusic` 从不播放**。这两个定义在 `src/engine/AudioSystem.ts`
-   里存在，但全项目 grep 不到任何 `playMusic('menuMusic')` / `playMusic('bossMusic')`
-   调用点——真正会响的只有 `gameMusic` / `victoryMusic` / `defeatMusic` 三个。
-   主菜单静音的原因不在素材：`AudioManager.initialize()` 只在进入 3D 场景时用
-   `engine.getApp()` 调用，菜单阶段根本没有音频系统实例（PlayCanvas 的 Sound
-   依赖 Application）。要让它响，需要给菜单单独做一条音频通路，属于架构改动。
-2. **循环点未做精确处理**：`loop: true` 的曲目是按整曲循环，未做无缝裁剪
+1. **队列表已无死定义**：`AudioSystem.ts` 里那 5 条音乐定义已移除（音乐所有权归
+   `GlobalAudio`），不再出现「PlayCanvas 预载解码一遍、却没人播放」的双份开销。
+   实测 `bgm-story.ogg` 现在只在真的阵亡时才被请求。
+2. **自动播放策略**：浏览器要求先有用户手势才能出声，因此**主菜单音乐会等到玩家第一次
+   点击/按键后才响**（这是浏览器行为，无法绕过；已是业界标准做法）。已实现
+   「解锁前记下要放的曲子，解锁瞬间补播」，所以不会漏掉。
+3. **循环点未做精确处理**：`loop: true` 的曲目是按整曲循环，未做无缝裁剪
    （环境内没有可用的音频转码工具）。若听出接缝，需要引入 ffmpeg 重新裁切。
-3. **响度未归一**：各素材来自不同作者，未做统一响度（LUFS）处理，
+4. **响度未归一**：各素材来自不同作者，未做统一响度（LUFS）处理，
    个别音效可能偏响或偏轻，可在 `AudioSystem.ts` 的 `volume` 字段微调。
 
 ## 上游溯源

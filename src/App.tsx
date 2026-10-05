@@ -11,6 +11,7 @@ import { GameState } from './game/GameStateMachine';
 import { FriendService } from './engine/FriendService';
 import { gameplayManager } from './engine/GameplayManager';
 import { dailyChallengeManager } from './engine/DailyChallengeManager';
+import { globalAudio } from './engine/GlobalAudio';
 import { queryClient } from './services/trpc';
 import { getProvider } from './services/leaderboard';
 import './App.css';
@@ -95,6 +96,20 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState]);
+
+  // 音乐随界面切换。走 globalAudio（独立于 GameScene 的音频通道）：
+  // 若挂在 GameScene 上，结算/返回菜单时组件卸载会把声音一起销毁，
+  // 导致「胜利音乐」「主菜单音乐」实际听不到。
+  useEffect(() => {
+    if (gameState === GameState.PLAYING) {
+      globalAudio.playMusic('game');
+    } else if (gameState === GameState.GAME_OVER) {
+      globalAudio.playMusic(isVictory ? 'victory' : 'defeat');
+    } else {
+      // MENU / LEVEL_SELECT / SETTINGS / 各面板
+      globalAudio.playMusic('menu');
+    }
+  }, [gameState, isVictory]);
 
   // 开始新游戏 - 打开关卡选择
   const handleStartGame = useCallback(() => {
@@ -184,6 +199,9 @@ function App() {
     setIsPaused(false);
     resetGame();
     setSceneReady(true);
+    // 之前这里没有切回 PLAYING：在结算界面点「重新开始」时 gameState 仍是 GAME_OVER，
+    // 界面不会变、GameScene 也不会重新挂载 —— 按钮等于没反应。
+    setGameState(GameState.PLAYING);
   }, [resetGame, setSceneReady]);
 
   // 游戏结束

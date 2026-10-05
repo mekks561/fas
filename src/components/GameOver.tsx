@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { globalAudio } from '../engine/GlobalAudio';
 import { Button } from './ui/shadcn';
 import { Card, CardContent } from './ui/shadcn';
 import {
@@ -234,6 +235,7 @@ export const GameOver: React.FC<GameOverProps> = ({
 
   const handleClick = useCallback((index: number, action?: () => void) => {
     setSelectedOption(index);
+    globalAudio.playCue('uiClick');
     if (action) {
       setTimeout(action, 100);
     }
@@ -509,7 +511,10 @@ export const GameOver: React.FC<GameOverProps> = ({
                   key={option.id}
                   className={`relative ${selectedOption === index ? 'scale-[1.02]' : ''} transition-transform duration-200`}
                   onClick={() => handleClick(index, option.action)}
-                  onMouseEnter={() => setSelectedOption(index)}
+                  onMouseEnter={() => {
+                    setSelectedOption(index);
+                    globalAudio.playCue('uiSelect');
+                  }}
                 >
                   <Button
                     variant={option.primary ? 'default' : 'outline'}

@@ -27,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   配套 `window.__waveDiag` 更新循环计数（`ticks` / `logicTicks` / `enemyUpdates`）。
 - **`scripts/verify-wave-progression.mjs`** - Playwright 闭环验证脚本，用调试钩子驱动 10 波全流程，
   rAF 劫持计数 + 逐帧敌人采样 + 冻结检测。
+- **`src/engine/GlobalAudio.ts`（全局音乐 / 界面音效通道）** - 基于 HTMLAudioElement 的
+  独立音频通道，不依赖 `pc.Application` 生命周期，因此音乐能活过界面切换。API：
+  `playMusic('menu'|'game'|'boss'|'victory'|'defeat')`、`playCue(...)`（UI 音效 + 结算音刺）、
+  `setMuted` / `setMusicVolume` / `setCueVolume`；首次用户手势时自动解锁并补播解锁前请求的曲子
+  （浏览器自动播放策略）。职责切分：**音乐与跨界面音效走 GlobalAudio，战斗内空间音效留在
+  `AudioSystem`**。
+- **`scripts/verify-audio-wiring.mjs`** - 音频接线验证脚本：真实浏览器跑
+  「菜单 → 战斗 → 末波 → 通关 → 重新开始 → 返回菜单」，逐界面断言当前在放哪首曲子，
+  并统计 `/assets/audio/` 的请求状态（含 HTMLAudio 的 206 Partial Content）。
 
 ### Changed
 
@@ -63,6 +72,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `gameOver` 段缺少 `leaderboard` 键，按钮直接显示原始键名。已补「排行榜」/ `Leaderboard`。
 - **PlayCanvas 2 `ParticleSystemComponent` 无 `start()`** - `Enemy` / `ObjectPool` / `PowerupSystem` /
   `SkillSystem` 中的 `particlesystem.start()` 改为 `play()`（Engine 2 仅提供 `play()`）。
+- **4 首 BGM 与 7 个 UI 音效「定义了却从不播放」** - 全仓只有 `gameMusic` 一处
+  `playMusic` 调用；`bgm-mainmenu` / `bgm-boss` / `bgm-victory` / `bgm-story` 与全部
+  `ui-*.ogg` 都是死定义（换素材时换了个没人听得见）。根因是**架构性**的：音乐若挂在
+  GameScene 上，结算/返回菜单时组件卸载 → `pc.Application.destroy()` → `soundManager`
+  销毁 → 声音当场被掐断。现改为：音乐由 `App` 依据 `gameState` + `isVictory` 驱动、
+  走独立通道 `GlobalAudio`；末波（Boss 波）切 `bossMusic` + `bossRoar`；
+  通关/阵亡的音刺与爆炸声也改走 GlobalAudio（否则会被卸载掐断）。
+- **结算界面「重新开始」按钮点了没反应** - `handleRestart` 只重置了 store 与暂停状态，
+  没有把 `gameState` 切回 `PLAYING`，因此在 `GAME_OVER` 界面点它时界面毫无变化
+  （从暂停菜单进则正常）。现补上 `setGameState(GameState.PLAYING)`。
+- **重开一局后战斗音效全部静默失效** - `AudioManager.initialize()` 原先只在
+  「首次」初始化（`if (!instance)`），而 GameScene 每次挂载都会新建 `pc.Application`
+  （旧的已 destroy、`soundManager` 失效），导致第二局起所有音效静默失效。
+  现改为**换 app 时销毁旧实例并重建**（新增 `isInitialized()` / `getApp()` /
+  `getCurrentMusic()`）。
+- **音乐双份开销** - 移除 `AudioSystem` 中 5 条音乐定义（所有权归 `GlobalAudio`），
+  避免同一批 BGM 被 PlayCanvas 预载解码一遍却没人播放；实测 `bgm-story.ogg`
+  现在只在真的阵亡时才被请求。
 
 ### Removed
 

@@ -2,8 +2,20 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from './ui/shadcn';
 import { Card, CardContent, CardFooter } from './ui/shadcn';
 import { Badge } from './ui/shadcn';
-import { Play, ArrowRight, Settings, Star, Trophy, Medal, ShoppingBag, Award, Users, Calendar } from 'lucide-react';
+import {
+  Play,
+  ArrowRight,
+  Settings,
+  Star,
+  Trophy,
+  Medal,
+  ShoppingBag,
+  Award,
+  Users,
+  Calendar,
+} from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
+import { globalAudio } from '../engine/GlobalAudio';
 import { useTranslation } from 'react-i18next';
 
 interface MainMenuProps {
@@ -52,7 +64,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           ]
         : []),
       ...(onShop ? [{ id: 'shop', label: '商店', icon: ShoppingBag, action: onShop }] : []),
-      ...(onLeaderboard ? [{ id: 'leaderboard', label: '排行榜', icon: Trophy, action: onLeaderboard }] : []),
+      ...(onLeaderboard
+        ? [{ id: 'leaderboard', label: '排行榜', icon: Trophy, action: onLeaderboard }]
+        : []),
       ...(onFriends ? [{ id: 'friends', label: '好友', icon: Users, action: onFriends }] : []),
       ...(onDailyChallenge
         ? [{ id: 'daily_challenge', label: '每日挑战', icon: Calendar, action: onDailyChallenge }]
@@ -65,7 +79,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         ? [{ id: 'credits', label: t('menu.credits'), icon: Star, action: onCredits }]
         : []),
     ],
-    [hasSavedGame, onStartGame, onContinueGame, onSettings, onCredits, onAchievements, onShop, onLeaderboard, onFriends, onDailyChallenge, t],
+    [
+      hasSavedGame,
+      onStartGame,
+      onContinueGame,
+      onSettings,
+      onCredits,
+      onAchievements,
+      onShop,
+      onLeaderboard,
+      onFriends,
+      onDailyChallenge,
+      t,
+    ],
   );
 
   useEffect(() => {
@@ -98,6 +124,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
   const handleClick = useCallback((index: number, action?: () => void) => {
     setSelectedOption(index);
+    globalAudio.playCue('uiClick');
     if (action) {
       setTimeout(action, 100);
     }
@@ -157,7 +184,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   key={option.id}
                   className={`relative ${selectedOption === index ? 'scale-[1.02]' : ''} transition-transform duration-200`}
                   onClick={() => handleClick(index, option.action)}
-                  onMouseEnter={() => setSelectedOption(index)}
+                  onMouseEnter={() => {
+                    setSelectedOption(index);
+                    globalAudio.playCue('uiSelect');
+                  }}
                 >
                   <Button
                     variant={option.primary ? 'default' : 'outline'}

@@ -30,47 +30,13 @@ const DEFAULT_CONFIG: AudioConfig = {
   spatialAudio: true,
 };
 
+// 注意：这里**只有音效**，没有音乐。
+// 音乐（menu / game / boss / victory / defeat）统一由 `src/engine/GlobalAudio.ts` 负责：
+// 它基于 HTMLAudioElement，不依赖 pc.Application，因此能活过界面切换；
+// 而本模块的声音挂在 app.soundManager 上，GameScene 卸载（结算/返回菜单）时会随之销毁。
+// 早前 5 首 BGM 同时在这里定义，结果是它们被 PlayCanvas 预载解码一遍、又没人播放，
+// 纯属双份开销 —— 已移除以确立单一所有权。
 const SOUND_DEFINITIONS: SoundDefinition[] = [
-  {
-    name: 'menuMusic',
-    type: 'music',
-    url: '/assets/audio/bgm/bgm-mainmenu.ogg',
-    loop: true,
-    volume: 0.6,
-    spatial: false,
-  },
-  {
-    name: 'gameMusic',
-    type: 'music',
-    url: '/assets/audio/bgm/bgm-gameplay.ogg',
-    loop: true,
-    volume: 0.5,
-    spatial: false,
-  },
-  {
-    name: 'victoryMusic',
-    type: 'music',
-    url: '/assets/audio/bgm/bgm-victory.mp3',
-    loop: false,
-    volume: 0.7,
-    spatial: false,
-  },
-  {
-    name: 'defeatMusic',
-    type: 'music',
-    url: '/assets/audio/bgm/bgm-story.ogg',
-    loop: false,
-    volume: 0.5,
-    spatial: false,
-  },
-  {
-    name: 'bossMusic',
-    type: 'music',
-    url: '/assets/audio/bgm/bgm-boss.ogg',
-    loop: true,
-    volume: 0.6,
-    spatial: false,
-  },
   {
     name: 'playerShoot',
     type: 'sfx',
@@ -633,6 +599,16 @@ export class AudioSystem {
     return this.config.mute;
   }
 
+  /** 供 AudioManager 判断底层 pc.Application 是否已被替换（GameScene 重挂载） */
+  public getApp(): pc.Application {
+    return this.app;
+  }
+
+  /** 当前背景音乐名（键名，如 'bossMusic'） */
+  public getCurrentMusic(): string {
+    return this.currentMusicName;
+  }
+
   public isPlaying(name: string): boolean {
     return this.playingSounds.has(name);
   }
@@ -651,9 +627,21 @@ export class AudioManager {
   private static instance: AudioSystem | null = null;
 
   public static initialize(app: pc.Application): void {
-    if (!AudioManager.instance) {
-      AudioManager.instance = new AudioSystem(app);
+    const existing = AudioManager.instance;
+    if (existing) {
+      // GameScene 每次挂载都会 new 一个 pc.Application；旧的会被 destroy，
+      // 其 soundManager / assets 随即失效。若这里仍然沿用旧实例，重开一局后
+      // 所有音效都会「静默失效」（调用不报错，但没有任何声音）。
+      // 因此换 app 时必须重建实例并重新加载音频资源。
+      if (existing.getApp() === app) return;
+      existing.destroy();
+      AudioManager.instance = null;
     }
+    AudioManager.instance = new AudioSystem(app);
+  }
+
+  public static isInitialized(): boolean {
+    return AudioManager.instance !== null;
   }
 
   public static get(): AudioSystem {

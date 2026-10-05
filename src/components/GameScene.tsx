@@ -13,6 +13,7 @@ import { gameplayManager } from '../engine/GameplayManager';
 import type { GameplayEvents } from '../engine/GameplayManager';
 import { dailyChallengeManager } from '../engine/DailyChallengeManager';
 import { ModelAssetProvider } from '../engine/ModelAssetProvider';
+import { globalAudio } from '../engine/GlobalAudio';
 import './GameScene.css';
 
 type PlayCanvasGameEngine = import('../engine/PlayCanvasEngine').PlayCanvasGameEngine;
@@ -45,6 +46,22 @@ const enginePowerupTypeToLua = (engineType: string): string | null => {
 /** 一波清空后到下一波敌人开始出现的间隔（秒）。
  *  给玩家喘息时间，并让「波次完成」提示来得及被看到。 */
 const WAVE_START_DELAY = 2.2;
+
+/**
+ * 波次开始时的音频切换。
+ *
+ * 音乐走 globalAudio（独立通道，跨界面不被销毁）；末波（Boss 波）换成 bossMusic
+ * 并配一声低吼，其余波次回到战斗音乐。playMusic 是幂等的，同一首在播时不会重头开始。
+ */
+const playWaveAudio = (waveNumber: number, totalWaves: number): void => {
+  if (waveNumber >= totalWaves) {
+    globalAudio.playMusic('boss');
+    globalAudio.playCue('bossRoar');
+  } else {
+    globalAudio.playMusic('game');
+    globalAudio.playCue('waveStart');
+  }
+};
 
 export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () => void }> =
   React.memo(({ onGameOver, onLevelComplete }) => {
@@ -219,6 +236,8 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
     // Build 强化选择处理
     const handleUpgradeSelect = useCallback((upgradeId: string) => {
       buildSystemRef.current?.selectUpgrade(upgradeId);
+      // 强化已选定：给一声界面反馈（此前 ui-levelup 定义了却从未被播放）
+      globalAudio.playCue('uiLevelUp');
       const build = buildSystemRef.current?.getActiveBuild();
       if (build) {
         const resonanceNames = buildSystemRef.current?.getActiveResonanceNames() || [];
@@ -300,7 +319,8 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         console.log('[GameScene] PlayCanvas engine created');
 
         AudioManager.initialize(engine.getApp());
-        AudioManager.playMusic('gameMusic');
+        // 音乐不在这里起：改由 globalAudio 按界面统一驱动（App 的 gameState 变化时切歌），
+        // 否则结算/返回菜单时组件卸载会把声音一起销毁 —— 见 GlobalAudio 的模块注释。
         audioManagerRef.current = AudioManager;
         console.log('[GameScene] Audio system initialized');
 
@@ -582,6 +602,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             enemySystemRef.current.setWaveManager(waveMgr);
           }
           enemySystemRef.current.startWave(1);
+          playWaveAudio(1, enemySystemRef.current.getTotalWaves());
           enemySystemRef.current.setPowerupDropCallback((position, _enemyType) => {
             if (powerupSpawnerRef.current) {
               const types = Object.values(EnginePowerupType);
@@ -663,6 +684,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             startWave: (n: number) => {
               enemySystemRef.current?.startWave(n);
               gameplayManagerRef.current?.startWave(n);
+              playWaveAudio(n, enemySystemRef.current?.getTotalWaves() ?? 10);
             },
             getState: () => ({
               wave: enemySystemRef.current?.getCurrentWave() ?? -1,
@@ -914,6 +936,7 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
                 waveTransition.nextWave = null;
                 enemySystemRef.current?.startWave(nextWave);
                 gameplayManagerRef.current?.startWave(nextWave);
+                playWaveAudio(nextWave, enemySystemRef.current?.getTotalWaves() ?? 10);
                 console.log(`[GameScene] Wave ${nextWave} started`);
               }
             }
@@ -930,8 +953,10 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             }
 
             if (playerRef.current.getHealth() <= 0) {
-              AudioManager.playSound('playerExplosion', playerRef.current.getPosition());
-              AudioManager.stopMusic();
+              // 阵亡音走 globalAudio：onGameOver() 会让 App 立刻切到结算界面并卸载
+              // GameScene（引擎随之销毁），挂在 PlayCanvas 上的音效会被当场掐断。
+              // 失败音乐由 App 依据 gameState + isVictory 统一切换。
+              globalAudio.playCue('playerExplosion');
               onGameOver();
             }
 
@@ -946,7 +971,9 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               if (finalWaveCleared && noMoreWaves && enemies.length === 0) {
                 levelCompleteFiredRef.current = true;
                 console.log('[GameScene] Level complete: final wave cleared');
-                AudioManager.playSound('levelComplete');
+                // 同上：关卡完成会立刻卸载 GameScene，音刺必须走 globalAudio 才听得见；
+                // 胜利音乐由 App 依据 gameState + isVictory 切换。
+                globalAudio.playCue('levelComplete');
                 onLevelComplete();
               }
             }
