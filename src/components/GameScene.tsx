@@ -28,6 +28,12 @@ type BuildSystem = import('../engine/BuildSystem').BuildSystem;
 type CameraSystem = import('../engine/CameraSystem').CameraSystem;
 type VisualEffectSystem = import('../engine/VisualEffectSystem').VisualEffectSystem;
 type AsteroidSystem = import('../engine/AsteroidSystem').AsteroidSystem;
+import { skillTreeManager } from '../engine/SkillTreeManager';
+import {
+  applySkillBonusesToPlayer,
+  applySkillBonusesToWeapon,
+  computeSkillMaxShield,
+} from '../engine/SkillBonusAdapter';
 
 const enginePowerupTypeToLua = (engineType: string): string | null => {
   const mapping: Record<string, string> = {
@@ -94,6 +100,18 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
      * 引擎销毁，整局游戏永久冻结。
      */
     const finalWaveClearedRef = useRef(false);
+
+    /**
+     * 已发放过升级奖励的最大波号。
+     *
+     * `GameplayManager.onEnemyKilled` 判定波次完成的条件里有一条是
+     * 「当前 wave state 已是 completed」，而 `killAll()`／大型爆炸这类一次性多杀
+     * 会让**后续每一个击杀**都再次命中该条件 —— 即同一波会多次触发 onWaveComplete。
+     * 既有的「排下一波」「弹强化选择」恰好幂等所以一直没人察觉，
+     * 但发放天赋点不是幂等的：同一波多发点会让等级虚高（实测清 1 波涨 4 级）。
+     * 这里用波号去重，保证一波只发一次。
+     */
+    const lastRewardedWaveRef = useRef(0);
 
     const [storyManager, setStoryManager] = useState<StoryMissionManager | null>(null);
     const [currentDialogue, setCurrentDialogue] = useState<Dialogue | null>(null);
@@ -403,6 +421,14 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         playerRef.current = player;
         console.log('[GameScene] Player created at position (0, 0, 0)');
 
+        // 技能树加成基线：天赋里的生命/护盾加成是**百分比**，而 PlayerShip
+        // 的 maxHealth/maxShield 是绝对值，需要基线换算。基线 = 玩家刚创建时
+        // 的实际上限（来自 store.player.health / shield），比写死常量更准。
+        const skillBaseStats = {
+          maxHealth: player.getMaxHealth(),
+          maxShield: player.getMaxShield(),
+        };
+
         // 小行星碰撞检测系统（需在 player 和小行星场都就绪后实例化）
         const { AsteroidSystem: AsteroidSystemClass } = await import('../engine/AsteroidSystem');
         const asteroidSystem = new AsteroidSystemClass(player, engine);
@@ -476,6 +502,24 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             }
           },
           onWaveComplete: (waveNumber, _score) => {
+            // 元进度：每清空一波，玩家等级 +1。
+            //
+            // 等级是技能树天赋点的**唯一来源**（SkillTreeManager.setPlayerLevel
+            // 按差值发点），同时也是关卡选择里 recommendedLevel 的解锁依据。
+            // 此前全项目没有任何代码调用 setPlayerLevel，等级恒为 1 —— 后果是
+            // 第 2~5 关（需等级 3/5/8/10）在关卡选择里永远锁着，玩家只能反复玩
+            // 第 1 关；技能树也永远是 0 点、12 个天赋全部点不动。
+            //
+            // resetGame() 保留 level（见 useGameStore），所以它是跨局累积的
+            // 元进度，而非单局内的临时数值。
+            //
+            // 去重：同一波 onWaveComplete 可能被触发多次（见 lastRewardedWaveRef 注释）。
+            if (waveNumber > lastRewardedWaveRef.current) {
+              lastRewardedWaveRef.current = waveNumber;
+              const store = useGameStore.getState();
+              store.setPlayerLevel(store.player.level + 1);
+            }
+
             // 最后一波清空：不再排下一波，标记「末波已清空」，
             // 交由 update 循环在同一帧触发关卡完成结算。
             const totalWaves = enemySystemRef.current?.getTotalWaves() ?? 10;
@@ -748,6 +792,46 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
               if (enemies[index]) enemies[index].takeDamage(99999);
             },
           };
+
+          // 技能树接线调试钩子。与 __waveDebug 同理：只**观测**生产路径上的真实
+          // 对象（store / skillTreeManager / PlayerShip / WeaponSystem），不旁路任何
+          // 逻辑，避免验证脚本读到一套影子状态而给出假绿。
+          (window as unknown as Record<string, unknown>)['__skillDebug'] = {
+            /** 元进度：等级（唯一真源是 store）+ 天赋点 + 聚合加成 */
+            getMeta: () => ({
+              level: useGameStore.getState().player.level,
+              points: skillTreeManager.getTalentPoints(),
+              stats: skillTreeManager.getStats(),
+            }),
+            /** 天赋节点快照（含解锁门槛与当前是否可点），供 UI 断言 */
+            nodes: () =>
+              skillTreeManager.getTalentNodes().map((n) => ({
+                id: n.id,
+                unlockLevel: n.unlockLevel,
+                maxLevel: n.maxLevel,
+                level: skillTreeManager.getTalentState(n.id)?.level ?? -1,
+                canUpgrade: skillTreeManager.canUpgradeTalent(n.id),
+              })),
+            /** 玩家**实际生效**的属性：读的是 PlayerShip / WeaponSystem 内部状态，
+             *  而不是技能树自己的统计，能真正证实「加成走到了战斗系统」。 */
+            getEffective: () => {
+              const p = playerRef.current;
+              const w = weaponSystemRef.current as unknown as {
+                buildMods?: Record<string, number>;
+              } | null;
+              return {
+                maxHealth: p?.getMaxHealth() ?? -1,
+                maxShield: p?.getMaxShield() ?? -1,
+                damageMultiplier: w?.buildMods?.['damageMultiplier'] ?? -1,
+                fireRateMultiplier: w?.buildMods?.['fireRateMultiplier'] ?? -1,
+                critChanceBonus: w?.buildMods?.['critChanceBonus'] ?? -1,
+              };
+            },
+            /** 直接点天赋（绕过打波次升级），便于快速验证属性出口 */
+            upgrade: (nodeId: string) => skillTreeManager.upgradeTalent(nodeId),
+            /** 清空技能树与其 localStorage，保证验证可重复 */
+            resetTree: () => skillTreeManager.reset(),
+          };
         }
 
         let frameCount = 0;
@@ -764,6 +848,39 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
             if (d) d.ticks++;
           }
 
+          // 修饰符同步：**独立于「是否暂停」**。
+          //
+          // 它只依赖 BuildSystem 与 SkillTreeManager 的状态，属于状态派生而非游戏逻辑，
+          // 暂停时也应保持一致。放在暂停判断内曾有一个真实后果：波次完成会弹出三选一
+          // 强化**并暂停游戏**，而玩家正是在这个窗口里加点，加成要等关掉弹窗、游戏恢复
+          // 才推得进去。
+          //
+          // 两条强化线在这一处合并：**局内**三选一（BuildSystem）+ **跨局**技能树
+          // （SkillTreeManager → SkillBonusAdapter）。合并刻意放在调用侧而不是
+          // BuildSystem 内部，让两条线各自单一职责、互不感知。
+          //
+          // 每帧重新构造对象（getStats / getPlayerModifiers 都返回新对象）与改动前
+          // 的开销同量级：都是几十个小字段的浅对象，对 60fps 无实际影响。
+          if (playerRef.current && buildSystemRef.current) {
+            const skillStats = skillTreeManager.getStats();
+            playerRef.current.setBuildModifiers(
+              applySkillBonusesToPlayer(
+                buildSystemRef.current.getPlayerModifiers(),
+                skillStats,
+                skillBaseStats.maxHealth,
+              ),
+            );
+            // 护盾上限不在 PlayerModifiers 里（它只描述回复速率），单独推
+            playerRef.current.setMaxShield(
+              computeSkillMaxShield(skillBaseStats.maxShield, skillStats),
+            );
+            if (weaponSystemRef.current) {
+              weaponSystemRef.current.setBuildModifiers(
+                applySkillBonusesToWeapon(buildSystemRef.current.getWeaponModifiers(), skillStats),
+              );
+            }
+          }
+
           if (!gameState.isGamePaused && gameState.isSceneReady && playerRef.current) {
             if (import.meta.env.DEV) {
               const d = (
@@ -772,15 +889,6 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
                 }
               ).__waveDiag;
               if (d) d.logicTicks++;
-            }
-            // 每帧同步 Build 修饰符到 PlayerShip 和 WeaponSystem
-            if (buildSystemRef.current) {
-              playerRef.current.setBuildModifiers(buildSystemRef.current.getPlayerModifiers());
-              if (weaponSystemRef.current) {
-                weaponSystemRef.current.setBuildModifiers(
-                  buildSystemRef.current.getWeaponModifiers(),
-                );
-              }
             }
 
             playerRef.current.update(dt, controlsRef.current);

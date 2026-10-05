@@ -13,6 +13,7 @@ import {
   Award,
   Users,
   Calendar,
+  GitBranch,
 } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { globalAudio } from '../engine/GlobalAudio';
@@ -25,6 +26,7 @@ interface MainMenuProps {
   onCredits?: () => void;
   onAchievements?: () => void;
   onShop?: () => void;
+  onSkillTree?: () => void;
   onLeaderboard?: () => void;
   onFriends?: () => void;
   onDailyChallenge?: () => void;
@@ -38,6 +40,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onCredits,
   onAchievements,
   onShop,
+  onSkillTree,
   onLeaderboard,
   onFriends,
   onDailyChallenge,
@@ -64,6 +67,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           ]
         : []),
       ...(onShop ? [{ id: 'shop', label: '商店', icon: ShoppingBag, action: onShop }] : []),
+      ...(onSkillTree
+        ? [{ id: 'skill_tree', label: '技能树', icon: GitBranch, action: onSkillTree }]
+        : []),
       ...(onLeaderboard
         ? [{ id: 'leaderboard', label: '排行榜', icon: Trophy, action: onLeaderboard }]
         : []),
@@ -87,6 +93,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       onCredits,
       onAchievements,
       onShop,
+      onSkillTree,
       onLeaderboard,
       onFriends,
       onDailyChallenge,

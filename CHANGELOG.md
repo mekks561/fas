@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **技能树全链路接通（此前是 1,284 行「两端全断」的半成品）** - `SkillTreeManager`（670 行，
+  12 天赋/等级发点/localStorage 持久化）+ `SkillTreeUI`（344 行）此前全项目零消费：
+  没有任何生产代码调用 `setPlayerLevel`（等级恒 1、天赋点恒 0、12 个天赋全部点不动），
+  `getStats()` 也没有任何战斗代码读取（点了也不会变强），UI 没有入口。本轮三段全接：
+  ① **升级源**：每清一波玩家等级 +1（store 的 `player.level` 为唯一真源，跨局累积——
+  `resetGame` 保留它）；② **属性出口**：新增 `SkillBonusAdapter` 把天赋加成合并进
+  BuildSystem 的修饰符（相乘/相加，非覆盖），局内三选一与跨局技能树两条强化线同时生效；
+  ③ **UI 入口**：主菜单新增「技能树」（`GameState.SKILL_TREE` + lazy 加载）。
+  配套 `scripts/verify-skilltree-wiring.mjs`（28 断言全绿：清 3 波 → 升 3 级得 3 点 →
+  点 3 个天赋 → 实测 PlayerShip 生命 100→110、护盾 50→55、武器伤害倍率 ×1.05 ——
+  读的是战斗系统内部状态而非技能树自述）。
 - **备用素材库（多源 CC0，520 MB）** - 新增 `scripts/fetch-asset-reserve.mjs`，一次性预抓三个
   CC0 源到 `.workbuddy/asset-cache/`（`.gitignore` 已忽略：**不进 `public/`、不参与构建、
   不进版本库**），后续开发随时取用：Kenney 全库快照（252 MB，与 `fetch-kenney-models.mjs`
@@ -28,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **同一波会重复触发 onWaveComplete（发放升级后暴露）** - `GameplayManager.onEnemyKilled`
+  判定波次完成的条件里有一条「当前 wave state 已是 completed」，`killAll()`／大型爆炸
+  这类一次性多杀会让后续每个击杀都再次命中它。既有的「排下一波」「弹强化选择」恰好
+  幂等所以一直没人察觉；升级发点不幂等，实测清 1 波涨了 4 级。已在 GameScene 用
+  「已发放波号」去重，一波只发一次。
+- **波次完成弹强化选择并暂停游戏期间，天赋加成推不进战斗系统** - 修饰符同步原先在
+  update 回调的「非暂停」判断内；玩家正是在暂停窗口里加点，加成要等关掉弹窗才生效。
+  同步属于状态派生而非游戏逻辑，已移出暂停判断（暂停时也保持一致）。
 - **`download()` 无超时** - `fetch-asset-reserve.mjs` 的下载在连接挂起时会永久阻塞
   （实测卡在 `SolarPanel002` 7 分钟+），已加 `AbortSignal.timeout(120s)`。
 - **Windows 路径喂给 MSYS tar/unzip** - `F:\…` 会被 GNU tar 当成「远程主机:路径」

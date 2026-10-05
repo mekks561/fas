@@ -12,6 +12,7 @@ import { FriendService } from './engine/FriendService';
 import { gameplayManager } from './engine/GameplayManager';
 import { dailyChallengeManager } from './engine/DailyChallengeManager';
 import { globalAudio } from './engine/GlobalAudio';
+import { skillTreeManager } from './engine/SkillTreeManager';
 import { queryClient } from './services/trpc';
 import { getProvider } from './services/leaderboard';
 import './App.css';
@@ -34,6 +35,9 @@ const AchievementPanel = lazy(() =>
 );
 const ShopPanel = lazy(() =>
   import('./components/ShopPanel').then((m) => ({ default: m.ShopPanel })),
+);
+const SkillTreeUI = lazy(() =>
+  import('./components/SkillTreeUI').then((m) => ({ default: m.SkillTreeUI })),
 );
 const LeaderboardPanel = lazy(() =>
   import('./components/LeaderboardPanel').then((m) => ({ default: m.LeaderboardPanel })),
@@ -111,6 +115,19 @@ function App() {
     }
   }, [gameState, isVictory]);
 
+  // 技能树与玩家等级同步。
+  //
+  // `player.level` 是**跨局累积的元进度**（resetGame 会保留它），而
+  // SkillTreeManager 自带一套 localStorage 持久化。两者必须对齐，否则会出现
+  // 「等级涨了但天赋点没涨」。这里把 store 定为唯一真源：等级一变就同步过去。
+  //
+  // setPlayerLevel 内部按**差值**发点（level - oldLevel），所以重复同步同一
+  // 等级不会重复发点；首次运行时 store 里是持久化等级、manager 里还是初始 1 级，
+  // 也能一次性把该有的点数补齐。
+  useEffect(() => {
+    skillTreeManager.setPlayerLevel(playerLevel);
+  }, [playerLevel]);
+
   // 开始新游戏 - 打开关卡选择
   const handleStartGame = useCallback(() => {
     setGameState(GameState.LEVEL_SELECT);
@@ -146,6 +163,11 @@ function App() {
   // 打开商店
   const handleShop = useCallback(() => {
     setGameState(GameState.SHOP);
+  }, []);
+
+  // 打开技能树
+  const handleSkillTree = useCallback(() => {
+    setGameState(GameState.SKILL_TREE);
   }, []);
 
   // 打开排行榜
@@ -307,6 +329,7 @@ function App() {
             onSettings={handleSettings}
             onAchievements={handleAchievements}
             onShop={handleShop}
+            onSkillTree={handleSkillTree}
             onLeaderboard={handleLeaderboard}
             onFriends={handleFriends}
             onDailyChallenge={handleDailyChallenge}
@@ -343,6 +366,13 @@ function App() {
         {gameState === GameState.SHOP && (
           <Suspense fallback={<PageLoader />}>
             <ShopPanel onBack={handleBackToMenu} />
+          </Suspense>
+        )}
+
+        {/* 技能树面板 */}
+        {gameState === GameState.SKILL_TREE && (
+          <Suspense fallback={<PageLoader />}>
+            <SkillTreeUI onBack={handleBackToMenu} />
           </Suspense>
         )}
 
