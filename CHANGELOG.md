@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **后处理系统正式接通（bloom / 暗角 / 色彩校正）** - `VisualEffectSystem`（原 953 行）
+  此前整段被注释在 GameScene 渲染路径外，理由是「可能破坏渲染管线」；真实原因是它按
+  PlayCanvas 1.x 的 API 写，迁到 2.x 后三处致命错叠加，构造函数第一句就抛异常被
+  try/catch 咽掉——整套后处理从未真正生效过：① `PostEffectQueue` 构造签名是
+  `(app, camera)`，原代码强转成 `(device)` 只传 graphicsDevice → 队列 `camera` 为
+  undefined，基类构造里 `camera.on('set:rect')` 即抛；② `CameraComponent.postEffects`
+  是只读 getter（相机构造时就自建队列），原代码强转赋值 → 严格模式 TypeError，
+  正确做法是**复用相机自带队列**；③ `PostEffect` 在 2.x 退化为占位基类，不再接受
+  shader、没有 `init()`/`setUniform()`，自定义效果必须继承并覆写 `render()`——
+  把 uniform 写进 `device.scope` 再调 `drawQuad()`。重写为 `ShaderPostEffect`
+  （单遍，uniform 经 scope 每帧刷新）+ `BloomPostEffect`（亮部提取 → 可分离高斯
+  横/纵两遍 → 合成；中间缓冲按输入一半分辨率**惰性**创建，窗口缩放自动重建），
+  删除已死的单遍 bloom / FXAA（与 MSAA 冗余）/ SSAO 空壳。关键坑：uniform 必须在
+  `drawQuad` 之前绑定，未绑定的 sampler 会被引擎悄悄回落成 `builtInTextures.pink`
+  （不报错、画面糊成粉色）。GameScene 正式接入 `cinematic` 预设，bloom 让上一轮的
+  粒子尾焰/爆炸真正发光。配套 `scripts/verify-postfx.mjs`（12 断言全绿：队列启用 /
+  效果数 3 / 相机渲染目标已切离屏 → 画面有真实内容 → 暗角差分（关掉后变亮
+  0.043→0.077）→ bloom 差分（辉光带像素 14351→17104）→ 击杀结算仍正常）。
 - **粒子特效贴图（消除「纯色光团」廉价感）** - 此前所有粒子系统（引擎尾焰/导弹尾焰/命中
   爆炸/敌机死亡爆炸/道具拾取/技能爆炸）的 colorMap 都是引擎默认的纯白小圆点——视觉上
   是一团纯色。本轮从备用库 Kenney Particle Pack 挑选 7 张白色发光形状贴图（512×512

@@ -1,5 +1,31 @@
 import * as pc from 'playcanvas';
 
+/**
+ * 后处理（post-processing）系统：bloom + 暗角 + 色差 + 色彩校正。
+ *
+ * ## 为什么这个文件在 PlayCanvas 2.x 上曾经整条不可用
+ *
+ * 这份实现最初是按 PlayCanvas 1.x 的 API 写的，迁移到 2.23 后三处都变了形，
+ * 结果是构造函数第一句就抛异常，GameScene 里的 try/catch 把它咽掉，
+ * 整套后处理（953 行）从未在渲染路径上生效过：
+ *
+ * 1. `PostEffectQueue` 的构造签名是 `(app, camera)`。原代码强转成单参数的
+ *    `(device)` 只传了 graphicsDevice → 队列的 `camera` 是 undefined，
+ *    基类构造里 `camera.on('set:rect', ...)` 立刻抛 TypeError。
+ * 2. `CameraComponent.postEffects` 是**只读 getter**（相机在构造时就自建了队列），
+ *    原代码 `cam.postEffects = queue` 在严格模式下同样抛 TypeError。
+ *    → 正确做法是直接复用相机自带的队列，不要自建。
+ * 3. `PostEffect` 在 2.x 里退化成占位基类：构造函数只接收 graphicsDevice，
+ *    不再接受 shader，也没有 `init()` / `setUniform()`。自定义效果必须
+ *    继承 PostEffect 覆写 `render()`，在里面把 uniform 写进 `device.scope`，
+ *    再调用基类 `drawQuad()` 画全屏四边形。
+ *
+ * ## 一个必须知道的坑
+ *
+ * uniform 一定要在 `drawQuad()` **之前**绑定。未绑定的 sampler 会被引擎悄悄
+ * 回落到 `builtInTextures.pink`（画面糊成粉色）——不报错，只是颜色全错。
+ */
+
 // Shared GLSL vertex shader used by all post effects (WebGL2 fallback).
 const GLSL_VERTEX = `
   attribute vec2 aPosition;
@@ -18,23 +44,10 @@ const WGSL_VERTEX = `
   }
 `;
 
-/**
- * PlayCanvas' public PostEffect type only exposes render/drawQuad, but the
- * engine also supports a convenience constructor that accepts a shader along
- * with init()/setUniform() helpers. These are not part of the .d.ts, so we
- * extend the type with the members we rely on and cast at construction time.
- */
-type PostEffectWithUniforms = pc.PostEffect & {
-  pass?: number;
-  init(): void;
-  setUniform(name: string, value: number | number[] | Float32Array): void;
-};
-
 export interface VisualEffectConfig {
   bloomEnabled: boolean;
   bloomThreshold: number;
   bloomStrength: number;
-  bloomBlur: number;
 
   vignetteEnabled: boolean;
   vignetteIntensity: number;
@@ -48,48 +61,213 @@ export interface VisualEffectConfig {
   colorCorrectionSaturation: number;
   colorCorrectionContrast: number;
   colorCorrectionExposure: number;
+}
 
-  fxaaEnabled: boolean;
+/** 创建一张用于后处理中间结果的纹理缓冲（线性过滤 + CLAMP，避免边缘渗色）。 */
+function createEffectTarget(
+  device: pc.GraphicsDevice,
+  name: string,
+  width: number,
+  height: number,
+): pc.RenderTarget {
+  const colorBuffer = new pc.Texture(device, {
+    name,
+    width,
+    height,
+    format: pc.PIXELFORMAT_RGBA8,
+    mipmaps: false,
+    minFilter: pc.FILTER_LINEAR,
+    magFilter: pc.FILTER_LINEAR,
+    addressU: pc.ADDRESS_CLAMP_TO_EDGE,
+    addressV: pc.ADDRESS_CLAMP_TO_EDGE,
+  });
+  return new pc.RenderTarget({ name, colorBuffer, depth: false });
+}
+
+/** 释放一个中间缓冲（颜色纹理需要单独 destroy）。 */
+function destroyEffectTarget(rt: pc.RenderTarget | null): void {
+  if (!rt) return;
+  rt.colorBuffer.destroy();
+  rt.destroy();
+}
+
+/**
+ * 单遍后处理效果：把 inputTarget 的颜色缓冲绑到 `uColorBuffer`，写入登记过的
+ * uniform，然后把全屏四边形画到 outputTarget。
+ */
+class ShaderPostEffect extends pc.PostEffect {
+  protected readonly shader: pc.Shader;
+  protected readonly uniforms = new Map<string, unknown>();
+  /** 是否自动把 inputTarget 的颜色缓冲绑到 uColorBuffer（多遍效果自行控制）。 */
+  protected bindColorBuffer = true;
+
+  constructor(device: pc.GraphicsDevice, shader: pc.Shader) {
+    super(device);
+    this.shader = shader;
+  }
+
+  /** 登记一个 uniform，实际写入发生在 render() 里（scope 是全局的，必须每帧刷）。 */
+  public setUniform(name: string, value: unknown): void {
+    this.uniforms.set(name, value);
+  }
+
+  /** 读取一个数值型 uniform（带回落值），供子类在 render 里使用。 */
+  protected num(name: string, fallback: number): number {
+    const value = this.uniforms.get(name);
+    return typeof value === 'number' ? value : fallback;
+  }
+
+  protected bindColorBufferTexture(buffer: pc.Texture): void {
+    this.device.scope.resolve('uColorBuffer').setValue(buffer);
+  }
+
+  protected commitUniforms(): void {
+    const scope = this.device.scope;
+    for (const [name, value] of this.uniforms) {
+      scope.resolve(name).setValue(value);
+    }
+  }
+
+  public override render(
+    inputTarget: pc.RenderTarget,
+    outputTarget: pc.RenderTarget,
+    rect?: pc.Vec4,
+  ): void {
+    if (this.bindColorBuffer) {
+      this.bindColorBufferTexture(inputTarget.colorBuffer);
+    }
+    this.commitUniforms();
+    this.drawQuad(outputTarget, this.shader, rect);
+  }
+}
+
+/**
+ * 三遍 bloom：亮部提取 → 可分离高斯模糊（横一遍、竖一遍）→ 加回原图。
+ *
+ * 中间缓冲是**惰性**创建的：按输入缓冲的一半分辨率建两张 ping-pong 纹理，
+ * 输入尺寸变化（窗口缩放）时自动重建。不放在构造函数里是因为构造时还不
+ * 知道渲染分辨率（相机 rect 可能尚未生效）。
+ */
+class BloomPostEffect extends ShaderPostEffect {
+  private readonly brightShader: pc.Shader;
+  private readonly blurShader: pc.Shader;
+  private readonly compositeShader: pc.Shader;
+
+  private rt1: pc.RenderTarget | null = null;
+  private rt2: pc.RenderTarget | null = null;
+  private rtWidth = 0;
+  private rtHeight = 0;
+
+  constructor(
+    device: pc.GraphicsDevice,
+    shaders: { bright: pc.Shader; blur: pc.Shader; composite: pc.Shader },
+  ) {
+    super(device, shaders.composite);
+    this.brightShader = shaders.bright;
+    this.blurShader = shaders.blur;
+    this.compositeShader = shaders.composite;
+    this.bindColorBuffer = false; // 四个 pass 各自按需绑定，见 render()
+  }
+
+  private ensureTargets(width: number, height: number): void {
+    if (this.rt1 && this.rt2 && this.rtWidth === width && this.rtHeight === height) return;
+    this.destroyTargets();
+    this.rt1 = createEffectTarget(this.device, 'bloomRT1', width, height);
+    this.rt2 = createEffectTarget(this.device, 'bloomRT2', width, height);
+    this.rtWidth = width;
+    this.rtHeight = height;
+  }
+
+  private destroyTargets(): void {
+    destroyEffectTarget(this.rt1);
+    destroyEffectTarget(this.rt2);
+    this.rt1 = null;
+    this.rt2 = null;
+    this.rtWidth = 0;
+    this.rtHeight = 0;
+  }
+
+  public override render(
+    inputTarget: pc.RenderTarget,
+    outputTarget: pc.RenderTarget,
+    rect?: pc.Vec4,
+  ): void {
+    const width = Math.max(1, Math.floor(inputTarget.colorBuffer.width / 2));
+    const height = Math.max(1, Math.floor(inputTarget.colorBuffer.height / 2));
+    this.ensureTargets(width, height);
+    const rt1 = this.rt1;
+    const rt2 = this.rt2;
+    if (!rt1 || !rt2) return;
+
+    const scope = this.device.scope;
+    const threshold = this.num('uThreshold', 0.8);
+    const strength = this.num('uStrength', 0.4);
+
+    // 1) 亮部提取：inputTarget → rt1
+    scope.resolve('uColorBuffer').setValue(inputTarget.colorBuffer);
+    scope.resolve('uThreshold').setValue(threshold);
+    this.drawQuad(rt1, this.brightShader);
+
+    // 2) 横向高斯模糊：rt1 → rt2
+    scope.resolve('uColorBuffer').setValue(rt1.colorBuffer);
+    scope.resolve('uDirection').setValue([1, 0]);
+    scope.resolve('uResolution').setValue([width, height]);
+    this.drawQuad(rt2, this.blurShader);
+
+    // 3) 纵向高斯模糊：rt2 → rt1
+    scope.resolve('uColorBuffer').setValue(rt2.colorBuffer);
+    scope.resolve('uDirection').setValue([0, 1]);
+    this.drawQuad(rt1, this.blurShader);
+
+    // 4) 合成：原图 + 模糊亮部 → outputTarget
+    scope.resolve('uColorBuffer').setValue(inputTarget.colorBuffer);
+    scope.resolve('uBlurBuffer').setValue(rt1.colorBuffer);
+    scope.resolve('uStrength').setValue(strength);
+    this.drawQuad(outputTarget, this.compositeShader, rect);
+  }
+
+  /** 释放中间缓冲（效果被移除或系统销毁时调用）。 */
+  public destroyTargetsAndShaders(): void {
+    this.destroyTargets();
+  }
 }
 
 export class VisualEffectSystem {
-  private app: pc.Application;
-  private camera: pc.Entity;
-  private postEffectQueue: pc.PostEffectQueue | null = null;
+  private readonly app: pc.Application;
+
+  /** 相机自带的队列（2.x 里由 CameraComponent 自行创建，不可替换）。 */
+  private readonly queue: pc.PostEffectQueue;
 
   private config: VisualEffectConfig;
 
-  private bloomEffect: PostEffectWithUniforms | null = null;
-  private vignetteEffect: PostEffectWithUniforms | null = null;
-  private chromaticAberrationEffect: PostEffectWithUniforms | null = null;
-  private colorCorrectionEffect: PostEffectWithUniforms | null = null;
-  private fxaaEffect: PostEffectWithUniforms | null = null;
+  private bloomEffect: BloomPostEffect | null = null;
+  private vignetteEffect: ShaderPostEffect | null = null;
+  private chromaticAberrationEffect: ShaderPostEffect | null = null;
+  private colorCorrectionEffect: ShaderPostEffect | null = null;
 
-  private bloomShader: pc.Shader | null = null;
-  private vignetteShader: pc.Shader | null = null;
-  private chromaticAberrationShader: pc.Shader | null = null;
-  private colorCorrectionShader: pc.Shader | null = null;
-  private fxaaShader: pc.Shader | null = null;
-
-  // Multi-pass bloom resources.
   private bloomBrightShader: pc.Shader | null = null;
   private bloomBlurShader: pc.Shader | null = null;
   private bloomCompositeShader: pc.Shader | null = null;
-  private bloomRenderTarget1: pc.RenderTarget | null = null;
-  private bloomRenderTarget2: pc.RenderTarget | null = null;
+  private vignetteShader: pc.Shader | null = null;
+  private chromaticAberrationShader: pc.Shader | null = null;
+  private colorCorrectionShader: pc.Shader | null = null;
 
-  // SSAO is only available on WebGPU; on WebGL2 it remains a no-op stub.
-  private ssaoEnabled = false;
+  private disposed = false;
 
   constructor(app: pc.Application, camera: pc.Entity) {
     this.app = app;
-    this.camera = camera;
+
+    const cameraComponent = camera.camera;
+    if (!cameraComponent) {
+      throw new Error('[VisualEffectSystem] camera entity has no CameraComponent');
+    }
+    // 复用相机自带的队列：postEffects 只有 getter，赋值会抛 TypeError。
+    this.queue = cameraComponent.postEffects;
 
     this.config = {
       bloomEnabled: true,
       bloomThreshold: 0.8,
       bloomStrength: 0.4,
-      bloomBlur: 4,
 
       vignetteEnabled: true,
       vignetteIntensity: 0.6,
@@ -103,27 +281,23 @@ export class VisualEffectSystem {
       colorCorrectionSaturation: 1.2,
       colorCorrectionContrast: 1.1,
       colorCorrectionExposure: 1.0,
-
-      fxaaEnabled: true,
     };
 
     this.initializeShaders();
     this.initializePostEffects();
   }
 
-  /** True when the active graphics device is a WebGPU device. */
   private get isWebGPU(): boolean {
     return this.app.graphicsDevice.deviceType === pc.DEVICETYPE_WEBGPU;
   }
 
-  /** The shader language (WGSL or GLSL) that matches the active device. */
   private get shaderLanguage(): string {
     return this.isWebGPU ? pc.SHADERLANGUAGE_WGSL : pc.SHADERLANGUAGE_GLSL;
   }
 
   /**
-   * Creates a Shader using the appropriate language for the active device.
-   * Both GLSL (WebGL2 fallback) and WGSL (WebGPU) sources must be supplied.
+   * 用当前设备匹配的语言创建一个 Shader。GLSL（WebGL2）与 WGSL（WebGPU）
+   * 两份源码都必须提供。
    */
   private createShader(
     name: string,
@@ -142,55 +316,112 @@ export class VisualEffectSystem {
     });
   }
 
-  /** True when all multi-pass bloom shaders have been created. */
-  private get multiPassBloomShadersReady(): boolean {
-    return (
-      this.bloomBrightShader !== null &&
-      this.bloomBlurShader !== null &&
-      this.bloomCompositeShader !== null
-    );
-  }
-
-  /**
-   * Wraps the non-standard PostEffect constructor (which accepts a shader) and
-   * the init() helper that are not present in the public type definitions.
-   */
-  private createPostEffect(shader: pc.Shader, pass?: number): PostEffectWithUniforms {
-    const ctor = pc.PostEffect as unknown as new (
-      device: pc.GraphicsDevice,
-      shader?: pc.Shader,
-    ) => PostEffectWithUniforms;
-    const effect = new ctor(this.app.graphicsDevice, shader);
-    if (pass !== undefined) {
-      effect.pass = pass;
-    }
-    effect.init();
-    return effect;
-  }
-
   private initializeShaders(): void {
-    // ---- Bloom (single-pass, used as the queued effect / WebGL2 fallback) ----
-    this.bloomShader = this.createShader(
-      'bloom',
+    // ---- Bloom: 亮部提取 ----
+    this.bloomBrightShader = this.createShader(
+      'bloomBright',
+      GLSL_VERTEX,
+      `
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D uColorBuffer;
+        uniform float uThreshold;
+
+        void main(void) {
+            vec4 color = texture2D(uColorBuffer, vUv);
+            float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
+            if (brightness > uThreshold) {
+                gl_FragColor = vec4(color.rgb * (brightness - uThreshold), 1.0);
+            } else {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            }
+        }
+      `,
+      WGSL_VERTEX,
+      `
+        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
+        @group(0) @binding(1) var uColorBufferSampler: sampler;
+        uniform uThreshold: f32;
+
+        @fragment
+        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+            let dim = textureDimensions(uColorBuffer);
+            let uv = fragCoord.xy / vec2<f32>(f32(dim.x), f32(dim.y));
+            let color = textureSample(uColorBuffer, uColorBufferSampler, uv);
+            let brightness = dot(color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722));
+            if (brightness > uThreshold) {
+                return vec4<f32>(color.rgb * (brightness - uThreshold), 1.0);
+            }
+            return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+        }
+      `,
+    );
+
+    // ---- Bloom: 可分离高斯模糊（9 tap，方向由 uDirection 决定） ----
+    this.bloomBlurShader = this.createShader(
+      'bloomBlur',
+      GLSL_VERTEX,
+      `
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D uColorBuffer;
+        uniform vec2 uDirection;
+        uniform vec2 uResolution;
+
+        void main(void) {
+            vec2 texel = 1.0 / uResolution;
+            vec2 step = uDirection * texel * 2.0;
+            vec4 sum = vec4(0.0);
+            sum += texture2D(uColorBuffer, vUv + step * -4.0) * 0.0625;
+            sum += texture2D(uColorBuffer, vUv + step * -3.0) * 0.09375;
+            sum += texture2D(uColorBuffer, vUv + step * -2.0) * 0.125;
+            sum += texture2D(uColorBuffer, vUv + step * -1.0) * 0.15625;
+            sum += texture2D(uColorBuffer, vUv) * 0.1875;
+            sum += texture2D(uColorBuffer, vUv + step * 1.0) * 0.15625;
+            sum += texture2D(uColorBuffer, vUv + step * 2.0) * 0.125;
+            sum += texture2D(uColorBuffer, vUv + step * 3.0) * 0.09375;
+            sum += texture2D(uColorBuffer, vUv + step * 4.0) * 0.0625;
+            gl_FragColor = sum;
+        }
+      `,
+      WGSL_VERTEX,
+      `
+        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
+        @group(0) @binding(1) var uColorBufferSampler: sampler;
+        uniform uDirection: vec2<f32>;
+        uniform uResolution: vec2<f32>;
+
+        @fragment
+        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+            let uv = fragCoord.xy / uResolution;
+            let texel = 1.0 / uResolution;
+
+            var sum = vec4<f32>(0.0);
+            let weights = array<f32, 9>(0.0625, 0.09375, 0.125, 0.15625, 0.1875, 0.15625, 0.125, 0.09375, 0.0625);
+            for (var i = -4; i <= 4; i = i + 1) {
+                let offset = uDirection * texel * f32(i) * 2.0;
+                sum = sum + textureSample(uColorBuffer, uColorBufferSampler, uv + offset) * weights[i + 4];
+            }
+            return sum;
+        }
+      `,
+    );
+
+    // ---- Bloom: 合成（原图 + 模糊亮部） ----
+    this.bloomCompositeShader = this.createShader(
+      'bloomComposite',
       GLSL_VERTEX,
       `
         precision highp float;
         varying vec2 vUv;
         uniform sampler2D uColorBuffer;
         uniform sampler2D uBlurBuffer;
-        uniform float uThreshold;
         uniform float uStrength;
 
         void main(void) {
             vec4 color = texture2D(uColorBuffer, vUv);
             vec4 blur = texture2D(uBlurBuffer, vUv);
-
-            float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
-            if (brightness > uThreshold) {
-                color.rgb += blur.rgb * uStrength;
-            }
-
-            gl_FragColor = color;
+            gl_FragColor = vec4(color.rgb + blur.rgb * uStrength, color.a);
         }
       `,
       WGSL_VERTEX,
@@ -199,7 +430,6 @@ export class VisualEffectSystem {
         @group(0) @binding(1) var uColorBufferSampler: sampler;
         @group(0) @binding(2) var uBlurBuffer: texture_2d<f32>;
         @group(0) @binding(3) var uBlurBufferSampler: sampler;
-        uniform uThreshold: f32;
         uniform uStrength: f32;
 
         @fragment
@@ -208,16 +438,12 @@ export class VisualEffectSystem {
             let uv = fragCoord.xy / vec2<f32>(f32(dim.x), f32(dim.y));
             let color = textureSample(uColorBuffer, uColorBufferSampler, uv);
             let blur = textureSample(uBlurBuffer, uBlurBufferSampler, uv);
-            let brightness = dot(color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722));
-            if (brightness > uThreshold) {
-                return vec4<f32>(color.rgb + blur.rgb * uStrength, color.a);
-            }
-            return color;
+            return vec4<f32>(color.rgb + blur.rgb * uStrength, color.a);
         }
       `,
     );
 
-    // ---- Vignette ----
+    // ---- 暗角 ----
     this.vignetteShader = this.createShader(
       'vignette',
       GLSL_VERTEX,
@@ -265,7 +491,7 @@ export class VisualEffectSystem {
       `,
     );
 
-    // ---- Chromatic aberration ----
+    // ---- 色差 ----
     this.chromaticAberrationShader = this.createShader(
       'chromaticAberration',
       GLSL_VERTEX,
@@ -306,7 +532,7 @@ export class VisualEffectSystem {
       `,
     );
 
-    // ---- Color correction ----
+    // ---- 色彩校正（饱和度 / 对比度 / 曝光） ----
     this.colorCorrectionShader = this.createShader(
       'colorCorrection',
       GLSL_VERTEX,
@@ -352,324 +578,37 @@ export class VisualEffectSystem {
         }
       `,
     );
-
-    // ---- FXAA ----
-    this.fxaaShader = this.createShader(
-      'fxaa',
-      GLSL_VERTEX,
-      `
-        precision highp float;
-        varying vec2 vUv;
-        uniform sampler2D uColorBuffer;
-        uniform vec2 uResolution;
-
-        vec4 fxaa(vec2 pos) {
-            vec2 texel = 1.0 / uResolution;
-
-            vec3 rgbNW = texture2D(uColorBuffer, pos + vec2(-1.0, -1.0) * texel).rgb;
-            vec3 rgbNE = texture2D(uColorBuffer, pos + vec2(1.0, -1.0) * texel).rgb;
-            vec3 rgbSW = texture2D(uColorBuffer, pos + vec2(-1.0, 1.0) * texel).rgb;
-            vec3 rgbSE = texture2D(uColorBuffer, pos + vec2(1.0, 1.0) * texel).rgb;
-            vec3 rgbM = texture2D(uColorBuffer, pos).rgb;
-
-            vec3 luma = vec3(0.299, 0.587, 0.114);
-            float lNW = dot(rgbNW, luma);
-            float lNE = dot(rgbNE, luma);
-            float lSW = dot(rgbSW, luma);
-            float lSE = dot(rgbSE, luma);
-            float lM = dot(rgbM, luma);
-
-            float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE)));
-            float lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
-
-            float dirX = ((((lNW + lNE) - (lSW + lSE)) * 0.25) + ((lNE + lSE) - (lNW + lSW)) * 0.25);
-            float dirY = ((((lNW + lSW) - (lNE + lSE)) * 0.25) + ((lSW + lSE) - (lNW + lNE)) * 0.25);
-
-            float dirReduce = max((lNW + lNE + lSW + lSE) * 0.025, 0.009);
-
-            float rcpDirMin = 1.0 / (min(abs(dirX), abs(dirY)) + dirReduce);
-
-            vec2 dir = vec2(dirX, dirY) * rcpDirMin;
-            vec3 rgbA = 0.5 * (
-                texture2D(uColorBuffer, pos + dir * (1.0 / 3.0 - 0.5) * texel).rgb +
-                texture2D(uColorBuffer, pos + dir * (2.0 / 3.0 - 0.5) * texel).rgb
-            );
-            vec3 rgbB = rgbA * 0.5 + 0.25 * (
-                texture2D(uColorBuffer, pos - dir * 0.5 * texel).rgb +
-                texture2D(uColorBuffer, pos + dir * 0.5 * texel).rgb
-            );
-
-            float lB = dot(rgbB, luma);
-
-            if ((lB < lMin) || (lB > lMax)) {
-                return vec4(rgbA, 1.0);
-            }
-
-            return vec4(rgbB, 1.0);
-        }
-
-        void main(void) {
-            gl_FragColor = fxaa(vUv);
-        }
-      `,
-      WGSL_VERTEX,
-      `
-        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
-        @group(0) @binding(1) var uColorBufferSampler: sampler;
-        uniform uResolution: vec2<f32>;
-
-        @fragment
-        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-            let texel = 1.0 / uResolution;
-            let pos = fragCoord.xy * texel;
-
-            let rgbNW = textureSample(uColorBuffer, uColorBufferSampler, pos + vec2<f32>(-1.0, -1.0) * texel).rgb;
-            let rgbNE = textureSample(uColorBuffer, uColorBufferSampler, pos + vec2<f32>(1.0, -1.0) * texel).rgb;
-            let rgbSW = textureSample(uColorBuffer, uColorBufferSampler, pos + vec2<f32>(-1.0, 1.0) * texel).rgb;
-            let rgbSE = textureSample(uColorBuffer, uColorBufferSampler, pos + vec2<f32>(1.0, 1.0) * texel).rgb;
-            let rgbM = textureSample(uColorBuffer, uColorBufferSampler, pos).rgb;
-
-            let luma = vec3<f32>(0.299, 0.587, 0.114);
-            let lNW = dot(rgbNW, luma);
-            let lNE = dot(rgbNE, luma);
-            let lSW = dot(rgbSW, luma);
-            let lSE = dot(rgbSE, luma);
-            let lM = dot(rgbM, luma);
-
-            let lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE)));
-            let lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
-
-            let dirX = ((((lNW + lNE) - (lSW + lSE)) * 0.25) + ((lNE + lSE) - (lNW + lSW)) * 0.25);
-            let dirY = ((((lNW + lSW) - (lNE + lSE)) * 0.25) + ((lSW + lSE) - (lNW + lNE)) * 0.25);
-
-            let dirReduce = max((lNW + lNE + lSW + lSE) * 0.025, 0.009);
-            let rcpDirMin = 1.0 / (min(abs(dirX), abs(dirY)) + dirReduce);
-
-            let dir = vec2<f32>(dirX, dirY) * rcpDirMin;
-            let rgbA = 0.5 * (
-                textureSample(uColorBuffer, uColorBufferSampler, pos + dir * (1.0 / 3.0 - 0.5) * texel).rgb +
-                textureSample(uColorBuffer, uColorBufferSampler, pos + dir * (2.0 / 3.0 - 0.5) * texel).rgb
-            );
-            let rgbB = rgbA * 0.5 + 0.25 * (
-                textureSample(uColorBuffer, uColorBufferSampler, pos - dir * 0.5 * texel).rgb +
-                textureSample(uColorBuffer, uColorBufferSampler, pos + dir * 0.5 * texel).rgb
-            );
-
-            let lB = dot(rgbB, luma);
-
-            if ((lB < lMin) || (lB > lMax)) {
-                return vec4<f32>(rgbA, 1.0);
-            }
-            return vec4<f32>(rgbB, 1.0);
-        }
-      `,
-    );
-
-    // Multi-pass bloom shaders + intermediate render targets.
-    this.createMultiPassBloom();
-  }
-
-  /**
-   * Builds the three-pass bloom pipeline:
-   *   1. Bright pass  - extract pixels above the threshold.
-   *   2. Blur pass    - separable Gaussian blur (ping-pong between two RTs).
-   *   3. Composite    - add the blurred bright buffer back onto the original.
-   * Both GLSL and WGSL sources are provided so the same code path works on
-   * WebGL2 and WebGPU.
-   */
-  private createMultiPassBloom(): void {
-    // ---- Bright pass ----
-    this.bloomBrightShader = this.createShader(
-      'bloomBright',
-      GLSL_VERTEX,
-      `
-        precision highp float;
-        varying vec2 vUv;
-        uniform sampler2D uColorBuffer;
-        uniform float uThreshold;
-
-        void main(void) {
-            vec4 color = texture2D(uColorBuffer, vUv);
-            float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
-            if (brightness > uThreshold) {
-                gl_FragColor = vec4(color.rgb * (brightness - uThreshold), 1.0);
-            } else {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            }
-        }
-      `,
-      WGSL_VERTEX,
-      `
-        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
-        @group(0) @binding(1) var uColorBufferSampler: sampler;
-        uniform uThreshold: f32;
-
-        @fragment
-        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-            let dim = textureDimensions(uColorBuffer);
-            let uv = fragCoord.xy / vec2<f32>(f32(dim.x), f32(dim.y));
-            let color = textureSample(uColorBuffer, uColorBufferSampler, uv);
-            let brightness = dot(color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722));
-            if (brightness > uThreshold) {
-                return vec4<f32>(color.rgb * (brightness - uThreshold), 1.0);
-            }
-            return vec4<f32>(0.0, 0.0, 0.0, 1.0);
-        }
-      `,
-    );
-
-    // ---- Separable Gaussian blur ----
-    this.bloomBlurShader = this.createShader(
-      'bloomBlur',
-      GLSL_VERTEX,
-      `
-        precision highp float;
-        varying vec2 vUv;
-        uniform sampler2D uColorBuffer;
-        uniform vec2 uDirection;
-        uniform vec2 uResolution;
-
-        void main(void) {
-            vec2 texel = 1.0 / uResolution;
-            vec2 step = uDirection * texel * 2.0;
-            vec4 sum = vec4(0.0);
-            sum += texture2D(uColorBuffer, vUv + step * -4.0) * 0.0625;
-            sum += texture2D(uColorBuffer, vUv + step * -3.0) * 0.09375;
-            sum += texture2D(uColorBuffer, vUv + step * -2.0) * 0.125;
-            sum += texture2D(uColorBuffer, vUv + step * -1.0) * 0.15625;
-            sum += texture2D(uColorBuffer, vUv) * 0.1875;
-            sum += texture2D(uColorBuffer, vUv + step * 1.0) * 0.15625;
-            sum += texture2D(uColorBuffer, vUv + step * 2.0) * 0.125;
-            sum += texture2D(uColorBuffer, vUv + step * 3.0) * 0.09375;
-            sum += texture2D(uColorBuffer, vUv + step * 4.0) * 0.0625;
-            gl_FragColor = sum;
-        }
-      `,
-      WGSL_VERTEX,
-      `
-        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
-        @group(0) @binding(1) var uColorBufferSampler: sampler;
-        uniform uDirection: vec2<f32>;
-        uniform uResolution: vec2<f32>;
-
-        @fragment
-        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-            let uv = fragCoord.xy / uResolution;
-            let texel = 1.0 / uResolution;
-
-            // 9-tap Gaussian blur
-            var sum = vec4<f32>(0.0);
-            let weights = array<f32, 9>(0.0625, 0.09375, 0.125, 0.15625, 0.1875, 0.15625, 0.125, 0.09375, 0.0625);
-            for (var i = -4; i <= 4; i = i + 1) {
-                let offset = uDirection * texel * f32(i) * 2.0;
-                sum = sum + textureSample(uColorBuffer, uColorBufferSampler, uv + offset) * weights[i + 4];
-            }
-            return sum;
-        }
-      `,
-    );
-
-    // ---- Composite pass ----
-    this.bloomCompositeShader = this.createShader(
-      'bloomComposite',
-      GLSL_VERTEX,
-      `
-        precision highp float;
-        varying vec2 vUv;
-        uniform sampler2D uColorBuffer;
-        uniform sampler2D uBlurBuffer;
-        uniform float uStrength;
-
-        void main(void) {
-            vec4 color = texture2D(uColorBuffer, vUv);
-            vec4 blur = texture2D(uBlurBuffer, vUv);
-            gl_FragColor = vec4(color.rgb + blur.rgb * uStrength, color.a);
-        }
-      `,
-      WGSL_VERTEX,
-      `
-        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
-        @group(0) @binding(1) var uColorBufferSampler: sampler;
-        @group(0) @binding(2) var uBlurBuffer: texture_2d<f32>;
-        @group(0) @binding(3) var uBlurBufferSampler: sampler;
-        uniform uStrength: f32;
-
-        @fragment
-        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-            let dim = textureDimensions(uColorBuffer);
-            let uv = fragCoord.xy / vec2<f32>(f32(dim.x), f32(dim.y));
-            let color = textureSample(uColorBuffer, uColorBufferSampler, uv);
-            let blur = textureSample(uBlurBuffer, uBlurBufferSampler, uv);
-            return vec4<f32>(color.rgb + blur.rgb * uStrength, color.a);
-        }
-      `,
-    );
-
-    // Ping-pong render targets at half resolution for the blur passes.
-    this.bloomRenderTarget1 = this.createBloomRenderTarget('bloomRT1');
-    this.bloomRenderTarget2 = this.createBloomRenderTarget('bloomRT2');
-  }
-
-  /** Creates a half-resolution RGBA8 render target for intermediate bloom results. */
-  private createBloomRenderTarget(name: string): pc.RenderTarget {
-    const device = this.app.graphicsDevice;
-    const width = Math.max(1, Math.floor(device.width / 2));
-    const height = Math.max(1, Math.floor(device.height / 2));
-    const colorBuffer = new pc.Texture(device, {
-      name,
-      width,
-      height,
-      format: pc.PIXELFORMAT_RGBA8,
-      mipmaps: false,
-      minFilter: pc.FILTER_LINEAR,
-      magFilter: pc.FILTER_LINEAR,
-      addressU: pc.ADDRESS_CLAMP_TO_EDGE,
-      addressV: pc.ADDRESS_CLAMP_TO_EDGE,
-    });
-    return new pc.RenderTarget({
-      name,
-      colorBuffer,
-      depth: false,
-    });
   }
 
   private initializePostEffects(): void {
-    // PostEffectQueue's public constructor expects (app, camera); the legacy
-    // single-argument form used here is preserved via a cast.
-    const queueCtor = pc.PostEffectQueue as unknown as new (
-      device: pc.GraphicsDevice,
-    ) => pc.PostEffectQueue;
-    this.postEffectQueue = new queueCtor(this.app.graphicsDevice);
-
-    if (this.config.fxaaEnabled && this.fxaaShader) {
-      this.fxaaEffect = this.createPostEffect(this.fxaaShader);
-      this.postEffectQueue.addEffect(this.fxaaEffect);
+    // 顺序即渲染链：第一个进队的会成为「场景渲染目标」（带 MSAA + 深度），
+    // 之后依次叠加。bloom 放最前是为了让它吃到多采样抗锯齿的目标。
+    if (this.config.bloomEnabled) {
+      this.enableBloom();
     }
-
-    if (this.config.bloomEnabled && this.bloomShader) {
-      this.bloomEffect = this.createPostEffect(this.bloomShader, 1);
-      this.postEffectQueue.addEffect(this.bloomEffect);
-    }
-
     if (this.config.vignetteEnabled && this.vignetteShader) {
-      this.vignetteEffect = this.createPostEffect(this.vignetteShader);
-      this.postEffectQueue.addEffect(this.vignetteEffect);
+      this.vignetteEffect = new ShaderPostEffect(this.app.graphicsDevice, this.vignetteShader);
+      this.queue.addEffect(this.vignetteEffect);
     }
-
     if (this.config.colorCorrectionEnabled && this.colorCorrectionShader) {
-      this.colorCorrectionEffect = this.createPostEffect(this.colorCorrectionShader);
-      this.postEffectQueue.addEffect(this.colorCorrectionEffect);
+      this.colorCorrectionEffect = new ShaderPostEffect(
+        this.app.graphicsDevice,
+        this.colorCorrectionShader,
+      );
+      this.queue.addEffect(this.colorCorrectionEffect);
     }
-
-    if (this.camera.camera) {
-      // postEffects only exposes a getter, so assign through a cast.
-      const cam = this.camera.camera as unknown as {
-        postEffects: pc.PostEffectQueue | null;
-      };
-      cam.postEffects = this.postEffectQueue;
+    if (this.config.chromaticAberrationEnabled && this.chromaticAberrationShader) {
+      this.chromaticAberrationEffect = new ShaderPostEffect(
+        this.app.graphicsDevice,
+        this.chromaticAberrationShader,
+      );
+      this.queue.addEffect(this.chromaticAberrationEffect);
     }
 
     this.updateEffects();
+    console.log(
+      `[VisualEffectSystem] Post effects initialized (${this.queue.effects.length} effects, enabled: ${this.queue.enabled})`,
+    );
   }
 
   private updateEffects(): void {
@@ -696,18 +635,29 @@ export class VisualEffectSystem {
     }
   }
 
+  /** 后处理链是否真的在渲染（队列启用且至少有一个效果）。 */
+  public isActive(): boolean {
+    return this.queue.enabled && this.queue.effects.length > 0;
+  }
+
+  /** 已入队的效果数量，供验证脚本断言链路就绪。 */
+  public getEffectCount(): number {
+    return this.queue.effects.length;
+  }
+
   public enableBloom(): void {
-    if (!this.bloomEffect) {
-      // On WebGPU, prefer the multi-pass composite shader when the multi-pass
-      // bloom pipeline is ready; otherwise fall back to the single-pass shader.
-      const shader =
-        this.isWebGPU && this.multiPassBloomShadersReady && this.bloomCompositeShader
-          ? this.bloomCompositeShader
-          : this.bloomShader;
-      if (shader) {
-        this.bloomEffect = this.createPostEffect(shader, 1);
-        this.postEffectQueue?.addEffect(this.bloomEffect);
-      }
+    if (
+      !this.bloomEffect &&
+      this.bloomBrightShader &&
+      this.bloomBlurShader &&
+      this.bloomCompositeShader
+    ) {
+      this.bloomEffect = new BloomPostEffect(this.app.graphicsDevice, {
+        bright: this.bloomBrightShader,
+        blur: this.bloomBlurShader,
+        composite: this.bloomCompositeShader,
+      });
+      this.queue.addEffect(this.bloomEffect);
     }
     this.config.bloomEnabled = true;
     this.updateEffects();
@@ -715,7 +665,8 @@ export class VisualEffectSystem {
 
   public disableBloom(): void {
     if (this.bloomEffect) {
-      this.postEffectQueue?.removeEffect(this.bloomEffect);
+      this.queue.removeEffect(this.bloomEffect);
+      this.bloomEffect.destroyTargetsAndShaders();
       this.bloomEffect = null;
     }
     this.config.bloomEnabled = false;
@@ -723,8 +674,8 @@ export class VisualEffectSystem {
 
   public enableVignette(): void {
     if (!this.vignetteEffect && this.vignetteShader) {
-      this.vignetteEffect = this.createPostEffect(this.vignetteShader);
-      this.postEffectQueue?.addEffect(this.vignetteEffect);
+      this.vignetteEffect = new ShaderPostEffect(this.app.graphicsDevice, this.vignetteShader);
+      this.queue.addEffect(this.vignetteEffect);
     }
     this.config.vignetteEnabled = true;
     this.updateEffects();
@@ -732,7 +683,7 @@ export class VisualEffectSystem {
 
   public disableVignette(): void {
     if (this.vignetteEffect) {
-      this.postEffectQueue?.removeEffect(this.vignetteEffect);
+      this.queue.removeEffect(this.vignetteEffect);
       this.vignetteEffect = null;
     }
     this.config.vignetteEnabled = false;
@@ -740,8 +691,11 @@ export class VisualEffectSystem {
 
   public enableChromaticAberration(): void {
     if (!this.chromaticAberrationEffect && this.chromaticAberrationShader) {
-      this.chromaticAberrationEffect = this.createPostEffect(this.chromaticAberrationShader);
-      this.postEffectQueue?.addEffect(this.chromaticAberrationEffect);
+      this.chromaticAberrationEffect = new ShaderPostEffect(
+        this.app.graphicsDevice,
+        this.chromaticAberrationShader,
+      );
+      this.queue.addEffect(this.chromaticAberrationEffect);
     }
     this.config.chromaticAberrationEnabled = true;
     this.updateEffects();
@@ -749,7 +703,7 @@ export class VisualEffectSystem {
 
   public disableChromaticAberration(): void {
     if (this.chromaticAberrationEffect) {
-      this.postEffectQueue?.removeEffect(this.chromaticAberrationEffect);
+      this.queue.removeEffect(this.chromaticAberrationEffect);
       this.chromaticAberrationEffect = null;
     }
     this.config.chromaticAberrationEnabled = false;
@@ -757,8 +711,11 @@ export class VisualEffectSystem {
 
   public enableColorCorrection(): void {
     if (!this.colorCorrectionEffect && this.colorCorrectionShader) {
-      this.colorCorrectionEffect = this.createPostEffect(this.colorCorrectionShader);
-      this.postEffectQueue?.addEffect(this.colorCorrectionEffect);
+      this.colorCorrectionEffect = new ShaderPostEffect(
+        this.app.graphicsDevice,
+        this.colorCorrectionShader,
+      );
+      this.queue.addEffect(this.colorCorrectionEffect);
     }
     this.config.colorCorrectionEnabled = true;
     this.updateEffects();
@@ -766,7 +723,7 @@ export class VisualEffectSystem {
 
   public disableColorCorrection(): void {
     if (this.colorCorrectionEffect) {
-      this.postEffectQueue?.removeEffect(this.colorCorrectionEffect);
+      this.queue.removeEffect(this.colorCorrectionEffect);
       this.colorCorrectionEffect = null;
     }
     this.config.colorCorrectionEnabled = false;
@@ -810,28 +767,6 @@ export class VisualEffectSystem {
   public setExposure(value: number): void {
     this.config.colorCorrectionExposure = value;
     this.updateEffects();
-  }
-
-  /**
-   * Enables screen-space ambient occlusion. Only supported on WebGPU; on WebGL2
-   * this is a no-op and emits a warning.
-   */
-  public enableSSAO(): void {
-    if (!this.isWebGPU) {
-      console.warn(
-        'VisualEffectSystem.enableSSAO: SSAO is only supported on WebGPU; ignored on WebGL2.',
-      );
-      return;
-    }
-    if (this.ssaoEnabled) {
-      return;
-    }
-    this.ssaoEnabled = true;
-  }
-
-  /** Disables SSAO. */
-  public disableSSAO(): void {
-    this.ssaoEnabled = false;
   }
 
   public applyPreset(preset: 'cinematic' | 'vibrant' | 'realistic' | 'retro'): void {
@@ -911,43 +846,33 @@ export class VisualEffectSystem {
     return { ...this.config };
   }
 
-  /** Frees a bloom render target and its color buffer texture. */
-  private destroyBloomRenderTarget(rt: pc.RenderTarget | null): void {
-    if (!rt) return;
-    const colorBuffer = rt.colorBuffer;
-    if (colorBuffer) {
-      colorBuffer.destroy();
-    }
-    rt.destroy();
-  }
-
+  /**
+   * 摘掉自己加进相机队列的效果并把相机的渲染目标还原。
+   *
+   * 刻意**不**调用 queue.destroy()：那是相机自己的队列，且 disable() 会顺带
+   * 还原 camera.renderTarget、清掉 onPostprocessing 回调，正是我们要的收尾。
+   */
   public dispose(): void {
-    if (this.postEffectQueue) {
-      // PostEffectQueue exposes destroy() rather than clear(); the legacy
-      // clear() call is preserved through a cast.
-      (this.postEffectQueue as unknown as { clear(): void }).clear();
-    }
+    if (this.disposed) return;
+    this.disposed = true;
 
-    this.destroyBloomRenderTarget(this.bloomRenderTarget1);
-    this.destroyBloomRenderTarget(this.bloomRenderTarget2);
-    this.bloomRenderTarget1 = null;
-    this.bloomRenderTarget2 = null;
+    this.disableBloom();
+    this.disableVignette();
+    this.disableChromaticAberration();
+    this.disableColorCorrection();
 
-    this.bloomEffect = null;
-    this.vignetteEffect = null;
-    this.chromaticAberrationEffect = null;
-    this.colorCorrectionEffect = null;
-    this.fxaaEffect = null;
+    this.bloomBrightShader?.destroy();
+    this.bloomBlurShader?.destroy();
+    this.bloomCompositeShader?.destroy();
+    this.vignetteShader?.destroy();
+    this.chromaticAberrationShader?.destroy();
+    this.colorCorrectionShader?.destroy();
 
-    this.bloomShader = null;
-    this.vignetteShader = null;
-    this.chromaticAberrationShader = null;
-    this.colorCorrectionShader = null;
-    this.fxaaShader = null;
     this.bloomBrightShader = null;
     this.bloomBlurShader = null;
     this.bloomCompositeShader = null;
-
-    this.ssaoEnabled = false;
+    this.vignetteShader = null;
+    this.chromaticAberrationShader = null;
+    this.colorCorrectionShader = null;
   }
 }

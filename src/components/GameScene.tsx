@@ -436,17 +436,26 @@ export const GameScene: React.FC<{
       // 雾效：增强深度感，远处物体渐隐（临时禁用排查黑屏）
       // engine.enableFog(new pc.Color(0.02, 0.02, 0.05), 0.008);
 
-      // 后处理系统：接入已实现的 VisualEffectSystem（bloom/vignette/FXAA/colorCorrection）
-      // 临时禁用排查黑屏：VFX 后处理可能破坏渲染管线
-      // try {
-      //   const { VisualEffectSystem: VFXClass } = await import('../engine/VisualEffectSystem');
-      //   const vfxSystem = new VFXClass(engine.getApp(), engine.getCamera());
-      //   vfxSystem.applyPreset('cinematic');
-      //   vfxSystemRef.current = vfxSystem;
-      //   console.log('[GameScene] Visual effect system initialized (cinematic preset)');
-      // } catch (vfxError) {
-      //   console.warn('[GameScene] VisualEffectSystem init failed, running without post-effects:', vfxError);
-      // }
+      // 后处理系统：bloom + 暗角 + 色彩校正（VisualEffectSystem）。
+      //
+      // 这套东西此前整段被注释掉，理由是「可能破坏渲染管线」。真实原因是它按
+      // PlayCanvas 1.x 的 API 写的，迁到 2.x 后构造函数第一句就抛异常——详见
+      // VisualEffectSystem.ts 顶部注释。修好后在这里正式接回。
+      //
+      // 放在场景搭建之后：bloom 会让粒子尾焰/爆炸、激光、发光材质真正「发光」，
+      // 与上一轮接入的粒子贴图是配套的。初始化失败只降级、不影响开局。
+      try {
+        const { VisualEffectSystem: VFXClass } = await import('../engine/VisualEffectSystem');
+        const vfxSystem = new VFXClass(engine.getApp(), engine.getCamera());
+        vfxSystem.applyPreset('cinematic');
+        vfxSystemRef.current = vfxSystem;
+        console.log('[GameScene] Visual effect system initialized (cinematic preset)');
+      } catch (vfxError) {
+        console.warn(
+          '[GameScene] VisualEffectSystem init failed, running without post-effects:',
+          vfxError,
+        );
+      }
 
       console.log('[GameScene] Environment created (with asteroid field, structures, fog, VFX)');
 
@@ -924,6 +933,26 @@ export const GameScene: React.FC<{
               } | null;
               return !!player?.engineTrail?.particlesystem?.colorMap;
             },
+          };
+
+          // 后处理观测钩子。同样只读生产对象，绝不另建影子状态。
+          (window as unknown as Record<string, unknown>)['__vfxDebug'] = {
+            active: () => vfxSystemRef.current?.isActive() ?? false,
+            effectCount: () => vfxSystemRef.current?.getEffectCount() ?? 0,
+            config: () => vfxSystemRef.current?.getConfig() ?? null,
+            /** 相机是否已把渲染目标切到后处理的离屏缓冲（= 后处理真的接管了渲染） */
+            cameraPostProcessed: () => !!engine.getCamera().camera?.renderTarget,
+            setBloom: (on: boolean) => {
+              if (on) vfxSystemRef.current?.enableBloom();
+              else vfxSystemRef.current?.disableBloom();
+            },
+            setBloomStrength: (value: number) => vfxSystemRef.current?.setBloomStrength(value),
+            setBloomThreshold: (value: number) => vfxSystemRef.current?.setBloomThreshold(value),
+            setVignette: (on: boolean) => {
+              if (on) vfxSystemRef.current?.enableVignette();
+              else vfxSystemRef.current?.disableVignette();
+            },
+            setExposure: (value: number) => vfxSystemRef.current?.setExposure(value),
           };
         }
 
