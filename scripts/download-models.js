@@ -1,3 +1,18 @@
+// ⚠️ 已停用 —— 本脚本会把 Khronos glTF 示例模型（Duck / CesiumMan / Cube 等）
+//    冒充成飞船、敌人、弹体下载进 public/assets/models/，与真素材体系完全冲突。
+//    真素材来源与许可见 public/assets/models/CREDITS.md，
+//    抓取脚本为 scripts/fetch-kenney-models.mjs。默认拒绝执行。
+//    （另注：本文件是 CommonJS 写法，而 package.json 为 "type": "module"，
+//      即便加 --force 也会在 require 处直接崩溃。）
+//    守卫必须放在 require 之前，否则模块求值会先因 require 报错而失效。
+if (!process.argv.includes('--force')) {
+  console.error(
+    '[download-models] 已停用：本脚本会下载 Khronos 示例模型冒充游戏素材。\n' +
+      '  想拉取真实素材：node scripts/fetch-kenney-models.mjs'
+  );
+  process.exit(1);
+}
+
 const fs = require('fs');
 const path = require('path');
 const https = require('https');

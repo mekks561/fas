@@ -56,25 +56,24 @@
 > 抓取脚本对 `structures/` 前缀的三角面阈值相应放宽到 40（仍高于原假素材的 12–32 面）；
 > 低面数对一次渲染 40 个实例的小行星带反而是性能优点。
 
-## 尚未替换的（19 个旧坏文件，约 368 KB）
+## 坏占位已全部清空（2026-10-05）
 
-本目录曾有 45 个由 `generate-models.js` 生成的坏 `.glb`（GLB 头错误、12–32 面）。
-其中 **26 个已换成 Kenney 真模型**（舰 6 + 敌 8 + Boss 2 + 结构物 11，见上表）；
-被取代的 10 个 `structures/structure-*.glb` 已删除。其余 **19 个坏文件**仍在仓库里：
+本目录现有 **27 个 `.glb`，全部是上表列出的 Kenney CC0 真模型**。旧 `generate-models.js`
+产出的 45 个坏文件已全部移除：26 个被真模型取代，其余 **19 个无人引用直接删除**
+（`projectiles/` 9 + `effects/` 8 + `bosses/` 2，约 368 KB）。
 
-| 目录           | 坏文件数 | 体积   | 运行时是否引用                                                          |
-| -------------- | -------- | ------ | ----------------------------------------------------------------------- |
-| `projectiles/` | 9        | 136 KB | 否（仅 `GameResources.ts`，该清单未接线）                               |
-| `effects/`     | 8        | 204 KB | 否（同上）                                                              |
-| `bosses/`      | 2        | 28 KB  | 否（`boss-collector.glb` 连清单都没引用；`boss-tyrant.glb` 仅清单引用） |
+**清空依据**：这 19 个文件没有任何渲染路径引用——仅被死代码链
+`GameResources.ts → GameResourceManager → ResourceDownloadTester` 的清单提及
+（`ResourceDownloadTester` 全项目零 import），删除后无 404 风险。
+`GameResources.ts` 清单里指向已删文件的 **29 条死条目已同步剪除**
+（含早已删掉的 10 个 `structure-*.glb` 的条目），剩余 16 条全部指向真实存在的文件；
+`scripts/download-models.js`（会把 Khronos 示例模型冒充游戏素材下载）已加停用守卫，
+与 `generate-models.js` 的守卫同款。
 
-- 渲染路径只会用到 `ModelAssetProvider` 里登记的那 27 个（boss 只映射了
-  `boss_sentinel` / `boss_overlord` 两个；结构物只映射了 asteroid / space_station /
-  satellite 三类）。
-- 注意：Kenney space 套件**没有**激光/导弹弹体模型，`projectiles/` 若要换真素材
-  需要引入其它素材源（当前子弹是程序化发光球体，视觉上并不违和，优先级低）。
-- `GameResources.ts` → `GameResourceManager` → `ResourceDownloadTester` 这条链
-  **没有任何应用侧入口**（`ResourceDownloadTester` 只被自己引用），因此这些引用
-  不代表真的会去下载。
-- 结论：这 19 个文件目前是**纯死重量**，删掉不会影响运行；但那属于独立的清理动作，
-  未经确认不擅自删除。
+**弹体与特效有意不留 GLB 素材**：
+
+- 子弹是程序化发光球体、特效走粒子系统——这类对象本来就不该用静态网格渲染；
+- 已查证 Kenney 3D 各包（space / blaster / tower-defense-classic 等）没有可用的
+  弹体模型：`blaster` 包是 FPS 枪械（枪身 / 弹匣 / 瞄准镜），与太空战机弹体无关；
+- 若未来确实要网格弹体：**先接线渲染、再找素材源**（`marble` 包的球体是候选），
+  不要为无人消费的槽位引入新字节。

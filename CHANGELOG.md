@@ -64,6 +64,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PlayCanvas 2 `ParticleSystemComponent` 无 `start()`** - `Enemy` / `ObjectPool` / `PowerupSystem` /
   `SkillSystem` 中的 `particlesystem.start()` 改为 `play()`（Engine 2 仅提供 `play()`）。
 
+### Removed
+
+- **19 个坏占位模型全部清空，`public/assets/models/` 只剩真素材（27 个 CC0 模型）** -
+  删除 `projectiles/`（9）、`effects/`（8）、`bosses/boss-collector.glb` + `boss-tyrant.glb`，
+  共约 368 KB。依据：这 19 个文件没有任何渲染路径引用，仅被死代码链
+  `GameResources.ts → GameResourceManager → ResourceDownloadTester` 的清单提及。
+- **`GameResources.ts` 清单中的 29 条死条目** - 指向已删文件的条目全部剪除
+  （19 个本轮删除的 + 10 个此前已删的 `structure-*.glb`），剩余 16 条全部指向真实文件，
+  测试所依赖的「数量 > 0 / md5 为字符串」断言不受影响。
+- **`scripts/download-models.js` 加停用守卫** - 该脚本会把 Khronos glTF 示例模型
+  （Duck / CesiumMan / Cube 等）冒充成飞船/敌人/弹体下载进 `public/assets/models/`；
+  守卫与 `generate-models.js` 同款（置于 `require` 之前）。
+- 弹体与特效**有意不留 GLB 素材**：子弹是程序化发光球体、特效走粒子系统，本就不该用
+  静态网格渲染；Kenney 3D 各包无可用弹体模型（`blaster` 包是 FPS 枪械）。
+  详见 `public/assets/models/CREDITS.md`。
+
 ### Verification
 
 - `tsc --noEmit`：0 错误
