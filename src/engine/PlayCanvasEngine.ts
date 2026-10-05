@@ -7,6 +7,18 @@ import { ModelAssetProvider } from './ModelAssetProvider';
 
 export type GameConfig = GameEngineConfig;
 
+/** 一套 PBR 材质的贴图与标量参数。 */
+export interface PbrSetDef {
+  diffuseMap: string;
+  normalMap?: string;
+  /** 粗糙度标量（0 光滑 → 1 全哑光）。ambientCG 的 Roughness 图极性与
+   * PlayCanvas 的 glossMap 相反（白=粗糙 vs 白=光滑），直接贴会反，
+   * 所以这里用标量、不贴图。 */
+  roughness: number;
+  /** 金属度标量（0 非金属 → 1 纯金属）。 */
+  metalness: number;
+}
+
 export class PlayCanvasGameEngine implements GameEngine {
   private app: pc.Application;
   private camera: pc.Entity;
@@ -410,10 +422,12 @@ export class PlayCanvasGameEngine implements GameEngine {
       holder.addChild(placeholder);
       container.addChild(holder);
 
-      // 9 种岩石外壳随机分配；失败则静默保留上面的程序化模型
+      // 9 种岩石外壳随机分配；失败则静默保留上面的程序化模型。
+      // GLB 替换完成后叠加 ambientCG 岩石 PBR（真实矿物质感）。
       this.getModelAssets().upgradeStructure(holder, placeholder, 'asteroid', {
         scaleMultiplier: scale * ModelAssetProvider.structureScale(),
         yaw: Math.random() * 360,
+        onReplaced: (instance) => this.applyPbrMaterialWhenReady(instance, 'rock'),
       });
     }
 
@@ -538,6 +552,129 @@ export class PlayCanvasGameEngine implements GameEngine {
       this.pendingColorMaps.push({ component: ps, url: colorMapUrl });
     }
     return ps;
+  }
+
+  // ─── PBR 材质：ambientCG 真材质应用到 GLB 结构物 ───────────────────────────
+  //
+  // Kenney 的 GLB 是纯色低多边形模型，材质只有 diffuse 一个平色。给它们叠上
+  // ambientCG 的真实 PBR 通道（Color / NormalGL / Roughness / Metalness，CC0），
+  // 低多边形轮廓 + 真实材质细节，观感差距非常大。
+  //
+  // 套件清单与许可见 public/assets/textures/CREDITS.md。
+
+  /** 一套 PBR 材质的贴图与标量参数。 */
+  public static readonly PBR_SETS: Record<string, PbrSetDef> = {
+    rock: {
+      diffuseMap: '/assets/textures/pbr/rock030/color.jpg',
+      roughness: 0.9,
+      metalness: 0.0,
+    },
+    metalPlates: {
+      diffuseMap: '/assets/textures/pbr/metalplates016a/color.jpg',
+      normalMap: '/assets/textures/pbr/metalplates016a/normal.jpg',
+      roughness: 0.45,
+      metalness: 0.85,
+    },
+    metal: {
+      diffuseMap: '/assets/textures/pbr/metal049a/color.jpg',
+      normalMap: '/assets/textures/pbr/metal049a/normal.jpg',
+      roughness: 0.35,
+      metalness: 0.85,
+    },
+  };
+
+  public static get ALL_PBR_TEXTURE_URLS(): string[] {
+    return Object.values(PlayCanvasGameEngine.PBR_SETS).flatMap((s) =>
+      Object.values(s).filter((v): v is string => typeof v === 'string'),
+    );
+  }
+
+  /** 已加载的 PBR 贴图缓存（key = url）。 */
+  private pbrTextures = new Map<string, pc.Texture | undefined>();
+  /** 贴图未就绪时登记的待应用项（GLB 替换往往早于贴图加载完成）。 */
+  private pendingPbr: { root: pc.Entity; set: string }[] = [];
+
+  /** 预加载全部 PBR 贴图（开局调用一次，与粒子贴图同一套缓存机制）。 */
+  public preloadPbrTextures(): void {
+    for (const url of PlayCanvasGameEngine.ALL_PBR_TEXTURE_URLS) {
+      if (this.pbrTextures.has(url)) continue;
+      this.pbrTextures.set(url, undefined); // 占位防重复发起
+      const asset = new pc.Asset(`pbrTex:${url}`, 'texture', { url });
+      this.app.assets.add(asset);
+      this.app.assets.load(asset);
+      asset.once('load', () => {
+        this.pbrTextures.set(url, asset.resource as pc.Texture);
+        console.log(`[PlayCanvasEngine] PBR texture loaded: ${url}`);
+        this.flushPendingPbr();
+      });
+      asset.once('error', (err: string) => {
+        console.warn(`[PlayCanvasEngine] PBR texture load failed (回落原材质): ${url}`, err);
+        this.pbrTextures.delete(url);
+      });
+    }
+  }
+
+  /** 贴图就绪后回填给在就绪前登记的实体（实体可能已随场景销毁，尽力而为）。 */
+  private flushPendingPbr(): void {
+    this.pendingPbr = this.pendingPbr.filter(({ root, set }) => {
+      try {
+        return !this.applyPbrMaterial(root, set); // 应用成功则移除
+      } catch {
+        return false; // 实体已销毁
+      }
+    });
+  }
+
+  /** applyPbrMaterial 的「等贴图就绪」版本：未就绪则登记，就绪后自动应用。 */
+  public applyPbrMaterialWhenReady(root: pc.Entity, set: string): void {
+    if (this.applyPbrMaterial(root, set)) return;
+    this.pendingPbr.push({ root, set });
+  }
+
+  private getPbrTexture(url: string): pc.Texture | undefined {
+    return this.pbrTextures.get(url) || undefined;
+  }
+
+  /**
+   * 把一套 PBR 材质应用到 root 子树的所有 meshInstance。
+   *
+   * 关键点：
+   *  - 必须开 `useMetalness`，否则 metalness/roughness 根本不参与着色
+   *    （PlayCanvas 默认走非金属的 diffuse+specular 路径）；
+   *  - 贴图未就绪的通道直接不设，回落对应标量，不会黑屏也不会报错；
+   *  - 核心的 diffuseMap 未就绪则整体跳过，返回 false 让调用方稍后重试。
+   *
+   * @returns 是否真正应用了（false = 贴图未就绪或无网格）
+   */
+  public applyPbrMaterial(root: pc.Entity, set: string): boolean {
+    const def = PlayCanvasGameEngine.PBR_SETS[set];
+    if (!def) return false;
+    const diffuse = this.getPbrTexture(def.diffuseMap);
+    if (!diffuse) return false;
+
+    let applied = 0;
+    root.forEach((node: pc.GraphNode) => {
+      const render = (node as pc.Entity).render;
+      if (!render) return;
+      for (const meshInstance of render.meshInstances) {
+        const material = new pc.StandardMaterial();
+        material.diffuseMap = diffuse;
+        material.diffuse = new pc.Color(1, 1, 1); // 让贴图原色说话
+        material.useMetalness = true;
+        material.roughness = def.roughness;
+        material.metalness = def.metalness;
+        const normal = def.normalMap ? this.getPbrTexture(def.normalMap) : undefined;
+        if (normal) {
+          material.normalMap = normal;
+          material.bumpiness = 0.8;
+        }
+        material.update();
+        meshInstance.material = material;
+        applied++;
+      }
+    });
+    if (applied > 0) console.log(`[PlayCanvasEngine] PBR "${set}" applied to ${applied} mesh(es)`);
+    return applied > 0;
   }
 
   public getApp(): pc.Application {

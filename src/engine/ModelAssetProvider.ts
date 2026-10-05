@@ -98,6 +98,12 @@ export interface AttachOptions {
   scaleMultiplier?: number;
   /** 绕 Y 轴的朝向修正（度） */
   yaw?: number;
+  /**
+   * GLB 实例替换占位模型**之后**的回调（拿到新实例）。
+   * 用于追加材质/特效等后处理 —— 此时占位模型已销毁，
+   * 直接对 placeholder 施加的任何改动都会随销毁而丢失。
+   */
+  onReplaced?: (instance: pc.Entity) => void;
 }
 
 /**
@@ -197,6 +203,7 @@ export class ModelAssetProvider {
 
       parent.addChild(instance);
       placeholder.destroy();
+      options.onReplaced?.(instance);
       console.log(`[ModelAssetProvider] ${relPath}.glb 已替换程序化模型`);
     });
   }

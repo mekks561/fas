@@ -91,7 +91,7 @@ for (let i = 0; i < 12; i++) {
 // 玩家不操作会很快被击毁（GameScene 一卸载 canvas 就没了）。
 // DEV 构建下用 __waveDebug.godMode 开无敌，从容抓战斗画面。
 await page.evaluate(() => {
-  window.__waveDebug?.godMode?.();
+  window.__waveDebug?.godMode?.(true);
 }).catch(() => {});
 for (const [tag, waitMs] of [
   ['glb-01-battle', 1500],

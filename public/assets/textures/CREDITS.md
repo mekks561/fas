@@ -15,12 +15,28 @@
 | `particles/powerup-star.png`   | Kenney — Particle Pack | `2d/Particle Pack/PNG (Transparent)/star_01.png`  | 512×512   | 41 KB  | 道具拾取特效（四芒星光）                       |
 | `particles/skill-flare.png`    | Kenney — Particle Pack | `2d/Particle Pack/PNG (Transparent)/flare_01.png` | 512×512   | 41 KB  | 技能爆炸（镜头光晕横条）                       |
 
+### PBR 材质集（ambientCG，1K JPG）
+
+| 文件                                | 来源                        | 原始素材                               | 通道                                     | 体积   | 用途                    |
+| ----------------------------------- | --------------------------- | -------------------------------------- | ---------------------------------------- | ------ | ----------------------- |
+| `pbr/rock030/{color,roughness}.jpg` | ambientCG — Rock030         | `Rock030_1K-JPG_{Color,Roughness}.jpg` | Color + Roughness                        | 2.1 MB | 小行星带（40 个小行星） |
+| `pbr/metalplates016a/*.jpg`         | ambientCG — MetalPlates016A | `MetalPlates016A_1K-JPG_*`             | Color + NormalGL + Roughness + Metalness | 1.8 MB | 空间站                  |
+| `pbr/metal049a/*.jpg`               | ambientCG — Metal049A       | `Metal049A_1K-JPG_*`                   | Color + NormalGL + Roughness + Metalness | 1.1 MB | 卫星                    |
+
 ## 来源快照
 
 - 仓库镜像：`shorepine/kenney`
 - 钉定 commit：`3694c6879e487c108f55677be7dd2ca75b07cc3b`
 - 许可：Kenney 全部素材为 CC0 1.0（见 https://kenney.nl/support ）
 - 本地备用库：`.workbuddy/asset-cache/kenney/`（由 `node scripts/fetch-asset-reserve.mjs` 抓取，含全库快照与校验清单）
+
+### ambientCG 快照
+
+- 许可：CC0 1.0（https://ambientcg.com ）
+- 本地备用库：`.workbuddy/asset-cache/ambientcg/`（18 套，含逐套校验）
+- 本目录只拷贝用到的通道；未用的 NormalGL/Displacement/AO 留在备用库，需要时再取。
+- 岩石只取 Color + Roughness：Kenney 岩石模型是低多边形平面着色，
+  法线贴图收益极小，却要额外 2.5 MB，不值得。
 
 ## 使用约定
 

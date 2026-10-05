@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **资源库利用率审计 + ambientCG 真 PBR 接入** - 新增 `scripts/audit-asset-usage.mjs`
+  （四层判定：直接命中 → 动态前缀 → 排除假消费方 → 传递闭包，`--json` 可机读）与
+  `docs/2026-10-05-资源库利用率审计.md`。结论：278 个资源 / 10.04MB 里运行时只加载
+  135 个（49%）/ 8.11MB（81%）——两个口径差一倍纯粹因为音频占 66% 体积且 100% 在用；
+  真正读不到的是 142 个 / 1.92MB，根因是 `manifest.json` 自证死链 + `AssetManifest.ts`
+  （全仓唯一做 id→URL 映射的文件）是死代码。审计后第一轮动作不是删而是**先用真料顶上**：
+  从备用库接入 ambientCG 三套 CC0 真材质（Rock030 / MetalPlates016A / Metal049A，1K JPG，
+  共 3.7MB），应用到小行星带 40 个（rock）/ 空间站（metalPlates）/ 卫星（metal），
+  替换 Kenney 纯色低模的平色材质。引擎新增 `preloadPbrTextures()` +
+  `applyPbrMaterial(root, set)` + `applyPbrMaterialWhenReady()`（GLB 替换往往早于贴图
+  加载完成，`onReplaced` 回调 + 未就绪登记回填）。配套 `scripts/verify-pbr-materials.mjs`
+  （6 断言全绿：贴图请求全 2xx → 引擎日志 42 次 applied → 场景内 82/110 网格挂上
+  diffuseMap → 0 运行时错误）。审计同时纠正了一个此前的乐观结论：`textures/ui/` 那
+  40 个"图标"（含配置里 18 个未消费的 icon 字段）实际全是 **64×64 纯色方块**
+  （逐张解码验证：单色 ×4096 像素、仅 203~227 字节），接上屏是降级不是白捡——
+  试接过一版已回滚，正解是换真图标。
+
+### Fixed
+
+- **`__waveDebug.godMode()` 从未生效** - 钩子签名是 `godMode(on: boolean)` 必须传参，
+  而所有验证脚本（含既有的 `verify-glb-models.mjs`）都写成无参调用 `godMode?.()`，
+  **无敌从未真正开启过**，此前的战斗截图全靠"抓得快"。已给参数加默认值 `on = true`。
+
+### Added
+
 - **后处理系统正式接通（bloom / 暗角 / 色彩校正）** - `VisualEffectSystem`（原 953 行）
   此前整段被注释在 GameScene 渲染路径外，理由是「可能破坏渲染管线」；真实原因是它按
   PlayCanvas 1.x 的 API 写，迁到 2.x 后三处致命错叠加，构造函数第一句就抛异常被

@@ -397,6 +397,10 @@ export const GameScene: React.FC<{
       // 之后所有粒子系统创建时同步取用；未就绪期间回落引擎默认白点、就绪后自动回填。
       engine.preloadParticleTextures();
 
+      // PBR 贴图：ambientCG 三套真材质（岩石/金属板/金属，共 ~3.7MB），
+      // 供小行星带 / 空间站 / 卫星在 GLB 替换完成后叠加（见 applyPbrMaterialWhenReady）。
+      engine.preloadPbrTextures();
+
       // 近景星星只保留 120 颗提供运动视差；远处的星空交给天幕贴图
       engine.createStarField(120, 20, 60);
       engine.createNebula(new pc.Vec3(30, 10, -30), 25);
@@ -421,6 +425,7 @@ export const GameScene: React.FC<{
       engine.getModelAssets().upgradeStructure(stationHolder, stationPlaceholder, 'space_station', {
         scaleMultiplier: 2 * ModelAssetProvider.structureScale(),
         yaw: 40,
+        onReplaced: (instance) => engine.applyPbrMaterialWhenReady(instance, 'metalPlates'),
       });
 
       const satelliteHolder = new pc.Entity('satelliteHolder');
@@ -431,6 +436,7 @@ export const GameScene: React.FC<{
       engine.getModelAssets().upgradeStructure(satelliteHolder, satellitePlaceholder, 'satellite', {
         scaleMultiplier: ModelAssetProvider.structureScale(),
         yaw: 200,
+        onReplaced: (instance) => engine.applyPbrMaterialWhenReady(instance, 'metal'),
       });
 
       // 雾效：增强深度感，远处物体渐隐（临时禁用排查黑屏）
@@ -861,8 +867,9 @@ export const GameScene: React.FC<{
           },
           /** 无敌模式：自动化验证用，避免玩家生存问题掩盖波次逻辑验证。
            *  必须走 setInvincible（内部维护 invulnerabilityEndTime，
-           *  直接改 isInvulnerable 会被 update 每帧重算覆盖）。 */
-          godMode: (on: boolean) => {
+           *  直接改 isInvulnerable 会被 update 每帧重算覆盖）。
+           *  默认 true —— 验证脚本都写成 godMode?.()，带默认值才真的生效。 */
+          godMode: (on: boolean = true) => {
             const p = playerRef.current;
             if (p && on) p.setInvincible(3_600_000);
           },
@@ -932,6 +939,28 @@ export const GameScene: React.FC<{
                 engineTrail?: { particlesystem?: { colorMap?: unknown } } | null;
               } | null;
               return !!player?.engineTrail?.particlesystem?.colorMap;
+            },
+          };
+
+          // PBR 材质观测钩子：统计场景里真正挂上 PBR diffuseMap 的网格数（只读生产对象）
+          (window as unknown as Record<string, unknown>)['__pbrDebug'] = {
+            summary: () => {
+              let pbrMeshes = 0;
+              let totalMeshes = 0;
+              const sets = new Set<string>();
+              engine.getApp().root.forEach((node: pc.GraphNode) => {
+                const render = (node as pc.Entity).render;
+                if (!render) return;
+                for (const mi of render.meshInstances) {
+                  totalMeshes++;
+                  const mat = mi.material as pc.StandardMaterial;
+                  if (mat?.diffuseMap?.name?.includes('pbrTex') || mat?.normalMap) {
+                    pbrMeshes++;
+                    if (mat.normalMap) sets.add('normal');
+                  }
+                }
+              });
+              return { pbrMeshes, totalMeshes, withNormalMap: sets.size };
             },
           };
 
