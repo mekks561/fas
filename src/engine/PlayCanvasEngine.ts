@@ -310,6 +310,62 @@ export class PlayCanvasGameEngine implements GameEngine {
   }
 
   /**
+   * 创建天幕：挂在相机下的大球内壁，铺一张等距柱状星空全景图。
+   *
+   * - 挂在相机（而非场景根）下 ⇒ 位置永远跟随相机，等效「无限远背景」，
+   *   玩家飞多远都不会出现背景视差穿帮。
+   * - 只用 emissiveMap 且 diffuse 为黑 ⇒ 不受任何光照影响，天就是天，不会被打亮。
+   * - 整个背景只占 1 个 draw call；贴图异步加载，失败时回落为深色球体，不阻塞开局。
+   *
+   * @param url 等距柱状全景图（建议 2:1，如 4096×2048）
+   * @param radius 天幕半径，须小于相机 farClip（默认 1000）
+   */
+  public createSkyDome(url: string, radius: number = 400): pc.Entity | null {
+    try {
+      const dome = new pc.Entity('skyDome');
+      const material = new pc.StandardMaterial();
+      material.name = 'skyDomeMaterial';
+      material.diffuse = new pc.Color(0, 0, 0);
+      material.emissive = new pc.Color(1, 1, 1);
+      // 相机在球内：可见面全是背面（法线朝外）。剔除正面 = 只渲染内壁，
+      // 比双面渲染少一半三角形。
+      material.cull = pc.CULLFACE_FRONT;
+      material.depthWrite = true;
+      material.update();
+
+      dome.addComponent('model', { type: 'sphere' });
+      const model = dome.model;
+      if (model) {
+        model.material = material;
+        // Engine 2 的 sphere 图元直径为 1，故缩放 = 2 × 半径
+        dome.setLocalScale(radius * 2, radius * 2, radius * 2);
+        // 天幕必须永远可见，不参与视锥剔除
+        for (const meshInstance of model.meshInstances ?? []) meshInstance.cull = false;
+      }
+
+      this.camera.addChild(dome);
+
+      // 贴图异步加载：加载完成前是深色球体，不阻塞场景搭建
+      const asset = new pc.Asset('skyDomeTexture', 'texture', { url });
+      this.app.assets.add(asset);
+      this.app.assets.load(asset);
+      asset.once('load', () => {
+        material.emissiveMap = asset.resource as pc.Texture;
+        material.update();
+        console.log('[PlayCanvasEngine] Sky dome texture loaded:', url);
+      });
+      asset.once('error', (err: string) => {
+        console.warn('[PlayCanvasEngine] 天幕贴图加载失败（保留深色背景）:', url, err);
+      });
+
+      return dome;
+    } catch (error) {
+      console.warn('[PlayCanvasEngine] 天幕创建失败:', error);
+      return null;
+    }
+  }
+
+  /**
    * 创建小行星场：在指定中心周围的球壳内均匀分布 count 个小行星
    * 用于增强 3D 空间感知和提供环境障碍
    */

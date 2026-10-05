@@ -332,7 +332,12 @@ export const GameScene: React.FC<{ onGameOver: () => void; onLevelComplete?: () 
         engine.addLight('fill', new pc.Vec3(10, 5, -10), new pc.Color(0.4, 0.5, 0.8), 0.5);
         console.log('[GameScene] Lights added');
 
-        engine.createStarField(300, 20, 60);
+        // 天幕：Kenney「Skyboxes」的太空全景（4096×2048，272KB，CC0，见 textures/CREDITS.md）。
+        // 挂在相机下 ⇒ 无限远背景；单 draw call；加载失败回落深色，不影响开局。
+        engine.createSkyDome('/assets/textures/skybox-space.png', 400);
+
+        // 近景星星只保留 120 颗提供运动视差；远处的星空交给天幕贴图
+        engine.createStarField(120, 20, 60);
         engine.createNebula(new pc.Vec3(30, 10, -30), 25);
         engine.createNebula(new pc.Vec3(-30, -5, 25), 20);
         engine.createPlanet('planet1', new pc.Vec3(40, 15, 35), 5, new pc.Color(0.4, 0.6, 0.8));

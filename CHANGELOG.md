@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-10-05
+
+### Added
+
+- **备用素材库（多源 CC0，520 MB）** - 新增 `scripts/fetch-asset-reserve.mjs`，一次性预抓三个
+  CC0 源到 `.workbuddy/asset-cache/`（`.gitignore` 已忽略：**不进 `public/`、不参与构建、
+  不进版本库**），后续开发随时取用：Kenney 全库快照（252 MB，与 `fetch-kenney-models.mjs`
+  钉同一 commit）+ Poly Haven HDRI 73 张（152 MB，`pure skies` 全量 / 月面实验室 4k /
+  暗夜净空 / 摄影棚）+ ambientCG PBR 材质 18 套（116 MB，太阳能板 / 科幻装甲板 / 岩石 / 地表）。
+  幂等可续抓（`.reserve-ok` 完成标记 + 压缩包 gzip 预检复用）、断网可从磁盘重建清单、
+  单源失败不拖垮全局。配套 `scripts/verify-asset-reserve.mjs`（GLB 结构抽样 / Radiance 魔数 /
+  PBR 贴图完整性 / manifest 对账）。产出 `manifest.json`（逐文件 URL/sha256/许可）与
+  `INDEX.md`（按套件索引，标注本游戏高相关项）。
+- **太空天幕（场景背景升级）** - `PlayCanvasEngine.createSkyDome()`：挂在**相机**下的大球内壁
+  （位置跟随相机 ⇒ 无限远背景，无视差穿帮），`emissiveMap` 不受光照影响，
+  `CULLFACE_FRONT` 只渲染内壁。贴图用 Kenney Skyboxes 的 `skybox-space.png`
+  （4096×2048 星云全景，272 KB，CC0）异步加载，失败回落深色背景不阻塞开局。
+  近景星星 300 → 120 颗（保留运动视差，远处的星空交给天幕）。实测背景从
+  「死黑 + 白点」变为星云渐变，0 加载失败、0 运行时错误。
+- **`public/assets/textures/CREDITS.md`** - 纹理类素材来源登记表（首个条目：天幕贴图）。
+
+### Fixed
+
+- **`download()` 无超时** - `fetch-asset-reserve.mjs` 的下载在连接挂起时会永久阻塞
+  （实测卡在 `SolarPanel002` 7 分钟+），已加 `AbortSignal.timeout(120s)`。
+- **Windows 路径喂给 MSYS tar/unzip** - `F:\…` 会被 GNU tar 当成「远程主机:路径」
+  （报 `Cannot connect to F: resolve failed`），加 `--force-local` 后反斜杠又被转义坏；
+  统一转为 POSIX 路径（`/f/…`）解决。
+- **删除不再中断抓取** - 本环境 `fs.rm` 被安全层接管走回收站，对大文件会 `ETIMEDOUT`
+  并炸掉整个脚本；新增 `rmSoft()` 尽力而为删除 + `.reserve-ok` 完成标记（重跑跳过已完成段）。
+
 ## [Unreleased] - 2026-10-04
 
 ### Added
