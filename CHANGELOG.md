@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **生存模式接通（又一个 1,064 行「做完没接」的半成品）** - `SurvivalModeManager`（437 行
+  - 374 行测试）+ `SurvivalModeUI`（253 行）此前零消费：`update(dt)` / `recordEnemyDefeat`
+    没有任何生产代码调用（状态机永远停在 menu），UI 没有入口，连 CSS 都不存在。
+    接线设计——**敌人只有 WaveManager 一个真源**：生存管理器 `setExternalControl(true)`
+    交出波次生成权（只保留计时/统计/状态机，避免两边波次人数不一致导致提前完成），GameScene
+    做桥接——检出它的 currentWave 前进就让 EnemySystem 启动对应波次；波次无尽
+    （`setMaxWaves(999)`）且永不触发通关结算，阵亡即结束。主菜单新增「生存模式」；
+    开局倒计时 / 战斗 HUD（波次/分数/时间/连击，`pointer-events:none` 不挡操作）/
+    波间过渡 / 结算入榜全链路可玩，本地最高分榜（前 10 名）持久化。配套
+    `SurvivalModeUI.css`（全量补齐，选择器限定在面板容器内防全局污染）与
+    `scripts/verify-survival-wiring.mjs`（36 断言全绿：入口→倒计时→桥接出真敌人→
+    清波波号前进+分数击杀上涨→第 3 波精英标记→阵亡结算→提交名字入榜→重开）。
 - **技能树全链路接通（此前是 1,284 行「两端全断」的半成品）** - `SkillTreeManager`（670 行，
   12 天赋/等级发点/localStorage 持久化）+ `SkillTreeUI`（344 行）此前全项目零消费：
   没有任何生产代码调用 `setPlayerLevel`（等级恒 1、天赋点恒 0、12 个天赋全部点不动），
@@ -39,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **SurvivalModeUI 的条件 Hook（零引用期间未暴露）** - `useEffect` 写在
+  `if (state === 'gameOver')` 分支体内：状态一切换 hook 调用数量就变，React 会抛
+  "Rendered more hooks than during the previous render" 并让整个面板崩溃。
+  已上移到组件顶层（ref 保证同一局只处理一次，离开 gameOver 后复位）。
 - **同一波会重复触发 onWaveComplete（发放升级后暴露）** - `GameplayManager.onEnemyKilled`
   判定波次完成的条件里有一条「当前 wave state 已是 completed」，`killAll()`／大型爆炸
   这类一次性多杀会让后续每个击杀都再次命中它。既有的「排下一波」「弹强化选择」恰好

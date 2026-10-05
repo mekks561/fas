@@ -13,6 +13,7 @@ import { gameplayManager } from './engine/GameplayManager';
 import { dailyChallengeManager } from './engine/DailyChallengeManager';
 import { globalAudio } from './engine/GlobalAudio';
 import { skillTreeManager } from './engine/SkillTreeManager';
+import { survivalModeManager } from './engine/SurvivalModeManager';
 import { queryClient } from './services/trpc';
 import { getProvider } from './services/leaderboard';
 import './App.css';
@@ -38,6 +39,9 @@ const ShopPanel = lazy(() =>
 );
 const SkillTreeUI = lazy(() =>
   import('./components/SkillTreeUI').then((m) => ({ default: m.SkillTreeUI })),
+);
+const SurvivalModeUI = lazy(() =>
+  import('./components/SurvivalModeUI').then((m) => ({ default: m.SurvivalModeUI })),
 );
 const LeaderboardPanel = lazy(() =>
   import('./components/LeaderboardPanel').then((m) => ({ default: m.LeaderboardPanel })),
@@ -67,6 +71,13 @@ function App() {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [isPaused, setIsPaused] = useState(false);
+  /**
+   * 当前这一局是「战役关卡」还是「生存模式」。
+   *
+   * 两者共用 GameScene 这条战斗管线，差别只在：波次是否无尽、阵亡后回到哪个界面。
+   * 真源放在 App（而不是 GameScene 内部状态），因为「阵亡后去哪」是 App 的路由决策。
+   */
+  const [runMode, setRunMode] = useState<'campaign' | 'survival'>('campaign');
 
   const isVictory = useGameStore((state) => state.isVictory);
   const setSceneReady = useGameStore((state) => state.setSceneReady);
@@ -137,6 +148,7 @@ function App() {
   const handleSelectLevel = useCallback(
     (levelId: number) => {
       setSelectedLevel(levelId);
+      setRunMode('campaign');
       resetGame();
       setSceneReady(false);
       setGameState(GameState.PLAYING);
@@ -193,6 +205,29 @@ function App() {
     setGameState(GameState.PLAYING);
   }, [resetGame, setSceneReady]);
 
+  // 打开生存模式面板
+  const handleSurvival = useCallback(() => {
+    setGameState(GameState.SURVIVAL);
+  }, []);
+
+  // 生存模式：开始一局。
+  // startGame()（进入 preparing 倒计时）由面板内部的「开始」按钮调用，
+  // 这里只负责切路由与清理上一局残留。
+  const handleSurvivalStart = useCallback(() => {
+    setRunMode('survival');
+    resetGame();
+    setSceneReady(false);
+    setGameState(GameState.PLAYING);
+  }, [resetGame, setSceneReady]);
+
+  // 生存模式：返回主菜单（结束会话，把状态机复位回 menu）
+  const handleSurvivalBack = useCallback(() => {
+    survivalModeManager.stopGame();
+    setRunMode('campaign');
+    setGameState(GameState.MENU);
+    setSceneReady(false);
+  }, [setSceneReady]);
+
   // 关闭设置
   const handleCloseSettings = useCallback(() => {
     if (gameState === GameState.SETTINGS) {
@@ -229,6 +264,15 @@ function App() {
   // 游戏结束
   const handleGameOver = useCallback(() => {
     setIsPaused(false);
+
+    // 生存模式阵亡：回到生存模式面板，由它的 gameOver 界面负责结算与最高分榜
+    // （不走战役结算界面 GameOver.tsx）。生存状态机已经在 GameScene 检测到
+    // 玩家阵亡时切到 gameOver。
+    if (runMode === 'survival') {
+      setGameState(GameState.SURVIVAL);
+      return;
+    }
+
     setGameState(GameState.GAME_OVER);
 
     const stats = gameplayManager.getStats();
@@ -249,7 +293,7 @@ function App() {
       );
       dailyChallengeManager.stopDailyChallenge();
     }
-  }, []);
+  }, [runMode]);
 
   // 关卡完成
   const handleLevelComplete = useCallback(() => {
@@ -330,6 +374,7 @@ function App() {
             onAchievements={handleAchievements}
             onShop={handleShop}
             onSkillTree={handleSkillTree}
+            onSurvival={handleSurvival}
             onLeaderboard={handleLeaderboard}
             onFriends={handleFriends}
             onDailyChallenge={handleDailyChallenge}
@@ -404,7 +449,11 @@ function App() {
         {gameState === GameState.PLAYING && (
           <>
             <Suspense fallback={<PageLoader />}>
-              <GameScene onGameOver={handleGameOver} onLevelComplete={handleLevelComplete} />
+              <GameScene
+                mode={runMode}
+                onGameOver={handleGameOver}
+                onLevelComplete={handleLevelComplete}
+              />
             </Suspense>
 
             {/* 暂停菜单 */}
@@ -420,6 +469,16 @@ function App() {
               </Suspense>
             )}
           </>
+        )}
+
+        {/* 生存模式面板：菜单态与战斗态都常驻。
+            战斗时它渲染 HUD 覆盖层（波次/分数/时间），必须排在 GameScene 之后
+            才能盖在 canvas 之上；阵亡后由它的 gameOver 分支显示结算与最高分榜。 */}
+        {(gameState === GameState.SURVIVAL ||
+          (gameState === GameState.PLAYING && runMode === 'survival')) && (
+          <Suspense fallback={<PageLoader />}>
+            <SurvivalModeUI onStartGame={handleSurvivalStart} onBackToMenu={handleSurvivalBack} />
+          </Suspense>
         )}
 
         {/* 游戏结束 */}

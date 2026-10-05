@@ -57,6 +57,18 @@ export class SurvivalModeManager {
   private bossWaveInterval = 5;
   private eliteWaveInterval = 3;
 
+  /**
+   * 外部战斗接管标记。
+   *
+   * 生存模式有两种运行方式：
+   * - 独立运行（默认 false）：本管理器自己按 spawnInterval 计数、自己判定波次完成，
+   *   供单元测试与离线推演使用。
+   * - 接入真实战斗（true）：敌人由战斗系统（EnemySystem + WaveManager）实际生成，
+   *   本管理器只保留「计时 + 统计 + 状态机」。若在接入后仍让内部按自己的敌人总数
+   *   判定完成，两边波次人数不一致会导致波次提前结束（实测第 1 波 3 vs 5）。
+   */
+  private externalControl = false;
+
   private constructor() {
     this.loadHighScores();
   }
@@ -125,7 +137,11 @@ export class SurvivalModeManager {
   public update(dt: number): void {
     if (this.state === 'playing') {
       this.stats.survivalTime += dt;
-      this.updateWave(dt);
+      // 接入真实战斗时波次完成由战斗侧的 onWaveComplete 通知（notifyWaveCleared），
+      // 这里再按内部计数判定会与 WaveManager 的敌人数打架（见 externalControl）。
+      if (!this.externalControl) {
+        this.updateWave(dt);
+      }
     } else if (this.state === 'preparing') {
       this.preparingTimer -= dt;
       if (this.preparingTimer <= 0) {
@@ -170,6 +186,39 @@ export class SurvivalModeManager {
         return;
       }
       remaining -= enemyConfig.count;
+    }
+  }
+
+  /**
+   * 切换为「真实战斗驱动」模式。接入 EnemySystem/WaveManager 时**必须**开启，
+   * 否则本管理器会用自己的敌人总数提前判定波次完成。详见 externalControl 字段说明。
+   */
+  public setExternalControl(on: boolean): void {
+    this.externalControl = on;
+  }
+
+  /**
+   * 战斗侧本波已清空（真实战斗驱动的波次推进入口）。
+   *
+   * 等价于内部的 completeWave()：加分波奖励、进入 waveTransition 并开始倒计时，
+   * 倒计时结束由 update(dt) 自动开启下一波（波号 = 当前波 + 1）。
+   */
+  public notifyWaveCleared(): void {
+    this.completeWave();
+  }
+
+  /**
+   * 记录一次击杀（真实战斗驱动的统计入口）。
+   *
+   * 与 recordEnemyDefeat 的区别：**不推进本管理器自己的波次计数**
+   * （waveEnemiesDefeated）——真实战斗的敌人数由 WaveManager 决定，
+   * 波次完成以战斗侧的 onWaveComplete → notifyWaveCleared() 为准。
+   */
+  public addKill(killScore: number, isBoss: boolean = false): void {
+    this.stats.enemiesDefeated++;
+    this.stats.score += killScore;
+    if (isBoss) {
+      this.stats.bossesDefeated++;
     }
   }
 

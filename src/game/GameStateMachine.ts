@@ -16,6 +16,7 @@ export enum GameState {
   ACHIEVEMENTS = 'achievements',
   SHOP = 'shop',
   SKILL_TREE = 'skill_tree',
+  SURVIVAL = 'survival',
   LEADERBOARD = 'leaderboard',
   FRIENDS = 'friends',
   DAILY_CHALLENGE = 'daily_challenge',
@@ -45,6 +46,7 @@ export class GameStateMachine {
       GameState.ACHIEVEMENTS,
       GameState.SHOP,
       GameState.SKILL_TREE,
+      GameState.SURVIVAL,
       GameState.LEADERBOARD,
       GameState.FRIENDS,
     ]);
@@ -57,7 +59,12 @@ export class GameStateMachine {
       GameState.PAUSED,
       GameState.GAME_OVER,
       GameState.LEVEL_COMPLETE,
+      // 生存模式阵亡后回到生存模式面板（结算 + 最高分榜在这里）
+      GameState.SURVIVAL,
     ]);
+
+    // 生存模式面板：开始一局 → 战斗；返回 → 主菜单
+    this.transitions.set(GameState.SURVIVAL, [GameState.PLAYING, GameState.MENU]);
 
     this.transitions.set(GameState.PAUSED, [GameState.PLAYING, GameState.MENU]);
 

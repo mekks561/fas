@@ -14,6 +14,7 @@ import {
   Users,
   Calendar,
   GitBranch,
+  Infinity as InfinityIcon,
 } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { globalAudio } from '../engine/GlobalAudio';
@@ -27,6 +28,7 @@ interface MainMenuProps {
   onAchievements?: () => void;
   onShop?: () => void;
   onSkillTree?: () => void;
+  onSurvival?: () => void;
   onLeaderboard?: () => void;
   onFriends?: () => void;
   onDailyChallenge?: () => void;
@@ -41,6 +43,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onAchievements,
   onShop,
   onSkillTree,
+  onSurvival,
   onLeaderboard,
   onFriends,
   onDailyChallenge,
@@ -63,6 +66,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               label: t('menu.continueGame'),
               icon: ArrowRight,
               action: onContinueGame,
+            },
+          ]
+        : []),
+      ...(onSurvival
+        ? [
+            {
+              id: 'survival',
+              label: t('survival.modeTitle'),
+              icon: InfinityIcon,
+              action: onSurvival,
             },
           ]
         : []),
@@ -94,6 +107,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       onAchievements,
       onShop,
       onSkillTree,
+      onSurvival,
       onLeaderboard,
       onFriends,
       onDailyChallenge,

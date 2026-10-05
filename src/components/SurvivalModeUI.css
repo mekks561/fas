@@ -1,0 +1,449 @@
+/**
+ * 生存模式面板样式。
+ *
+ * 这个组件此前零引用，样式从未存在过 —— 接通入口时必须一并补齐，
+ * 否则玩家看到的是没有任何样式的裸 HTML。
+ *
+ * 所有选择器都限定在生存面板的根容器内（.survival-menu / .survival-hud /
+ * .survival-preparing / .survival-transition / .survival-gameover），
+ * 因为 Vite 引入的 CSS 是全局的：`.stat-label`、`.leaderboard-item` 这类
+ * 通用类名在排行榜等面板里也存在，不加限定会互相污染。
+ */
+
+/* ─────────────── 开场菜单 / 结算：整屏居中 ─────────────── */
+
+.survival-menu,
+.survival-preparing,
+.survival-transition,
+.survival-gameover {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 107, 74, 0.12), transparent 60%),
+    linear-gradient(135deg, #0a0e1a 0%, #111827 50%, #0a0e1a 100%);
+  color: #e0e8f0;
+}
+
+.survival-title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #ff8a5c, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.survival-description {
+  margin: 0;
+  max-width: 620px;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #93a4bc;
+}
+
+/* ─────────────── 最高分预览 + 榜单 ─────────────── */
+
+.survival-stats-preview {
+  display: flex;
+  gap: 16px;
+}
+
+.survival-menu .stat-item,
+.survival-gameover .gameover-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 140px;
+  padding: 12px 20px;
+  background: rgba(15, 20, 35, 0.9);
+  border: 1px solid rgba(255, 138, 92, 0.25);
+  border-radius: 10px;
+}
+
+.survival-menu .stat-label,
+.survival-gameover .stat-label {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #7c8ba1;
+}
+
+.survival-menu .stat-value,
+.survival-gameover .stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffb37a;
+}
+
+.survival-leaderboard {
+  width: min(560px, 100%);
+  padding: 16px 20px;
+  background: rgba(12, 17, 30, 0.85);
+  border: 1px solid rgba(100, 150, 200, 0.2);
+  border-radius: 12px;
+}
+
+.survival-leaderboard .leaderboard-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #8fb4dc;
+}
+
+.survival-leaderboard .leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.survival-leaderboard .leaderboard-item {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 14px;
+}
+
+.survival-leaderboard .rank-badge {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+.survival-leaderboard .rank-badge.top-1 {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1206;
+}
+.survival-leaderboard .rank-badge.top-2 {
+  background: linear-gradient(135deg, #e5e7eb, #9ca3af);
+  color: #14181f;
+}
+.survival-leaderboard .rank-badge.top-3 {
+  background: linear-gradient(135deg, #d97706, #92400e);
+  color: #fff7ed;
+}
+
+.survival-leaderboard .player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #e0e8f0;
+}
+
+.survival-leaderboard .player-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #ffb37a;
+}
+
+.survival-leaderboard .player-wave {
+  font-size: 12px;
+  color: #7c8ba1;
+}
+
+/* ─────────────── 按钮 ─────────────── */
+
+.survival-menu .survival-start-btn,
+.survival-gameover .survival-restart-btn {
+  min-width: 220px;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #1a1206;
+  cursor: pointer;
+  background: linear-gradient(135deg, #ff8a5c, #f59e0b);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.28);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.survival-menu .survival-start-btn:hover,
+.survival-gameover .survival-restart-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(245, 158, 11, 0.38);
+}
+
+.survival-menu .survival-back-btn,
+.survival-gameover .survival-back-btn {
+  padding: 9px 22px;
+  border: 1px solid rgba(100, 150, 200, 0.3);
+  border-radius: 8px;
+  background: rgba(30, 40, 60, 0.8);
+  color: #cbd5e1;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.survival-menu .survival-back-btn:hover,
+.survival-gameover .survival-back-btn:hover {
+  background: rgba(50, 70, 100, 0.9);
+}
+
+/* ─────────────── 准备倒计时 / 波间过渡 ─────────────── */
+
+.survival-preparing .preparing-title,
+.survival-transition .transition-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #ff8a5c;
+}
+
+.survival-preparing .preparing-countdown,
+.survival-transition .transition-countdown {
+  font-size: 84px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, #ffd08a, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.survival-preparing .preparing-wave,
+.survival-transition .transition-wave,
+.survival-transition .transition-next {
+  margin: 0;
+  font-size: 15px;
+  color: #93a4bc;
+}
+
+.survival-transition .transition-reward {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #6ee7a8;
+}
+
+/* ─────────────── 战斗 HUD：覆盖在 canvas 之上的信息条 ─────────────── */
+
+.survival-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  /* 只做展示，不能挡住鼠标（画布要能聚焦、触控要能点） */
+  pointer-events: none;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #e0e8f0;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.75);
+}
+
+.survival-hud .hud-left {
+  flex: 1;
+  max-width: 320px;
+}
+
+.survival-hud .wave-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.survival-hud .wave-label {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8fb4dc;
+}
+
+.survival-hud .wave-number {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.survival-hud .wave-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.survival-hud .wave-badge.boss-wave {
+  background: rgba(220, 38, 38, 0.85);
+  color: #fff;
+}
+.survival-hud .wave-badge.elite-wave {
+  background: rgba(139, 92, 246, 0.85);
+  color: #fff;
+}
+
+.survival-hud .wave-progress {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.survival-hud .progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ff8a5c, #f59e0b);
+  transition: width 0.2s linear;
+}
+
+.survival-hud .enemies-count {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #93a4bc;
+}
+
+.survival-hud .hud-center {
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+.survival-hud .survival-score {
+  font-size: 34px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, #ffd08a, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.survival-hud .hud-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 320px;
+}
+
+.survival-hud .survival-time {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.survival-hud .time-label,
+.survival-hud .mini-label {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8fb4dc;
+}
+
+.survival-hud .time-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.survival-hud .survival-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.survival-hud .mini-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.survival-hud .mini-value {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ffb37a;
+}
+
+/* ─────────────── 结算：成绩明细 + 入榜输入 ─────────────── */
+
+.survival-gameover .gameover-title {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ff6b4a;
+}
+
+.survival-gameover .gameover-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 720px;
+}
+
+.survival-gameover .name-input-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 28px;
+  background: rgba(12, 17, 30, 0.92);
+  border: 1px solid rgba(255, 138, 92, 0.35);
+  border-radius: 12px;
+}
+
+.survival-gameover .modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffd08a;
+}
+
+.survival-gameover .name-input {
+  width: 220px;
+  padding: 10px 14px;
+  border: 1px solid rgba(100, 150, 200, 0.35);
+  border-radius: 8px;
+  background: rgba(10, 14, 26, 0.9);
+  color: #e0e8f0;
+  font-size: 15px;
+  text-align: center;
+}
+.survival-gameover .name-input:focus {
+  outline: none;
+  border-color: #ff8a5c;
+}
+
+.survival-gameover .submit-name-btn {
+  padding: 9px 26px;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1206;
+  cursor: pointer;
+  background: linear-gradient(135deg, #ff8a5c, #f59e0b);
+}

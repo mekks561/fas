@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { survivalModeManager, SurvivalModeState } from '../engine/SurvivalModeManager';
+import './SurvivalModeUI.css';
 
 interface SurvivalModeUIProps {
   onStartGame: () => void;
@@ -35,14 +36,31 @@ export const SurvivalModeUI: React.FC<SurvivalModeUIProps> = React.memo(
 
     const handleStartGame = () => {
       survivalModeManager.startGame();
+      // 清掉上一局的结算残留（重开时不该还挂着名字输入框）
+      setShowNameInput(false);
+      setPlayerName('');
       onStartGame();
     };
 
-    const handleGameOver = () => {
-      if (survivalModeManager.isHighScore(stats.score)) {
-        setShowNameInput(true);
+    // 结算副作用：必须在组件顶层注册。
+    //
+    // 原实现把它写在 `if (state === 'gameOver')` 的分支体内 —— 那是**条件调用 Hook**，
+    // 状态一切换 hook 调用数量就变，React 会抛
+    // "Rendered more hooks than during the previous render" 并让整个面板崩溃。
+    // 用 ref 保证同一局只处理一次，离开 gameOver 后复位以便重开。
+    const gameOverHandledRef = useRef(false);
+    useEffect(() => {
+      if (state !== 'gameOver') {
+        gameOverHandledRef.current = false;
+        return;
       }
-    };
+      if (!gameOverHandledRef.current) {
+        gameOverHandledRef.current = true;
+        if (survivalModeManager.isHighScore(survivalModeManager.getStats().score)) {
+          setShowNameInput(true);
+        }
+      }
+    }, [state]);
 
     const handleSubmitName = () => {
       survivalModeManager.addHighScore(playerName);
@@ -184,10 +202,6 @@ export const SurvivalModeUI: React.FC<SurvivalModeUIProps> = React.memo(
     }
 
     if (state === 'gameOver') {
-      useEffect(() => {
-        handleGameOver();
-      }, []);
-
       return (
         <div className="survival-gameover">
           <h2 className="gameover-title">{t('survival.gameOver')}</h2>
