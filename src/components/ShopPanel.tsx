@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { AssetIcon } from './AssetIcon';
 import './ShopPanel.css';
 
 interface ShopItem {
@@ -162,7 +163,12 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
               style={{ borderColor: rarity.color }}
             >
               <div className="shop-card-icon" style={{ color: rarity.color }}>
-                {typeIcons[item.type] || '📦'}
+                <AssetIcon
+                  name={item.icon}
+                  fallback={typeIcons[item.type] || '📦'}
+                  size={34}
+                  title={item.name}
+                />
               </div>
               <div className="shop-card-info">
                 <div className="shop-card-header">

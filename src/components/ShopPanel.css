@@ -111,6 +111,15 @@
   flex-shrink: 0;
 }
 
+.shop-card-icon img {
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.25));
+  pointer-events: none;
+  user-select: none;
+}
+
 .shop-card-info {
   flex: 1;
   min-width: 0;

@@ -38,6 +38,50 @@
 - 岩石只取 Color + Roughness：Kenney 岩石模型是低多边形平面着色，
   法线贴图收益极小，却要额外 2.5 MB，不值得。
 
+## 2026-10-05 资源库扩展（~557MB，素材库性质）
+
+本轮把三库全量入库作为**素材储备**（多数尚未被运行时消费，属预期状态，
+消费随功能接线逐步发生，用 `scripts/audit-asset-usage.mjs` 追踪）：
+
+### 1. `public/assets/kenney/`（361MB，Kenney 全库快照）
+
+- 许可：CC0 1.0（https://kenney.nl/support ）
+- 内容：3d 49 kit / 2d 120+ kit / icons 8 套 / ui 9 套，与
+  `.workbuddy/asset-cache/kenney/` 一致（含 index.tsv 清单）。
+- 已消费：space kit（GLB 结构物）、Particle Pack（7 张粒子贴图）、
+  Skyboxes（skybox-space.png 天幕）。
+
+### 2. `public/assets/textures/pbr/ambientcg/`（117MB，18 套全套）
+
+- 许可：CC0 1.0（https://ambientcg.com ）
+- 已消费 3 套：Rock030（小行星）/ MetalPlates016A（空间站）/ Metal049A（卫星），
+  通道映射见 `PlayCanvasEngine.PBR_SETS`；其余 15 套为储备
+  （SolarPanel 系→空间站扩展、Rock051/058/064→小行星随机化等）。
+
+### 3. `public/assets/textures/hdr/`（80MB，polyhaven 夜空/月球 10 张）
+
+- 许可：CC0 1.0（https://polyhaven.com ）
+- 精选太空可用的 HDR 环境：moon_lab_4k / moonless_golf_2k / rogland_clear_night_2k /
+  rogland_moonlit_night_2k / satara_night_no_lamps_2k / solitude_night_2k /
+  qwantani_night_2k / qwantani_moonrise_2k / qwantani_moon_noon_2k / monochrome_studio_02_1k。
+- 暂未接线：PlayCanvas 2.23 运行时无内建 skybox asset handler，
+  equirect→prefiltered cubemap 需自建管线；接入时走 `scene.setSkybox()`
+  并顺带提供 PBR 环境反射。
+
+### 4. `public/assets/textures/ui/icons/`（14 张真图标，替换假色块）
+
+- `icon-shield/defense/energy/star` ← Kenney Space Shooter Remastered Power-ups（CC0）
+- `icon-gun/missile` ← Space Shooter Remastered Lasers（CC0）
+- `icon-bomb` ← Space Shooter Remastered Meteors（CC0）
+- `icon-damage` ← Space Shooter Remastered Damage（CC0）
+- `icon-heart` ← Space Shooter Remastered UI playerLife1_blue（CC0）
+- `icon-achieve/crosshair/clock/speed` ← Kenney Game Icons White 2x（CC0）
+- `icon-character` ← Kenney Game Icons Expansion White 2x（CC0）
+- 消费方：`ShopPanel` / `AchievementPanel` 经 `AssetIcon` 组件按 config
+  的 icon 字段拼 URL 渲染，加载失败回落 emoji/★。
+- ⚠️ 本目录（textures/ui/）根下的 40 个同名 PNG 是生成脚本产出的
+  64×64 纯色方块（203~227 字节），是假料，勿再接线。
+
 ## 使用约定
 
 1. 从备用库挑素材时，必须同步在对应 `CREDITS.md` 登记来源与用途，本文件就是纹理类的登记处。

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Share2 } from 'lucide-react';
+import { AssetIcon } from './AssetIcon';
 import './AchievementPanel.css';
 import { ShareService, ShareOptions } from '../engine/ShareService';
 import { ShareModal } from './ShareModal';
@@ -169,7 +170,12 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
               }}
             >
               <div className="achievement-card-icon" style={{ color: rarity.color }}>
-                {isUnlocked ? '★' : '?'}
+                <AssetIcon
+                  name={ach.icon}
+                  fallback={isUnlocked ? '★' : '?'}
+                  size={34}
+                  title={isUnlocked ? ach.name : '???'}
+                />
               </div>
               <div className="achievement-card-info">
                 <div className="achievement-card-header">

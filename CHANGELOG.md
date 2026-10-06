@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-10-06
+
+### Added
+
+- **资源库扩展至 500MB 量级（~571MB，素材库性质）** - 三库全量入库（全部 CC0，
+  详见 `public/assets/textures/CREDITS.md`）：
+  - `public/assets/kenney/` 全库快照 361MB（3d 49 kit / 2d 120+ kit / icons 8 套 / ui 9 套，5.3 万文件）；
+  - `public/assets/textures/pbr/ambientcg/` 18 套全套 117MB（此前只入 3 套的部分通道）；
+  - `public/assets/textures/hdr/` polyhaven 夜空/月球 HDR 10 张 80MB（暂未接线，
+    PlayCanvas 2.23 无内建 skybox asset handler，equirect→cubemap 管线待建）。
+- **真 UI 图标替换纯色假料** - `textures/ui/icons/` 14 张（Kenney Space Shooter
+  Remastered + Game Icons，按语义挑选）；新增 `AssetIcon` 组件（config icon id →
+  URL 拼接 + onError 回落 emoji/★），`ShopPanel`（20 张卡）与 `AchievementPanel`
+  （15 张卡）的 icon 字段从此真正上屏——修复审计发现的「字段未通」缺口。
+  原 `textures/ui/` 根下 40 个 64×64 纯色方块确认为假料，不再有消费方。
+
+### Discovered（本轮新发现、未接线）
+
+- `src/levels/` 整个模块（index + 10 个 level 配置，含波次/玩家/环境）在 src 中
+  **零消费**——`skybox` 字段无人读的根因。接活它需连波次系统一起接，列为下一轮候选。
+
+### Verified
+
+- `verify-icon-wiring.mjs` 5/5（商店 20 + 成就 15 张图标全部加载、0 个 404）；
+  tsc 0 错误；vitest 344/345（唯一失败为既有 GameResourceManager 慢下载用例）；
+  vite build 通过（dist 585MB）。
+
 ## [Unreleased] - 2026-10-05
 
 ### Added
