@@ -4,12 +4,21 @@ import { Button } from './ui/shadcn';
 import { Card, CardContent, CardHeader } from './ui/shadcn';
 import { Badge } from './ui/shadcn';
 import { ArrowLeft, Lock, Star, Target, Zap, Medal, Trophy } from 'lucide-react';
+import {
+  getAllLevels,
+  LEVEL_LOCALE,
+  recommendedLevelForIndex,
+  totalEnemiesOf,
+  waveCountOf,
+} from '../levels';
+import { getLevelProgress, isLevelCleared } from '../engine/LevelProgress';
 
 export interface LevelData {
   id: number;
   name: string;
   description: string;
-  difficulty: 'easy' | 'normal' | 'hard' | 'nightmare';
+  /** 与 src/levels 的关卡难度词表对齐（easy/medium/hard/extreme）。 */
+  difficulty: 'easy' | 'medium' | 'hard' | 'extreme';
   recommendedLevel: number;
   stars: number;
   maxStars: number;
@@ -23,81 +32,41 @@ interface LevelSelectProps {
   onSelectLevel: (levelId: number) => void;
   onBack: () => void;
   currentPlayerLevel?: number;
+  /** 初始选中的关卡 id（1 基）。来自 App 的 selectedLevel（含 ?level=N 深链）。 */
+  initialLevel?: number;
 }
 
-const defaultLevels: LevelData[] = [
-  {
-    id: 1,
-    name: '新手训练',
-    description: '学习基本操作，击败简单敌人',
-    difficulty: 'easy',
-    recommendedLevel: 1,
-    stars: 0,
-    maxStars: 3,
-    unlocked: true,
-    enemies: 20,
-    waves: 5,
-  },
-  {
-    id: 2,
-    name: '星际巡航',
-    description: '穿越小行星带，遭遇巡逻队',
-    difficulty: 'easy',
-    recommendedLevel: 3,
-    stars: 0,
-    maxStars: 3,
-    unlocked: false,
-    enemies: 30,
-    waves: 6,
-  },
-  {
-    id: 3,
-    name: '陨石地带',
-    description: '在密集陨石中作战，考验操控',
-    difficulty: 'normal',
-    recommendedLevel: 5,
-    stars: 0,
-    maxStars: 3,
-    unlocked: false,
-    enemies: 40,
-    waves: 7,
-  },
-  {
-    id: 4,
-    name: '敌舰基地',
-    description: '突袭敌人基地，面对精英部队',
-    difficulty: 'hard',
-    recommendedLevel: 8,
-    stars: 0,
-    maxStars: 3,
-    unlocked: false,
-    enemies: 50,
-    waves: 8,
-  },
-  {
-    id: 5,
-    name: 'Boss战：星际帝王',
-    description: '最终决战，击败星际帝王',
-    difficulty: 'nightmare',
-    recommendedLevel: 10,
-    stars: 0,
-    maxStars: 3,
-    unlocked: false,
-    enemies: 1,
-    waves: 3,
-  },
-];
+/**
+ * 关卡列表来自 src/levels（唯一真源）。
+ * 此前这里硬编码了 5 关平行数据，与 levels/*.ts 的 10 关配置长期不同步：
+ * 选关界面显示的敌人数/波数/难度与实际进入的战斗对不上。
+ */
+const defaultLevels: LevelData[] = getAllLevels().map((level, index) => ({
+  id: index + 1,
+  name: LEVEL_LOCALE[level.id]?.name ?? level.name,
+  description: LEVEL_LOCALE[level.id]?.description ?? level.description,
+  difficulty: level.difficulty as LevelData['difficulty'],
+  recommendedLevel: recommendedLevelForIndex(index),
+  stars: 0,
+  maxStars: 3,
+  unlocked: index === 0,
+  enemies: totalEnemiesOf(level),
+  waves: waveCountOf(level),
+}));
 
 const getDifficultyConfig = (difficulty: LevelData['difficulty']) => {
   switch (difficulty) {
     case 'easy':
       return { color: 'bg-green-500', label: '简单', textColor: 'text-green-400' };
-    case 'normal':
+    case 'medium':
       return { color: 'bg-blue-500', label: '普通', textColor: 'text-blue-400' };
     case 'hard':
       return { color: 'bg-red-500', label: '困难', textColor: 'text-red-400' };
-    case 'nightmare':
+    case 'extreme':
       return { color: 'bg-purple-500', label: '噩梦', textColor: 'text-purple-400' };
+    default:
+      // 数据里出现未登记档位时不崩、给中性样式（关卡配置是可编辑的策划数据）
+      return { color: 'bg-slate-500', label: String(difficulty), textColor: 'text-slate-300' };
   }
 };
 
@@ -105,27 +74,28 @@ export const LevelSelect: React.FC<LevelSelectProps> = ({
   onSelectLevel,
   onBack,
   currentPlayerLevel = 1,
+  initialLevel = 1,
 }) => {
   const { t } = useTranslation();
-  const [selectedLevel, setSelectedLevel] = useState<number>(1);
+  const [selectedLevel, setSelectedLevel] = useState<number>(initialLevel);
   const [levels] = useState<LevelData[]>(() => {
-    const saved = localStorage.getItem('levelProgress');
-    if (saved) {
-      try {
-        const progress = JSON.parse(saved);
-        return defaultLevels.map((level) => ({
-          ...level,
-          ...progress[level.id],
-          unlocked: level.id === 1 || currentPlayerLevel >= level.recommendedLevel,
-        }));
-      } catch {
-        return defaultLevels;
-      }
-    }
-    return defaultLevels.map((level) => ({
-      ...level,
-      unlocked: level.id === 1 || currentPlayerLevel >= level.recommendedLevel,
-    }));
+    const progress = getLevelProgress();
+    return defaultLevels.map((level) => {
+      const record = progress[String(level.id)];
+      // 解锁条件（满足其一即可）：
+      //  - 第 1 关；
+      //  - 上一关已通关（关卡制的主推进路径）；
+      //  - 玩家等级达到推荐等级（给练级玩家的跳关路径）。
+      // 此前只有「玩家等级达标」一条，而等级靠击杀累积且提升很慢，
+      // 结果是打完第 1 关也进不了第 2 关。
+      const prevCleared = level.id > 1 && isLevelCleared(level.id - 1);
+      return {
+        ...level,
+        stars: record?.stars ?? 0,
+        highScore: record?.highScore,
+        unlocked: level.id === 1 || prevCleared || currentPlayerLevel >= level.recommendedLevel,
+      };
+    });
   });
 
   const [showAnimation, setShowAnimation] = useState(false);

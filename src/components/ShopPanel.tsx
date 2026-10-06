@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { AssetIcon } from './AssetIcon';
+import { getCredits, spendCredits } from '../engine/CreditsStore';
 import './ShopPanel.css';
 
 interface ShopItem {
@@ -75,10 +76,10 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
         }
       }
       setItems(loaded);
-      // 从localStorage读取已购买物品和信用点
+      // 已购物品仍读 localStorage；信用点统一走 CreditsStore（与关卡奖励同一真源）
       const savedPurchases = localStorage.getItem('purchasedItems');
       if (savedPurchases) setPurchasedIds(new Set(JSON.parse(savedPurchases)));
-      setCredits(parseInt(localStorage.getItem('credits') || '10000'));
+      setCredits(getCredits());
       setLoading(false);
     };
     loadItems();
@@ -96,13 +97,12 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
       return;
     }
 
-    const newCredits = credits - item.price;
+    const newCredits = spendCredits(item.price) ? getCredits() : credits;
     const newPurchased = new Set(purchasedIds);
     newPurchased.add(item.id);
 
     setCredits(newCredits);
     setPurchasedIds(newPurchased);
-    localStorage.setItem('credits', String(newCredits));
     localStorage.setItem('purchasedItems', JSON.stringify(Array.from(newPurchased)));
     showToast(`购买成功：${item.name}`);
   };

@@ -8,6 +8,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { MainMenu } from './components/MainMenu';
 import { useGameStore } from './store/useGameStore';
 import { GameState } from './game/GameStateMachine';
+import { getAllLevels } from './levels';
+import { markLevelCleared } from './engine/LevelProgress';
 import { FriendService } from './engine/FriendService';
 import { gameplayManager } from './engine/GameplayManager';
 import { dailyChallengeManager } from './engine/DailyChallengeManager';
@@ -69,7 +71,14 @@ const PageLoader = () => (
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
-  const [selectedLevel, setSelectedLevel] = useState<number>(1);
+  // 起始关卡：支持 ?level=N 深链（1 基，用于调试与自动化验证直达指定关；
+  // 越界或非法值回落第 1 关）。
+  const [selectedLevel, setSelectedLevel] = useState<number>(() => {
+    const raw = new URLSearchParams(window.location.search).get('level');
+    const n = raw ? Number.parseInt(raw, 10) : 1;
+    if (!Number.isFinite(n) || n < 1) return 1;
+    return Math.min(n, getAllLevels().length);
+  });
   const [isPaused, setIsPaused] = useState(false);
   /**
    * 当前这一局是「战役关卡」还是「生存模式」。
@@ -297,14 +306,25 @@ function App() {
 
   // 关卡完成
   const handleLevelComplete = useCallback(() => {
+    // 记录通关与星级（localStorage 的 levelProgress 此前只读不写，
+    // 导致星星恒为 0、下一关没有解锁依据）。
+    // 星级按通关时剩余生命比例评定（惯例·可改）：>=80% 三星、>=40% 两星、否则一星。
+    const { health, maxHealth } = useGameStore.getState().player;
+    const ratio = maxHealth > 0 ? health / maxHealth : 1;
+    const stars = ratio >= 0.8 ? 3 : ratio >= 0.4 ? 2 : 1;
+    const record = markLevelCleared(selectedLevel, stars);
+    console.log(
+      `[App] 关卡 ${selectedLevel} 通关：${stars} 星（剩余生命 ${Math.round(ratio * 100)}%），最佳 ${record.stars} 星`,
+    );
+
     setIsPaused(false);
     setVictory(true);
     setGameState(GameState.GAME_OVER);
-  }, [setVictory]);
+  }, [setVictory, selectedLevel]);
 
   // 下一关
   const handleNextLevel = useCallback(() => {
-    const nextLevel = Math.min(selectedLevel + 1, 5);
+    const nextLevel = Math.min(selectedLevel + 1, getAllLevels().length);
     setSelectedLevel(nextLevel);
     resetGame();
     setSceneReady(true);
@@ -389,6 +409,7 @@ function App() {
               onSelectLevel={handleSelectLevel}
               onBack={handleBackToMenu}
               currentPlayerLevel={playerLevel}
+              initialLevel={selectedLevel}
             />
           </Suspense>
         )}
@@ -451,6 +472,7 @@ function App() {
             <Suspense fallback={<PageLoader />}>
               <GameScene
                 mode={runMode}
+                levelIndex={selectedLevel - 1}
                 onGameOver={handleGameOver}
                 onLevelComplete={handleLevelComplete}
               />
@@ -493,7 +515,7 @@ function App() {
               unlockedAchievements={unlockedAchievements}
               onRestart={handleRestart}
               onMainMenu={handleBackToMenu}
-              onNextLevel={selectedLevel < 5 ? handleNextLevel : undefined}
+              onNextLevel={selectedLevel < getAllLevels().length ? handleNextLevel : undefined}
               onLeaderboard={handleLeaderboard}
             />
           </Suspense>

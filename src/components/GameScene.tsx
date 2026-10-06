@@ -31,6 +31,14 @@ type AsteroidSystem = import('../engine/AsteroidSystem').AsteroidSystem;
 import { skillTreeManager } from '../engine/SkillTreeManager';
 import { survivalModeManager } from '../engine/SurvivalModeManager';
 import {
+  getLevelByIndex,
+  SKYBOX_TEXTURES,
+  LEVEL_LIGHTING,
+  ASTEROID_FIELD,
+  ENGINE_DIFFICULTY,
+} from '../levels';
+import { getCredits, addCredits } from '../engine/CreditsStore';
+import {
   applySkillBonusesToPlayer,
   applySkillBonusesToWeapon,
   computeSkillMaxShield,
@@ -100,7 +108,13 @@ export const GameScene: React.FC<{
    * 差别只在「波次上限」与「结束条件」，因此不需要第二套战斗实现。
    */
   mode?: 'campaign' | 'survival';
-}> = React.memo(({ onGameOver, onLevelComplete, mode = 'campaign' }) => {
+  /**
+   * 关卡序号（0 基），由选关界面经 App 传入。战役模式按 src/levels 的关卡配置
+   * 初始化环境（天幕 / 光照 / 小行星带）、玩家初始属性与波次上限。
+   * 生存模式忽略此参数。
+   */
+  levelIndex?: number;
+}> = React.memo(({ onGameOver, onLevelComplete, mode = 'campaign', levelIndex = 0 }) => {
   const isSurvival = mode === 'survival';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<PlayCanvasGameEngine | null>(null);
@@ -340,6 +354,19 @@ export const GameScene: React.FC<{
       return;
     }
 
+    // 关卡配置（src/levels 是唯一真源）。
+    // 此前选关界面选中的 id 传到 App 就断了，GameScene 从不读关卡配置——
+    // 结果 10 关的天幕、光照、小行星带、玩家初始生命与波次上限全部与策划无关。
+    const levelConfig = getLevelByIndex(levelIndex);
+    if (levelConfig && !isSurvival) {
+      console.log(
+        `[GameScene] 应用关卡配置 ${levelConfig.id}「${levelConfig.name}」：` +
+          `难度=${levelConfig.difficulty}，波数=${levelConfig.waves.length}，` +
+          `天幕=${levelConfig.environment.skybox}，小行星带=${levelConfig.environment.asteroidField}，` +
+          `光照=${levelConfig.environment.lighting}，初始 ${levelConfig.player.health}HP/${levelConfig.player.shield}护盾`,
+      );
+    }
+
     console.log('[GameScene] Initializing game engine...');
 
     try {
@@ -385,13 +412,25 @@ export const GameScene: React.FC<{
       engine.lookAt(new pc.Vec3(0, 0, 0));
       console.log('[GameScene] Camera position set to (0, 10, 15)');
 
-      engine.addDirectionalLight('sun', new pc.Vec3(-5, 10, 5), new pc.Color(1, 0.95, 0.9), 1.5);
+      // 主光源强度随关卡光照档位（environment.lighting：dim/normal/bright）
+      const sunIntensity =
+        LEVEL_LIGHTING[levelConfig?.environment.lighting ?? 'normal']?.sunIntensity ?? 1.5;
+      engine.addDirectionalLight(
+        'sun',
+        new pc.Vec3(-5, 10, 5),
+        new pc.Color(1, 0.95, 0.9),
+        sunIntensity,
+      );
       engine.addLight('fill', new pc.Vec3(10, 5, -10), new pc.Color(0.4, 0.5, 0.8), 0.5);
       console.log('[GameScene] Lights added');
 
-      // 天幕：Kenney「Skyboxes」的太空全景（4096×2048，272KB，CC0，见 textures/CREDITS.md）。
+      // 天幕：按关卡 environment.skybox 取图（Kenney Skyboxes，CC0，
+      // 映射见 src/levels/index.ts 的 SKYBOX_TEXTURES）；未登记则回落默认星空。
       // 挂在相机下 ⇒ 无限远背景；单 draw call；加载失败回落深色，不影响开局。
-      engine.createSkyDome('/assets/textures/skybox-space.png', 400);
+      const skyboxUrl =
+        SKYBOX_TEXTURES[levelConfig?.environment.skybox ?? 'env-space-01'] ??
+        '/assets/textures/skybox-space.png';
+      engine.createSkyDome(skyboxUrl, 400);
 
       // 粒子贴图：开局预加载全部 7 张（尾焰/导弹/命中/爆炸/道具/技能，共 ~430KB），
       // 之后所有粒子系统创建时同步取用；未就绪期间回落引擎默认白点、就绪后自动回填。
@@ -408,8 +447,18 @@ export const GameScene: React.FC<{
       engine.createPlanet('planet1', new pc.Vec3(40, 15, 35), 5, new pc.Color(0.4, 0.6, 0.8));
       engine.createPlanet('planet2', new pc.Vec3(-35, -10, -25), 4, new pc.Color(0.8, 0.5, 0.3));
 
-      // 小行星带：在玩家活动区域外围生成 40 个小行星（半径 35-55），增强 3D 空间感知
-      engine.createAsteroidField(40, new pc.Vec3(0, 0, 0), 35, 55);
+      // 小行星带：按关卡 environment.asteroidField 开关（尺寸见 ASTEROID_FIELD）。
+      // 关掉的关卡省下 40 个模型 + 碰撞体，也让视野更干净（如「初次接触」）。
+      if (levelConfig?.environment.asteroidField ?? true) {
+        engine.createAsteroidField(
+          ASTEROID_FIELD.count,
+          new pc.Vec3(0, 0, 0),
+          ASTEROID_FIELD.innerRadius,
+          ASTEROID_FIELD.outerRadius,
+        );
+      } else {
+        console.log('[GameScene] 本关无小行星带（environment.asteroidField = false）');
+      }
       // 空间站和卫星作为远处空间参照物（createStructure 返回的 entity 未 addToScene，需手动添加）
       const { ProceduralModelGenerator: ModelGen } =
         await import('../engine/ProceduralModelGenerator');
@@ -466,11 +515,13 @@ export const GameScene: React.FC<{
       console.log('[GameScene] Environment created (with asteroid field, structures, fog, VFX)');
 
       const gameState = useGameStore.getState();
+      // 玩家初始生命/护盾以关卡配置为准（player.health / player.shield）；
+      // store 里的值是上一局残留或默认值，仅在配置缺失时回落。
       const player = new PlayerShip({
         engine,
         initialPosition: new pc.Vec3(0, 0, 0),
-        health: gameState.player.health,
-        shield: gameState.player.shield,
+        health: levelConfig?.player.health ?? gameState.player.health,
+        shield: levelConfig?.player.shield ?? gameState.player.shield,
       });
       playerRef.current = player;
       console.log('[GameScene] Player created at position (0, 0, 0)');
@@ -678,6 +729,11 @@ export const GameScene: React.FC<{
       // 读取难度设置（基础难度 + 自适应配置）
       const savedSettings = localStorage.getItem('gameSettings');
       let baseDifficulty: 'easy' | 'normal' | 'hard' = 'normal';
+      // 战役模式：难度取自关卡配置（此前关卡难度从未传给 gameplayManager，
+      // 所有关卡都是引擎默认档）。每日挑战模式在下面覆盖。
+      if (!isSurvival && levelConfig) {
+        baseDifficulty = ENGINE_DIFFICULTY[levelConfig.difficulty] ?? 'normal';
+      }
       let adaptiveEnabled = true;
       let adaptiveIntensity: 'low' | 'medium' | 'high' = 'medium';
       if (savedSettings) {
@@ -712,6 +768,16 @@ export const GameScene: React.FC<{
 
       await gameplayManager.initialize(baseDifficulty);
       await gameplayManager.startGame(baseDifficulty);
+
+      // 战役模式：波次上限 = 关卡配置的波数（waveCountOf）。
+      // 此前从不调用 setMaxWaves，用 Lua 默认的 10 波——与关卡策划的 3~N 波不符，
+      // 且「末波 boss / 通关结算」的触发点整体后移。生存模式在下面另行覆盖为无限。
+      if (!isSurvival && levelConfig) {
+        gameplayManager.setMaxWaves(levelConfig.waves.length);
+        console.log(
+          `[GameScene] 波次上限设为 ${levelConfig.waves.length}（关卡 ${levelConfig.id}）`,
+        );
+      }
 
       // 生存模式：波次无尽 + 交出波次推进权。
       // - setMaxWaves(大数) → 永不进入「末波」判定，因此不会触发关卡完成结算；
@@ -962,6 +1028,31 @@ export const GameScene: React.FC<{
               });
               return { pbrMeshes, totalMeshes, withNormalMap: sets.size };
             },
+          };
+
+          // 关卡配置观测钩子：只读本局实际生效的参数（生产对象），
+          // 供验证脚本确认「选中的关卡」真的改变了环境/玩家/波次。
+          (window as unknown as Record<string, unknown>)['__levelDebug'] = {
+            summary: () => ({
+              levelIndex,
+              levelId: levelConfig?.id ?? null,
+              skybox: levelConfig?.environment.skybox ?? null,
+              skyboxUrl:
+                SKYBOX_TEXTURES[levelConfig?.environment.skybox ?? 'env-space-01'] ??
+                '/assets/textures/skybox-space.png',
+              asteroidField: levelConfig?.environment.asteroidField ?? null,
+              lighting: levelConfig?.environment.lighting ?? null,
+              configuredHealth: levelConfig?.player.health ?? null,
+              configuredShield: levelConfig?.player.shield ?? null,
+              playerMaxHealth: playerRef.current?.getMaxHealth() ?? -1,
+              playerMaxShield: playerRef.current?.getMaxShield() ?? -1,
+              configuredWaves: levelConfig?.waves.length ?? null,
+              maxWaves: enemySystemRef.current?.getTotalWaves() ?? -1,
+              enemies: enemySystemRef.current?.getEnemies().length ?? -1,
+              asteroidCount: engine.getApp().root.findByName('asteroidField')?.children.length ?? 0,
+              credits: getCredits(),
+            }),
+            levelConfig,
           };
 
           // 后处理观测钩子。同样只读生产对象，绝不另建影子状态。
@@ -1299,6 +1390,18 @@ export const GameScene: React.FC<{
             if (finalWaveCleared && noMoreWaves && enemies.length === 0) {
               levelCompleteFiredRef.current = true;
               console.log('[GameScene] Level complete: final wave cleared');
+              // 关卡奖励结算（src/levels 的 rewards）：信用点真正入账，
+              // 与商店消费共用 CreditsStore 这一个真源。experience 暂无消费方
+              // （经验/等级系统尚未接线），先只记日志、不假装已发放。
+              if (levelConfig) {
+                const before = getCredits();
+                const after = addCredits(levelConfig.rewards.credits);
+                console.log(
+                  `[GameScene] 关卡奖励：信用点 +${levelConfig.rewards.credits}（${before} → ${after}）；` +
+                    `配置经验 +${levelConfig.rewards.experience}（暂无消费方）；` +
+                    `解锁 ${levelConfig.rewards.unlocks.join('/') || '无'}`,
+                );
+              }
               // 同上：关卡完成会立刻卸载 GameScene，音刺必须走 globalAudio 才听得见；
               // 胜利音乐由 App 依据 gameState + isVictory 切换。
               globalAudio.playCue('levelComplete');
@@ -1375,6 +1478,7 @@ export const GameScene: React.FC<{
     onGameOver,
     onLevelComplete,
     isSurvival,
+    levelIndex,
     handleTouchMove,
     handleTouchFire,
     handleTouchBoost,
