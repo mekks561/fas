@@ -1,3 +1,7 @@
+/**
+ * ⚠ 已弃用（请勿直接运行）——同 generate-assets-extended.js，见其文件头说明。
+ * 产出的假料已在清理轮中删除；唯一仍在用的产物是 textures/effects/*.png。
+ */
 const fs = require('fs');
 const path = require('path');
 const { createCanvas } = require('canvas');

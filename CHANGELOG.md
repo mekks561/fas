@@ -81,6 +81,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   （3 波 14 敌全灭、胜利文案出现、0 运行时错误）；tsc 0 错；vitest 362/363
   （唯一失败为既有慢下载用例）。
 
+### Removed（死链清理，本轮）
+
+- **5 个死源码文件（约 1900 行）** - `src/engine/AssetManifest.ts`（1897 行，全仓零
+  引用，却是「资源 id → URL」映射的唯一旧实现）、`src/GameResources.ts`、
+  `src/GameResourceManager.ts`、`src/ResourceDownloadTester.ts`、
+  `src/GameResourceManager.test.ts`（后者即长期失败的慢下载用例所在文件）。
+- **56 份死数据 json** - `public/assets/{enemies,levels,powerups,skills,weapons,ships}/`：
+  仅被 `public/assets/manifest.json` 引用，而 manifest.json 自身零消费方；关卡/敌人
+  配置的真源已是 `src/levels/*.ts`。同批删除 `public/assets/manifest.json`（40KB 死链
+  清单）与 `public/assets/models/model-manifest.json`（21KB，其引用的
+  `/assets/models/{ships,enemies,bosses}/*.glb` 路径根本不存在）。
+- **78 张假料贴图** - `textures/ui/` 根下 40 张 64×64 纯色方块（203–227 字节）、
+  `textures/pbr/tex-*.png` 29 张、`textures/environment/env-*.png` 9 张：生成脚本
+  产出、零消费方。真图标在 `textures/ui/icons/`（Kenney），真 PBR 在
+  `textures/pbr/{rock030,metalplates016a,metal049a}` + ambientCG，关卡天幕走 Kenney 天空盒。
+
+### Changed（本轮）
+
+- 三个生成器脚本（`generate-assets{,-simple,-extended}.js`）加**弃用警告头**：它们正是
+  上述假料的来源，且仍会产出在用的 `textures/effects/*.png`（粒子贴图），故不删除、
+  但注明「重跑前必须先剔除假料生成段落」。
+- 审计脚本 `DEAD_SOURCE_FILES` 清空（死文件已删），保留机制与历史名单注释。
+
+### Verified（死链清理）
+
+- 审计复跑：**悬空 138 → 0、字段未通 32 → 3**；`assets/textures` 348 → 270 文件，
+  56 份死 json 与两条 manifest 从报表中整行消失；总文件 53628 → 53492，体积 461.11 → 458.93MB。
+- vitest **348/348 全绿**（此前 362/363 中唯一失败用例随死链文件一并移除）。
+- e2e 回归全绿：verify-icon-wiring 5/5、verify-pbr-materials 6/6、
+  verify-particle-textures 9/9、verify-audio-wiring 9/9、verify-level-system 18/18、
+  verify-wave-plans 16/16；tsc 0 错误。
+
 ## [Unreleased] - 2026-10-05
 
 ### Added

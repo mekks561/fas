@@ -18,14 +18,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ASSET_ROOT = path.join(ROOT, 'public');
 
-// 已确认零引用的死代码（不构成消费方）
-const DEAD_SOURCE_FILES = [
-  'src/engine/AssetManifest.ts',
-  'src/GameResources.ts',
-  'src/GameResourceManager.ts',
-  'src/ResourceDownloadTester.ts',
-  'src/GameResourceManager.test.ts',
-];
+// 已确认零引用的死代码（不构成消费方）。
+// 清理轮已将这些文件从仓库删除，清单留空；保留机制以备将来再出现死链。
+// 历史名单：src/engine/AssetManifest.ts、src/GameResources.ts、src/GameResourceManager.ts、
+//          src/ResourceDownloadTester.ts、src/GameResourceManager.test.ts
+const DEAD_SOURCE_FILES = [];
 
 function walk(dir, out = []) {
   let entries;

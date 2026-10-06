@@ -18,8 +18,8 @@ interface AssetIconProps {
  * 的这份职责从此活在生产代码里。真图标来源：Kenney Space Shooter Remastered
  * （游戏资源语义）+ Kenney Game Icons（UI 语义），全部 CC0，见 textures/CREDITS.md。
  *
- * 注意：textures/ui/ 根下同名的 40 个 PNG 是生成脚本产出的纯色方块（64×64
- * 单色位图，203~227 字节），不可用；本组件只读 icons/ 子目录。
+ * 注：textures/ui/ 根下同名的 40 个 PNG（生成脚本产出的纯色方块）已随死链清理
+ * 删除；本组件只读 icons/ 子目录。
  */
 export function AssetIcon({ name, fallback, size = 32, className, title }: AssetIconProps) {
   const [failed, setFailed] = useState(false);

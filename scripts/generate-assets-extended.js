@@ -1,3 +1,16 @@
+/**
+ * ⚠ 已弃用（请勿直接运行）——本脚本是「假料」的主要来源。
+ *
+ * 它产出的下列内容已在清理轮中全部删除（无消费方）：
+ *   - textures/ui/ 根下 40 张 64×64 纯色方块（真图标在 textures/ui/icons/）；
+ *   - textures/pbr/tex-*.png（29 张程序化小图；真 PBR 在 textures/pbr/{rock030,...}）；
+ *   - textures/environment/env-*.png（9 张；关卡天幕走 Kenney 天空盒）；
+ *   - assets/{enemies,levels,powerups,skills,weapons,ships}/*.json（56 份死数据）
+ *     与 assets/manifest.json（死链清单，无任何活代码读取）。
+ *
+ * 仍在使用的产物只有 textures/effects/*.png（粒子特效贴图，见 verify-particle-textures.mjs）。
+ * 若要重跑，必须先把上面那些假料生成段落删掉，否则会把已清理的垃圾重新灌回资源库。
+ */
 const fs = require('fs');
 const path = require('path');
 

@@ -1,3 +1,8 @@
+/**
+ * ⚠ 已弃用（请勿直接运行）——与 generate-assets-extended.js 同源，见其文件头说明。
+ * 本脚本产出的假料（ui 根图标 / pbr tex-* / environment env-* / 数据 json / manifest.json）
+ * 已在清理轮中删除；唯一仍在用的产物是 textures/effects/*.png（粒子特效贴图）。
+ */
 const fs = require('fs');
 const path = require('path');
 
