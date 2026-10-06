@@ -8,6 +8,9 @@ import { level07Config } from './level-07';
 import { level08Config } from './level-08';
 import { level09Config } from './level-09';
 import { level10Config } from './level-10';
+import type { WavePlan } from '../lua/wave/WaveManager';
+
+export type { WavePlan };
 
 export { level01Config } from './level-01';
 export { level02Config } from './level-02';
@@ -100,6 +103,41 @@ export const totalEnemiesOf = (level: LevelConfig): number =>
 
 /** 关卡波数（= 配置里的波次定义条数）。 */
 export const waveCountOf = (level: LevelConfig): number => level.waves.length;
+
+/**
+ * 关卡敌人配置 id → 运行时敌人类型 id（EnemySystem.enemyTypeFromString 词表）。
+ * 配置用策划词表（enemy- 前缀 / 连字符 boss 名），运行时用无前缀下划线词表 ——
+ * 此前两套词表没有任何换算，配置类型直接落到 EnemySystem 的 FIGHTER 兜底。
+ * 这里是唯一的换算处；未知类型原样透传（仍由 EnemySystem 兜底）。
+ */
+export const ENEMY_TYPE_TO_RUNTIME: Record<string, string> = {
+  'enemy-scout': 'scout',
+  'enemy-fighter': 'fighter',
+  'enemy-bomber': 'bomber',
+  'enemy-tank': 'tank',
+  'enemy-assassin': 'assassin',
+  'enemy-drone': 'drone',
+  'enemy-corvette': 'corvette',
+  'enemy-destroyer': 'destroyer',
+  'boss-sentinel': 'boss_sentinel',
+  'boss-overlord': 'boss_overlord',
+};
+
+/** 一波的运行时生成计划：按生成顺序展开的敌人类型列表。类型定义归 WaveManager。 */
+
+/**
+ * 把关卡的显式波次表翻译成运行时生成计划，交给 WaveManager.setLevelWaves。
+ * 注入后波次的敌人数量/类型/boss 判定全部由关卡数据决定；
+ * 每项 spawnDelay（配置里的生成间隔）暂未被运行时消费，仍用 EnemySystem 的统一节拍。
+ */
+export const buildWavePlans = (level: LevelConfig): WavePlan[] =>
+  level.waves.map((wave) => ({
+    waveNumber: wave.number,
+    enemyTypes: wave.enemies.flatMap((entry) => {
+      const type = ENEMY_TYPE_TO_RUNTIME[entry.type] ?? entry.type;
+      return Array.from({ length: entry.count }, () => type);
+    }),
+  }));
 
 /**
  * UI 中文显示名。数据源仍是 levels/*.ts（英文为策划原文，也是 id 的依据），

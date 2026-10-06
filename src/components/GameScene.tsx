@@ -36,6 +36,7 @@ import {
   LEVEL_LIGHTING,
   ASTEROID_FIELD,
   ENGINE_DIFFICULTY,
+  buildWavePlans,
 } from '../levels';
 import { getCredits, addCredits } from '../engine/CreditsStore';
 import {
@@ -772,10 +773,14 @@ export const GameScene: React.FC<{
       // 战役模式：波次上限 = 关卡配置的波数（waveCountOf）。
       // 此前从不调用 setMaxWaves，用 Lua 默认的 10 波——与关卡策划的 3~N 波不符，
       // 且「末波 boss / 通关结算」的触发点整体后移。生存模式在下面另行覆盖为无限。
+      // 同时注入关卡显式波次表（buildWavePlans）：敌人数量/类型/boss 判定由
+      // 策划数据决定，不再走 Lua 公式（此前配置的敌人词表运行时根本不认识）。
       if (!isSurvival && levelConfig) {
         gameplayManager.setMaxWaves(levelConfig.waves.length);
+        gameplayManager.getWaveManager()?.setLevelWaves(buildWavePlans(levelConfig));
         console.log(
-          `[GameScene] 波次上限设为 ${levelConfig.waves.length}（关卡 ${levelConfig.id}）`,
+          `[GameScene] 波次上限设为 ${levelConfig.waves.length}（关卡 ${levelConfig.id}），` +
+            `显式波次表已注入（共 ${levelConfig.waves.reduce((s, w) => s + w.enemies.reduce((n, e) => n + e.count, 0), 0)} 敌人）`,
         );
       }
 
@@ -784,8 +789,11 @@ export const GameScene: React.FC<{
       // - setExternalControl(true) → SurvivalModeManager 只做计时/统计/状态机，
       //   敌人仍由 WaveManager + EnemySystem 真实生成（敌人只有这一个真源）。
       // - startGame() → 进入 preparing 3 秒倒计时，由 tick 里的 update(dt) 推进。
+      // 另：显式清掉可能残留的关卡波次计划（从战役退回生存等场景），
+      // 保证生存模式一定走 Lua 公式路径。
       if (isSurvival) {
         gameplayManager.setMaxWaves(SURVIVAL_MAX_WAVES);
+        gameplayManager.getWaveManager()?.setLevelWaves(null);
         survivalModeManager.setExternalControl(true);
         survivalModeManager.startGame();
       }
@@ -1048,6 +1056,7 @@ export const GameScene: React.FC<{
               playerMaxShield: playerRef.current?.getMaxShield() ?? -1,
               configuredWaves: levelConfig?.waves.length ?? null,
               maxWaves: enemySystemRef.current?.getTotalWaves() ?? -1,
+              wavePlans: gameplayManager.getWaveManager()?.getWavePlanCount() ?? 0,
               enemies: enemySystemRef.current?.getEnemies().length ?? -1,
               asteroidCount: engine.getApp().root.findByName('asteroidField')?.children.length ?? 0,
               credits: getCredits(),

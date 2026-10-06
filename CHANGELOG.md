@@ -32,6 +32,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tsc 0 错误；vitest 344/345（唯一失败为既有 GameResourceManager 慢下载用例）；
   vite build 通过（dist 585MB）。
 
+### Added（关卡系统接通，commit `0d473420`）
+
+- **src/levels 从死数据变唯一真源** - LevelSelect 删 60 行硬编码 5 关，改读
+  `getAllLevels()`（5→10 关）；解锁规则 = 第 1 关/上一关已通关/等级达标。
+- **派生层**（`src/levels/index.ts`）：`SKYBOX_TEXTURES`（Kenney 天空盒）、
+  `LEVEL_LIGHTING`（5 档主光强度）、`ENGINE_DIFFICULTY`（策划 4 档 → 引擎 3 档，
+  词表不一致会崩 UI 的坑在此收口）、`ASTEROID_FIELD`、`recommendedLevelForIndex`、
+  `totalEnemiesOf`/`waveCountOf`、`LEVEL_LOCALE` 中文名。
+- **GameScene 按配置初始化**：天幕图/光照/小行星带开关/玩家初始生命护盾/波次上限；
+  新增 `__levelDebug` 观测钩子。
+- **LevelProgress**（进度读写单一入口 + 星级取历史最好，7 单测）与
+  **CreditsStore**（金币统一入口，关卡奖励 credits 入账，ShopPanel 接入）。
+- App `?level=N` 深链（1 基）。
+
+### Verified（关卡系统）
+
+- `verify-level-system.mjs` 18/18（含第 1 vs 第 2 关天幕/行星带/护盾/光照差分断言）；
+  vitest 351/352；build 通过（dist 585MB）。
+
+### Added（波次计划接线，本轮）
+
+- **关卡显式波次表驱动运行时** - 此前战役波次由 Lua 公式生成
+  （`5×1.1^(n-1)×难度`），关卡配置的波次表（enemy-scout×3 等）从未被消费，
+  且配置词表（`enemy-` 前缀/`boss-sentinel` 连字符）EnemySystem 根本不认识。
+  - `src/levels/index.ts` 新增 `ENEMY_TYPE_TO_RUNTIME`（两套词表唯一换算处）
+    与 `buildWavePlans()`（波次表 → 运行时生成计划）；
+  - `WaveManager` 新增**计划模式**：注入计划后敌人数量/类型/boss 判定全部由
+    关卡数据决定（不触碰 Lua），未注入（生存模式）保持 Lua 公式路径不变；
+  - GameScene 战役注入计划 / 生存显式清空。
+
+### Fixed（本轮）
+
+- **「末波永不是 boss」** - 旧公式 boss = `wave % 5 == 0`，战役波数常 < 5 →
+  boss 波根本轮不到；现 boss 判定由数据决定（该波含 boss 类型即 boss 波，
+  level-05 哨兵 / level-10 帝王按配置出场）。
+- **注入计划时 maxWaves 陈旧值** - GameScene 先 `setMaxWaves(3)`（走 Lua）、
+  再注入计划，planState 保留 Lua 侧旧值 → 末波判定永不成立、关卡无法结算；
+  现注入计划时 maxWaves 同步取计划波数。
+
+### Verified（波次计划）
+
+- 新增 `WaveManager.test.ts` 12 单测（计划模式全确定性，不依赖 Lua）；
+- 新增 `scripts/verify-wave-plans.mjs` 16/16：level-01 三波 3/5/6 敌人全按计划
+  （公式会给 4/4/4）、打完触发关卡完成；?level=5 末波 isBossWave=true、
+  boss_sentinel×1 实际生成、击杀触发结算；
+- 回归：`verify-level-system.mjs` 18/18、`verify-wave-progression.mjs` 闭环全绿
+  （3 波 14 敌全灭、胜利文案出现、0 运行时错误）；tsc 0 错；vitest 362/363
+  （唯一失败为既有慢下载用例）。
+
 ## [Unreleased] - 2026-10-05
 
 ### Added
