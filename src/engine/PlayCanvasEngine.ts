@@ -19,6 +19,21 @@ export interface PbrSetDef {
   metalness: number;
 }
 
+/** 环境光照（IBL）运行状态。只读观测面——验证脚本读它，不另建影子状态。 */
+export interface EnvironmentLightingState {
+  /** 本局请求的环境贴图 URL（null = 未请求）。 */
+  url: string | null;
+  /** idle 未请求 / loading 加载中 / ready 已挂到 scene.envAtlas / failed 失败回落。 */
+  status: 'idle' | 'loading' | 'ready' | 'failed';
+  /** scene.envAtlas 当前是否非空（反射真的存在，而不是只看我们自己的标志位）。 */
+  envAtlas: boolean;
+  /** envAtlas 的边长（null = 未生成）。证明贴图真生成了，而不是一个空占位。 */
+  atlasSize: number | null;
+  toneMapping: number;
+  exposure: number;
+  error: string | null;
+}
+
 export class PlayCanvasGameEngine implements GameEngine {
   private app: pc.Application;
   private camera: pc.Entity;
@@ -28,6 +43,17 @@ export class PlayCanvasGameEngine implements GameEngine {
   private instancedRenderer: InstancedRenderer | null = null;
   private pluginSystem: PluginSystem | null = null;
   private modelAssets: ModelAssetProvider | null = null;
+
+  /** 环境光照（IBL）状态：只读观测用，真实值每次从 scene 现读。 */
+  private envLightingState: EnvironmentLightingState = {
+    url: null,
+    status: 'idle',
+    envAtlas: false,
+    atlasSize: null,
+    toneMapping: pc.TONEMAP_LINEAR,
+    exposure: 1,
+    error: null,
+  };
 
   constructor(config: GameConfig) {
     const { canvas, antialias = true, enablePhysics = true } = config;
@@ -562,6 +588,17 @@ export class PlayCanvasGameEngine implements GameEngine {
   //
   // 套件清单与许可见 public/assets/textures/CREDITS.md。
 
+  /** 色调映射曲线名 → PlayCanvas 常量。配置层写可读名字，数值换算只在这里。 */
+  public static readonly TONEMAP_MODES: Record<string, number> = {
+    linear: pc.TONEMAP_LINEAR,
+    filmic: pc.TONEMAP_FILMIC,
+    hejl: pc.TONEMAP_HEJL,
+    aces: pc.TONEMAP_ACES,
+    aces2: pc.TONEMAP_ACES2,
+    neutral: pc.TONEMAP_NEUTRAL,
+    none: pc.TONEMAP_NONE,
+  };
+
   /** 一套 PBR 材质的贴图与标量参数。 */
   public static readonly PBR_SETS: Record<string, PbrSetDef> = {
     rock: {
@@ -675,6 +712,130 @@ export class PlayCanvasGameEngine implements GameEngine {
     });
     if (applied > 0) console.log(`[PlayCanvasEngine] PBR "${set}" applied to ${applied} mesh(es)`);
     return applied > 0;
+  }
+
+  // ─── 环境光照（IBL）：HDR → envAtlas ───────────────────────────────────────
+  //
+  // 此前场景只有 ambientLight（一个常量色）+ 一盏平行光：金属材质没有可反射的
+  // 环境，metalness=0.85 的空间站/卫星表面等于在反射「空气」，金属感全靠贴图假撑。
+  //
+  // 现在接上真环境光照：
+  //   HDR（equirect 2:1）→ generateLightingSource（等距柱状 → cubemap）
+  //                       → generateAtlas（GGX 预滤波镜面 + lambert 漫射）→ scene.envAtlas
+  //
+  // PlayCanvas 的 StandardMaterial 会自动采样 scene.envAtlas 做 IBL，无需逐材质接线。
+  //
+  // 工程约束：
+  //  - HDR 是 32-bit RGBE（TEXTURETYPE_RGBE / RGBA8 容器），不可滤波、无 mipmap，
+  //    由 reprojectTexture 内部的 decode/encode 处理；
+  //  - 预滤波是同步 GPU 工作（多级 mip × 多次采样），所以先让出一帧再算，
+  //    避免开局首帧被这段计算顶住；
+  //  - 整段失败只降级（保留 ambientLight），不抛给调用方 —— 画质是加分项，不能挡住开局。
+
+  /**
+   * 加载 HDR 环境贴图并生成环境光照（IBL），挂到 scene.envAtlas。
+   *
+   * @param url 等距柱状（2:1）HDR 文件
+   * @param options 预滤波尺寸。atlasSize 越大反射越清晰、耗时越长（默认 512）
+   * @returns 是否成功挂上（false = 失败已降级，调用方无需处理）
+   */
+  public async loadEnvironmentLighting(
+    url: string,
+    options: { atlasSize?: number; lightingSourceSize?: number } = {},
+  ): Promise<boolean> {
+    this.envLightingState = { ...this.envLightingState, url, status: 'loading', error: null };
+    try {
+      const source = await this.loadHdrTexture(url);
+
+      // 让出一帧：下面的预滤波是同步的，先让开局首帧画出来再算。
+      await new Promise<void>((resolve) => {
+        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve());
+        else setTimeout(resolve, 0);
+      });
+
+      const lightingSource = pc.EnvLighting.generateLightingSource(source, {
+        size: options.lightingSourceSize ?? 128,
+      });
+      const atlas = pc.EnvLighting.generateAtlas(lightingSource, {
+        size: options.atlasSize ?? 512,
+        numReflectionSamples: 512,
+        numAmbientSamples: 1024,
+      });
+      this.app.scene.envAtlas = atlas;
+
+      this.envLightingState = {
+        ...this.envLightingState,
+        status: 'ready',
+        envAtlas: true,
+        atlasSize: atlas.width,
+      };
+      console.log(
+        `[PlayCanvasEngine] 环境光照就绪: ${url}（envAtlas ${atlas.width}×${atlas.height}）`,
+      );
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.envLightingState = { ...this.envLightingState, status: 'failed', error: message };
+      console.warn(`[PlayCanvasEngine] 环境光照生成失败（回落 ambientLight）: ${url}`, error);
+      return false;
+    }
+  }
+
+  /** 加载 .hdr（Radiance RGBE）为等距柱状 2D 贴图。 */
+  private loadHdrTexture(url: string): Promise<pc.Texture> {
+    return new Promise((resolve, reject) => {
+      const asset = new pc.Asset(`envHdr:${url}`, 'texture', { url });
+      this.app.assets.add(asset);
+      asset.once('load', () => resolve(asset.resource as pc.Texture));
+      asset.once('error', (err: string) => reject(new Error(err || 'hdr_load_failed')));
+      this.app.assets.load(asset);
+    });
+  }
+
+  /**
+   * 设置色调映射曲线与曝光。
+   *
+   * 注意分工（PlayCanvas 2.x）：**曲线是相机级**（camera.toneMapping），
+   * **曝光是场景级**（scene.exposure）——两者不在同一个对象上。
+   *
+   * PlayCanvas 默认是 TONEMAP_LINEAR（线性输出，亮部直接切顶死白）。换成 filmic
+   * 类曲线后高光有滚降、亮部不再糊成一片。代价是整体略暗，所以要配 exposure 补偿
+   * （由调用方按关卡光照档位给，见 levels/index.ts 的 EXPOSURE_BY_LIGHTING）。
+   *
+   * @param mode 曲线名（'aces2' 等，见 TONEMAP_MODES）或 PlayCanvas 的数值常量
+   */
+  public setToneMapping(mode: number | string, exposure?: number): void {
+    const resolved =
+      typeof mode === 'number'
+        ? mode
+        : (PlayCanvasGameEngine.TONEMAP_MODES[mode] ?? pc.TONEMAP_LINEAR);
+    const cameraComp = this.camera.camera;
+    if (cameraComp) cameraComp.toneMapping = resolved;
+    if (typeof exposure === 'number' && Number.isFinite(exposure)) {
+      this.app.scene.exposure = exposure;
+    }
+    this.envLightingState = {
+      ...this.envLightingState,
+      toneMapping: cameraComp?.toneMapping ?? pc.TONEMAP_LINEAR,
+      exposure: this.app.scene.exposure,
+    };
+    console.log(
+      `[PlayCanvasEngine] 色调映射=${this.envLightingState.toneMapping}` +
+        `（linear=0/filmic=1/hejl=2/aces=3/aces2=4/neutral=5/无=6）` +
+        ` 曝光=${this.app.scene.exposure.toFixed(2)}`,
+    );
+  }
+
+  /** 环境光照与色调映射的当前状态（真实值现读，不返回缓存）。 */
+  public getEnvironmentLightingState(): EnvironmentLightingState {
+    const atlas = this.app.scene.envAtlas as pc.Texture | null;
+    return {
+      ...this.envLightingState,
+      toneMapping: this.camera.camera?.toneMapping ?? pc.TONEMAP_LINEAR,
+      exposure: this.app.scene.exposure,
+      envAtlas: !!atlas,
+      atlasSize: atlas ? atlas.width : null,
+    };
   }
 
   public getApp(): pc.Application {

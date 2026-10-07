@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-10-07
 
+### Added — 画质：环境光照（IBL）+ 色调映射（HDR 资产首次被消费）
+
+- **环境反射**：`engine.loadEnvironmentLighting(url)` —— 加载等距柱状 HDR
+  （Radiance RGBE）→ `EnvLighting.generateLightingSource`（equirect→cubemap）
+  → `EnvLighting.generateAtlas`（GGX 镜面预滤波 + lambert 漫射）→ 挂
+  `scene.envAtlas`。PlayCanvas 的 StandardMaterial 自动采样 envAtlas 做 IBL，
+  无需逐材质接线 —— metalness=0.85 的空间站/卫星从此反射真实夜空环境，
+  而不是反射「空气」（此前场景只有 ambientLight 常量色 + 一盏平行光）。
+  工程细节：预滤波是同步 GPU 工作，先 `requestAnimationFrame` 让出一帧
+  再算，避免顶住开局首帧；整段失败只降级（保留 ambientLight），画质不挡开局。
+- **色调映射**：`engine.setToneMapping(mode, exposure)`。PlayCanvas 默认
+  TONEMAP_LINEAR 亮部直接切顶死白；换 ACES2 高光有滚降。**注意分工**：
+  曲线是相机级（`camera.toneMapping`，d.ts 在 Scene 上没有这个属性——
+  这是本次踩的坑），曝光是场景级（`scene.exposure`），两者不在同一对象。
+- **配置真源**：`src/levels/index.ts` 新增 `ENV_HDRI`（天幕 id → HDR 文件，
+  与 SKYBOX_TEXTURES 同键——一次选天空同时决定「看到的背景」与「反射的环境」）、
+  `DEFAULT_ENV_HDRI`、`TONEMAP`（全局曲线档）、`EXPOSURE_BY_LIGHTING`
+  （dark ×1.35 / dim ×1.15 / normal ×1.0 / dramatic ×1.0 / bright ×0.9，
+  补偿 ACES 曲线的整体变暗）。80MB HDR 库首次被消费（每关按需加载 1 张）。
+- **防漂移单测** `src/levels/levels.test.ts`（4 项）：ENV_HDRI 必须覆盖
+  SKYBOX_TEXTURES 全部键、EXPOSURE_BY_LIGHTING 必须覆盖全部光照档位、
+  HDR 必须指向 .hdr 文件 —— 新关卡静默回落默认值会被测试拦住。
+- **验证脚本** `scripts/verify-environment.mjs`（14 项，差分验证）：
+  level-01（rogland_clear_night / 曝光 1.0）、level-02（qwantani_night / 1.15）、
+  level-04（rogland_clear_night / 1.35）——不同关卡换不同 HDR + 不同曝光，
+  证明配置驱动而非硬编码；`__levelDebug.summary().environment` 观测面直接
+  现读 `scene.envAtlas` 与 `camera.toneMapping`（非影子状态）。
+
 ### Fixed — 飞船模型错位与倒飞（用户报告）
 
 - **错位**：Kenney 官方 GLB 的根节点自带 `translation=[2,0,1.5]`（Blender 导出时模型摆在场景

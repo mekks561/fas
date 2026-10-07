@@ -37,6 +37,10 @@ import {
   ASTEROID_FIELD,
   ENGINE_DIFFICULTY,
   buildWavePlans,
+  ENV_HDRI,
+  DEFAULT_ENV_HDRI,
+  TONEMAP,
+  EXPOSURE_BY_LIGHTING,
 } from '../levels';
 import { getCredits, addCredits } from '../engine/CreditsStore';
 import {
@@ -440,6 +444,22 @@ export const GameScene: React.FC<{
       // PBR 贴图：ambientCG 三套真材质（岩石/金属板/金属，共 ~3.7MB），
       // 供小行星带 / 空间站 / 卫星在 GLB 替换完成后叠加（见 applyPbrMaterialWhenReady）。
       engine.preloadPbrTextures();
+
+      // ── 画质：色调映射 + 环境光照（IBL）──────────────────────────────────
+      // 色调映射：线性 → ACES2。线性输出会把亮部直接切顶（死白一片），filmic 类
+      // 曲线让高光有滚降；代价是整体略暗，所以按关卡光照档位补曝光（暗档多补）。
+      const lightingKey = levelConfig?.environment.lighting ?? 'normal';
+      engine.setToneMapping(
+        TONEMAP.mode,
+        TONEMAP.exposure * (EXPOSURE_BY_LIGHTING[lightingKey] ?? 1),
+      );
+
+      // 环境光照：HDR 夜空 → 预滤波 envAtlas 挂到 scene 上，金属材质（空间站/卫星）
+      // 从此反射真实环境而不是「空气」。异步加载 + 生成，不阻塞开局；失败只降级
+      // （保留 ambientLight），画质是加分项，不能挡住进游戏。
+      const hdrUrl =
+        ENV_HDRI[levelConfig?.environment.skybox ?? 'env-space-01'] ?? DEFAULT_ENV_HDRI;
+      void engine.loadEnvironmentLighting(hdrUrl);
 
       // 近景星星只保留 120 颗提供运动视差；远处的星空交给天幕贴图
       engine.createStarField(120, 20, 60);
@@ -1082,6 +1102,8 @@ export const GameScene: React.FC<{
               enemies: enemySystemRef.current?.getEnemies().length ?? -1,
               asteroidCount: engine.getApp().root.findByName('asteroidField')?.children.length ?? 0,
               credits: getCredits(),
+              // 画质：环境光照（IBL）与色调映射的实际生效值（现读 scene，非影子状态）
+              environment: engine.getEnvironmentLightingState(),
             }),
             levelConfig,
           };

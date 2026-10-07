@@ -75,6 +75,50 @@ export const LEVEL_LIGHTING: Record<string, { sunIntensity: number }> = {
   bright: { sunIntensity: 2.1 },
 };
 
+// ─── 画质：环境光照（IBL）与色调映射 ─────────────────────────────────────────
+//
+// 两件事分开：
+//  1. ENV_HDRI —— 环境贴图。等距柱状（2:1）HDR，由 EnvLighting 预滤波成
+//     envAtlas 挂在 scene 上，给金属/粗糙材质提供「环境反射 + 环境漫射」。
+//     来源 Poly Haven（CC0），见 public/assets/textures/CREDITS.md 第 3 节。
+//  2. TONEMAP + EXPOSURE_BY_LIGHTING —— 高光滚降曲线（保持亮部不过曝、暗部有细节）
+//     与按关卡光照档位做的曝光补偿，避免暗关卡配新曲线后整体发灰。
+
+/**
+ * 关卡天幕 id → 环境贴图（HDR，equirect 2:1）。
+ * 与 SKYBOX_TEXTURES 同键：一次选天空，同时决定「看到的背景」与「反射的环境」。
+ * 未登记的 id 由调用方回落 DEFAULT_ENV_HDRI。
+ */
+export const ENV_HDRI: Record<string, string> = {
+  'env-space-01': '/assets/textures/hdr/rogland_clear_night_2k.hdr',
+  'env-nebula-01': '/assets/textures/hdr/qwantani_night_2k.hdr',
+  'env-station-01': '/assets/textures/hdr/qwantani_moonrise_2k.hdr',
+};
+
+/** 环境贴图默认值（未登记天幕 id / 生存模式）。 */
+export const DEFAULT_ENV_HDRI = '/assets/textures/hdr/rogland_clear_night_2k.hdr';
+
+/** 色调映射曲线（与 PlayCanvas 的 TONEMAP_* 常量同名，由引擎侧换算成数值）。 */
+export type ToneMappingMode = 'linear' | 'filmic' | 'hejl' | 'aces' | 'aces2' | 'neutral';
+
+/** 全局色调映射档位（惯例·可改）。 */
+export const TONEMAP: { mode: ToneMappingMode; exposure: number } = {
+  mode: 'aces2',
+  exposure: 1.0,
+};
+
+/**
+ * 关卡光照档位 → 曝光补偿系数（惯例·可改）。
+ * 换 ACES 曲线后整体会比线性略暗，暗档多补、亮档少补，保持各关「该亮的地方亮」。
+ */
+export const EXPOSURE_BY_LIGHTING: Record<string, number> = {
+  dark: 1.35,
+  dim: 1.15,
+  normal: 1.0,
+  dramatic: 1.0,
+  bright: 0.9,
+};
+
 /**
  * 关卡难度 → 引擎难度三档。
  * 策划用四档（easy/medium/hard/extreme）描述关卡，引擎只吃三档，
