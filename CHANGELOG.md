@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-10-07
+
+### Removed
+
+- **源码死簇清理（阶段 1）：14 文件 / 3,853 行** —— 判据是「每一行都有活替代品」，
+  逐项复核引用面后才删：
+  - `src/engine/Game.ts`（1014 行，**死根**：它 import 了 DebugSystem / AnimationSystem /
+    LevelEditor / MultiplayerSystem 一整排系统，自己却零入口）；
+  - `Enhanced*` 一族 5 个（2105 行，PlayCanvasEngine / PlayerShip / Enemy / EnemySystem /
+    WeaponSystem 的旧版）——按 Engine 1 API 写的，`createParticleSystem` 的 6 个属性
+    （speed / colorStart / colorEnd / sizeStart / sizeEnd / emissionRate）在 Engine 2
+    **全部不存在**，`emitterShape: 'cone'` 也不合法，且编译期抓不到。**接线不可能，只能重写**，
+    而功能已有活实现；
+  - 旧入口残留：`src/main.ts`、`src/index.ts`、`src/game/index.ts`、`src/components/App.tsx`、
+    `GameContainer.tsx`、`GameEngineCore.ts`、`components/GameSceneLazy.tsx`、`engine/lazyImports.ts`
+    （GameScene 已改用类型级 `import('...')` 直接指向真实模块）。
+- `package.json` 的 `main` 字段原指向已删的 `src/index.ts`，改为 `src/main.tsx`（本项目
+  无 lib 构建，该字段对 SPA 无意义，但不留悬空）。
+
+### Added
+
+- **`scripts/audit-dead-code.mjs`：源码可达性审计**。上一轮的 `audit-asset-usage.mjs`
+  只覆盖 `public/assets`，**源码层是它的盲区**。从入口做 import 图 BFS，三层判定
+  LIVE / DEAD / TESTONLY；要点：
+  - 入口 = `src/main.tsx` + `vitest.config.ts` 的 `setupFiles`（漏后者会把 `setupTests.ts`
+    误判成死代码）；
+  - **先剥离注释再提依赖**——否则文件头「用法示例」里的 `* import { X } from './x'`
+    会被当成真实依赖边，把死文件误判成活文件；
+  - `import(变量)` 这类盲区单列 DYN 并标 ⚠（实测本项目 0 处，`import.meta.glob` 只用于
+    `.lua` 文本，判定可靠）；
+  - 输出每个死文件的首个导出声明与头部注释首句，供人工分类。
+    npm script：`audit:dead-code`（另补 `audit:assets`）。
+- `docs/2026-10-07-源码死簇审计与清理.md`：完整清单与三阶段处置建议。
+
+### Verified
+
+- tsc 0 错；vitest **348/348 全绿**；e2e 六套全绿（icon 5/5、pbr 6/6、particle 9/9、
+  audio 9/9、level 18/18、wave 16/16）。
+- 审计复跑：DEAD **54 → 40 个**（16,627 → 12,760 行）；**LIVE 前后都是 107**，
+  证明删掉的全是死文件、没有一个活文件被误伤。
+
+### Discovered（待决策）
+
+- 剩余 40 个死文件 / 12,760 行分两组：
+  - **2-A 有活替代品的旧版重复残留**（约 4,100 行，建议继续删）：`GameStateManager`、
+    `EffectSystem`、`engine/ObjectPool`、`game/AchievementSystem`、`game/CombatSystem`、
+    `game/GameEventBus`、`UIManager`、`AudioGenerator`、`ProceduralAudioGenerator`、
+    资源下载族 6 个、输入三套、`store/useGameStateHooks`、`lua/examples`、`components/ErrorOverlay`；
+  - **2-B 无替代品的功能**（属「做完了没接」）：联机三件套 1700 行（README 至今挂着
+    未勾选的 `- [ ] 多人游戏`，方向文档标「计划中 P1 / 后端冻结」）、`LevelEditor` 1081 行、
+    引擎能力系统 5,209 行（LOD / ObjectPool / MobileSystem / ComputePhysics…）、
+    性能监控 560 行。需决定**接线 / 冻结 / 删除**。
+- 另 11 个 TESTONLY（仅被单测引用，2,554 行），删则连带删测试。
+- **注意：死代码不进 bundle** —— Vite 只打包入口可达模块，`src` 里这些文件本来就没进过
+  `dist/`。本轮收益是**可维护性与编译信噪比**，不是包体积。
+
 ## [Unreleased] - 2026-10-06
 
 ### Added
