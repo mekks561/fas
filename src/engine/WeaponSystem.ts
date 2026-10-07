@@ -4,6 +4,7 @@ import { PlayerShip } from './PlayerShip';
 import { Enemy } from './Enemy';
 import { LuaSkillBridge } from './LuaSkillBridge';
 import type { WeaponModifiers } from './BuildSystem';
+import { PROJECTILE_CULL_RADIUS } from './arena';
 
 export type WeaponType = 'normal' | 'spread' | 'laser' | 'missile';
 
@@ -448,7 +449,7 @@ export class WeaponSystem {
       pos.add(proj.velocity.clone().mulScalar(dt));
       proj.entity.setPosition(pos);
 
-      if (pos.length() > 100) {
+      if (pos.length() > PROJECTILE_CULL_RADIUS) {
         proj.entity.destroy();
         return false;
       }

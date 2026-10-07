@@ -279,6 +279,7 @@ export class PlayCanvasGameEngine implements GameEngine {
     count: number = 300,
     innerRadius: number = 30,
     outerRadius: number = 80,
+    sizeScale: number = 1,
   ): void {
     const starMaterial = this.createMaterial('starMaterial', {
       diffuse: new pc.Color(1, 1, 1),
@@ -293,7 +294,7 @@ export class PlayCanvasGameEngine implements GameEngine {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const radius = innerRadius + Math.random() * (outerRadius - innerRadius);
-      const size = 0.05 + Math.random() * 0.15;
+      const size = (0.05 + Math.random() * 0.15) * sizeScale;
 
       const star = new pc.Entity(`star_${i}`);
       star.addComponent('model', { type: 'sphere' });
@@ -407,11 +408,16 @@ export class PlayCanvasGameEngine implements GameEngine {
    * 创建小行星场：在指定中心周围的球壳内均匀分布 count 个小行星
    * 用于增强 3D 空间感知和提供环境障碍
    */
+  /**
+   * @param sizeScale 岩石尺寸倍率。小行星带外移时按同倍放大，才能保持
+   *   从原点望出去的视角尺寸不变（角度密度只由 count 决定，无需跟着改）。
+   */
   public createAsteroidField(
     count: number,
     center: pc.Vec3,
     innerRadius: number,
     outerRadius: number,
+    sizeScale: number = 1,
   ): pc.Entity {
     const container = new pc.Entity('asteroidField');
     const modelGen = new ProceduralModelGenerator(this.app);
@@ -427,7 +433,7 @@ export class PlayCanvasGameEngine implements GameEngine {
         center.z + radius * Math.cos(phi),
       );
 
-      const scale = 0.5 + Math.random() * 2.0;
+      const scale = (0.5 + Math.random() * 2.0) * sizeScale;
 
       // 每个小行星包一层 holder：holder 持有位置与自转速度，
       // 内部放程序化模型作为占位，随后异步换成 Kenney 的真实岩石外壳。
@@ -458,7 +464,10 @@ export class PlayCanvasGameEngine implements GameEngine {
     }
 
     this.app.root.addChild(container);
-    console.log(`[PlayCanvasEngine] Asteroid field created: ${count} asteroids`);
+    console.log(
+      `[PlayCanvasEngine] Asteroid field created: ${count} asteroids, ` +
+        `r=${innerRadius}~${outerRadius}, sizeScale=${sizeScale}`,
+    );
     return container;
   }
 

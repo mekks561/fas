@@ -131,8 +131,23 @@ export const ENGINE_DIFFICULTY: Record<string, 'easy' | 'normal' | 'hard'> = {
   extreme: 'hard',
 };
 
-/** 小行星带半径与数量（environment.asteroidField 为 true 时启用）。 */
-export const ASTEROID_FIELD = { count: 40, innerRadius: 35, outerRadius: 55 } as const;
+/**
+ * 小行星带与可活动空间的其他几何参数。
+ *
+ * **真源已迁到 `src/engine/arena.ts`**（零依赖叶子模块）——移到那里的原因：
+ * 场地边界要被引擎热路径（PlayerShip / EnemyAI / EnemySystem / WeaponSystem）
+ * 直接引用，若放在本派生层会把整条关卡配置链（含 WaveManager → LuaEngine → wasmoon）
+ * 拖进热路径。此处只做再导出，保持「关卡/世界配置从 '../levels' 取」的既有习惯。
+ */
+export {
+  ARENA_SCALE,
+  ASTEROID_BELT,
+  BACKDROP,
+  ENEMY_BOUNDS,
+  ENEMY_SPAWN,
+  PLAYER_BOUNDS,
+  PROJECTILE_CULL_RADIUS,
+} from '../engine/arena';
 
 /**
  * 关卡解锁门槛（惯例·可改）：按关卡序号推导，第 1 关恒解锁。

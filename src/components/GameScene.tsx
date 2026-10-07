@@ -42,7 +42,7 @@ import {
   getLevelByIndex,
   SKYBOX_TEXTURES,
   LEVEL_LIGHTING,
-  ASTEROID_FIELD,
+  ASTEROID_BELT,
   ENGINE_DIFFICULTY,
   buildWavePlans,
   ENV_HDRI,
@@ -50,6 +50,9 @@ import {
   TONEMAP,
   EXPOSURE_BY_LIGHTING,
 } from '../levels';
+// 可活动空间（场地边界 / 生成环 / 小行星带 / 远景布景）的唯一真源。
+// 相机参数是「玩家可视范围」，与场地大小无关，故不在此列。
+import { BACKDROP } from '../engine/arena';
 import { getCredits, addCredits } from '../engine/CreditsStore';
 import {
   applySkillBonusesToPlayer,
@@ -469,21 +472,38 @@ export const GameScene: React.FC<{
         ENV_HDRI[levelConfig?.environment.skybox ?? 'env-space-01'] ?? DEFAULT_ENV_HDRI;
       void engine.loadEnvironmentLighting(hdrUrl);
 
-      // 近景星星只保留 120 颗提供运动视差；远处的星空交给天幕贴图
-      engine.createStarField(120, 20, 60);
-      engine.createNebula(new pc.Vec3(30, 10, -30), 25);
-      engine.createNebula(new pc.Vec3(-30, -5, 25), 20);
-      engine.createPlanet('planet1', new pc.Vec3(40, 15, 35), 5, new pc.Color(0.4, 0.6, 0.8));
-      engine.createPlanet('planet2', new pc.Vec3(-35, -10, -25), 4, new pc.Color(0.8, 0.5, 0.3));
+      // 近景星星只保留 120 颗提供运动视差；远处的星空交给天幕贴图。
+      // 布景的位置与尺寸全部来自 arena.ts 的 BACKDROP（世界整体 2× 时同倍放大，
+      // 从原点看过去的方位与视角尺寸保持不变，天空观感不被破坏）。
+      engine.createStarField(
+        BACKDROP.starField.count,
+        BACKDROP.starField.innerRadius,
+        BACKDROP.starField.outerRadius,
+        BACKDROP.starField.sizeScale,
+      );
+      for (const nebula of BACKDROP.nebulae) {
+        engine.createNebula(new pc.Vec3(...nebula.position), nebula.scale);
+      }
+      for (const planet of BACKDROP.planets) {
+        engine.createPlanet(
+          planet.name,
+          new pc.Vec3(...planet.position),
+          planet.radius,
+          new pc.Color(planet.color[0], planet.color[1], planet.color[2]),
+        );
+      }
 
-      // 小行星带：按关卡 environment.asteroidField 开关（尺寸见 ASTEROID_FIELD）。
-      // 关掉的关卡省下 40 个模型 + 碰撞体，也让视野更干净（如「初次接触」）。
+      // 小行星带：按关卡 environment.asteroidField 开关（尺寸见 ASTEROID_BELT）。
+      // 关掉的关卡省下小行星模型 + 碰撞体，也让视野更干净（如「初次接触」）。
+      // 内缘 70 是刻意大于飞船盒子对角线（≈76.8）的量级：带本身就是"看得见的墙"，
+      // 若把它留在原地，放宽飞船边界后会直接穿进带里撞岩石。
       if (levelConfig?.environment.asteroidField ?? true) {
         engine.createAsteroidField(
-          ASTEROID_FIELD.count,
+          ASTEROID_BELT.count,
           new pc.Vec3(0, 0, 0),
-          ASTEROID_FIELD.innerRadius,
-          ASTEROID_FIELD.outerRadius,
+          ASTEROID_BELT.innerRadius,
+          ASTEROID_BELT.outerRadius,
+          ASTEROID_BELT.sizeScale,
         );
       } else {
         console.log('[GameScene] 本关无小行星带（environment.asteroidField = false）');
@@ -495,27 +515,18 @@ export const GameScene: React.FC<{
       // 空间站和卫星作为远处空间参照物。
       // 与飞船同款做法：包一层 holder 承载位置，内部程序化模型先顶上，
       // GLB 加载好后异步替换；任何失败都保留程序化模型，不影响开局。
-      const stationHolder = new pc.Entity('stationHolder');
-      stationHolder.setPosition(-50, 5, -40);
-      const stationPlaceholder = modelGen.createStructure('space_station', { scale: 2 });
-      stationHolder.addChild(stationPlaceholder);
-      engine.addToScene(stationHolder);
-      engine.getModelAssets().upgradeStructure(stationHolder, stationPlaceholder, 'space_station', {
-        scaleMultiplier: 2 * ModelAssetProvider.structureScale(),
-        yaw: 40,
-        onReplaced: (instance) => engine.applyPbrMaterialWhenReady(instance, 'metalPlates'),
-      });
-
-      const satelliteHolder = new pc.Entity('satelliteHolder');
-      satelliteHolder.setPosition(45, 12, -30);
-      const satellitePlaceholder = modelGen.createStructure('satellite', { scale: 1 });
-      satelliteHolder.addChild(satellitePlaceholder);
-      engine.addToScene(satelliteHolder);
-      engine.getModelAssets().upgradeStructure(satelliteHolder, satellitePlaceholder, 'satellite', {
-        scaleMultiplier: ModelAssetProvider.structureScale(),
-        yaw: 200,
-        onReplaced: (instance) => engine.applyPbrMaterialWhenReady(instance, 'metal'),
-      });
+      for (const structure of BACKDROP.structures) {
+        const holder = new pc.Entity(`${structure.name}Holder`);
+        holder.setPosition(structure.position[0], structure.position[1], structure.position[2]);
+        const placeholder = modelGen.createStructure(structure.name, { scale: structure.scale });
+        holder.addChild(placeholder);
+        engine.addToScene(holder);
+        engine.getModelAssets().upgradeStructure(holder, placeholder, structure.name, {
+          scaleMultiplier: structure.scale * ModelAssetProvider.structureScale(),
+          yaw: structure.yaw,
+          onReplaced: (instance) => engine.applyPbrMaterialWhenReady(instance, structure.material),
+        });
+      }
 
       // 雾效：增强深度感，远处物体渐隐（临时禁用排查黑屏）
       // engine.enableFog(new pc.Color(0.02, 0.02, 0.05), 0.008);

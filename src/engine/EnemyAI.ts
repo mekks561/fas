@@ -4,6 +4,8 @@ import * as pc from 'playcanvas';
 // 纯行为逻辑 —— 单测可以直接构造它，不必起 WebGL。
 import type { PlayerShip } from './PlayerShip';
 import type { EnemyType } from './Enemy';
+// 场地边界唯一真源（零依赖叶子模块，引它不会把引擎图拖进来）
+import { ENEMY_BOUNDS } from './arena';
 
 export enum AIState {
   IDLE = 'idle',
@@ -267,9 +269,9 @@ export abstract class EnemyAI {
     const movement = direction.normalize().scale(speed * dt);
     currentPos.add(movement);
 
-    currentPos.x = Math.max(-30, Math.min(30, currentPos.x));
-    currentPos.y = Math.max(-15, Math.min(15, currentPos.y));
-    currentPos.z = Math.max(-30, Math.min(30, currentPos.z));
+    currentPos.x = Math.max(-ENEMY_BOUNDS.x, Math.min(ENEMY_BOUNDS.x, currentPos.x));
+    currentPos.y = Math.max(-ENEMY_BOUNDS.y, Math.min(ENEMY_BOUNDS.y, currentPos.y));
+    currentPos.z = Math.max(-ENEMY_BOUNDS.z, Math.min(ENEMY_BOUNDS.z, currentPos.z));
 
     this.entity.setPosition(currentPos);
   }

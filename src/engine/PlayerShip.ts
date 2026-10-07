@@ -3,6 +3,7 @@ import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { ProceduralModelGenerator, ShipModelType } from './ProceduralModelGenerator';
 import { ModelAssetProvider } from './ModelAssetProvider';
 import type { PlayerModifiers } from './BuildSystem';
+import { PLAYER_BOUNDS } from './arena';
 
 export interface PlayerConfig {
   engine: PlayCanvasGameEngine;
@@ -297,10 +298,12 @@ export class PlayerShip {
       const currentPos = this.entity.getPosition().clone();
       currentPos.add(forward);
 
-      currentPos.x = Math.max(-25, Math.min(25, currentPos.x));
-      // 扩展 Y 轴移动范围至 ±15，支持立体空间飞行
-      currentPos.y = Math.max(-15, Math.min(15, currentPos.y));
-      currentPos.z = Math.max(-25, Math.min(25, currentPos.z));
+      // 各轴独立盒子钳制。边界值唯一真源是 arena.ts 的 PLAYER_BOUNDS ——
+      // 改空间大小时必须同步 ENEMY_BOUNDS / ENEMY_SPAWN / ASTEROID_BELT / BACKDROP，
+      // 否则敌机追不出边界、小行星带陷进场地、布景相对位置失真。
+      currentPos.x = Math.max(-PLAYER_BOUNDS.x, Math.min(PLAYER_BOUNDS.x, currentPos.x));
+      currentPos.y = Math.max(-PLAYER_BOUNDS.y, Math.min(PLAYER_BOUNDS.y, currentPos.y));
+      currentPos.z = Math.max(-PLAYER_BOUNDS.z, Math.min(PLAYER_BOUNDS.z, currentPos.z));
 
       this.entity.setPosition(currentPos);
     }

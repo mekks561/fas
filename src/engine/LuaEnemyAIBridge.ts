@@ -17,6 +17,7 @@
 
 import * as pc from 'playcanvas';
 import { AIState, type EnemyAI, type ExternalAIBrain } from './EnemyAI';
+import { ENEMY_BOUNDS } from './arena';
 // 只引类型：Enemy.ts ↔ EnemyAI.ts ↔ 本文件 存在既有的 value 循环，
 // 若在这里 value-import EnemyType，映射表会在模块求值期读到未初始化枚举。
 import type { PlayerShip } from './PlayerShip';
@@ -52,8 +53,14 @@ export const ENEMY_TYPE_TO_LUA_AI: Record<EnemyType, AIType> = {
   boss: 'BOSS',
 };
 
-/** 与 EnemyAI.moveTowards 一致的场地边界（两处必须同步） */
-export const AI_WORLD_BOUNDS = { x: 30, y: 15, z: 30 };
+/**
+ * Lua AI 的位置钳制边界。
+ *
+ * **不再是独立常量**：它必须与 `EnemyAI.moveTowards` 逐字一致，否则换 AI 后端会
+ * 改变敌机能活动的区域（Lua 模式被卡在内圈 / TS 模式跑得更远）。两者现在都从
+ * `arena.ts` 的 `ENEMY_BOUNDS` 派生 —— 单一真源，物理上不可能漂移。
+ */
+export const AI_WORLD_BOUNDS = ENEMY_BOUNDS;
 
 const ALTITUDE_FOLLOW_SPEED = 4;
 const MOVEMENT_EPSILON = 0.01;

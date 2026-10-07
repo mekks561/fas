@@ -26,6 +26,7 @@ import {
   resetLuaAIBridgeStats,
   AI_WORLD_BOUNDS,
 } from './LuaEnemyAIBridge';
+import { ENEMY_BOUNDS, PLAYER_BOUNDS } from './arena';
 
 /** 最小 Vec3 替身（EnemyAI 只用 clone） */
 const vec3 = (x = 0, y = 0, z = 0) => {
@@ -120,10 +121,17 @@ describe('ENEMY_TYPE_TO_LUA_AI 换算表', () => {
     expect(ENEMY_TYPE_TO_LUA_AI[EnemyType.BOSS_OVERLORD]).toBe('BOSS');
   });
 
-  it('世界边界与 EnemyAI.moveTowards 保持一致（±30 / ±15）', () => {
-    expect(AI_WORLD_BOUNDS.x).toBe(30);
-    expect(AI_WORLD_BOUNDS.y).toBe(15);
-    expect(AI_WORLD_BOUNDS.z).toBe(30);
+  it('世界边界与 EnemyAI.moveTowards 同源（都取自 arena.ts，物理上不可能漂移）', () => {
+    // 之前这是一对「两处必须手工同步」的常量，改场地大小必然有一处漏改。
+    // 现在 AI_WORLD_BOUNDS 就是 ENEMY_BOUNDS 本身（同一对象引用）。
+    expect(AI_WORLD_BOUNDS).toBe(ENEMY_BOUNDS);
+    expect(AI_WORLD_BOUNDS).toEqual({ x: ENEMY_BOUNDS.x, y: ENEMY_BOUNDS.y, z: ENEMY_BOUNDS.z });
+  });
+
+  it('Lua 模式的钳制边界不小于玩家可达范围（否则敌机追不出边界）', () => {
+    expect(AI_WORLD_BOUNDS.x).toBeGreaterThanOrEqual(PLAYER_BOUNDS.x);
+    expect(AI_WORLD_BOUNDS.z).toBeGreaterThanOrEqual(PLAYER_BOUNDS.z);
+    expect(AI_WORLD_BOUNDS.y).toBeGreaterThanOrEqual(PLAYER_BOUNDS.y);
   });
 });
 

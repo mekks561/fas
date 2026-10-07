@@ -4,6 +4,7 @@ import { PlayerShip } from './PlayerShip';
 import { Enemy, EnemyType } from './Enemy';
 import { WaveManager } from '../lua/wave/WaveManager';
 import type { EnemyConfig as WaveEnemyConfig } from '../lua/wave/WaveManager';
+import { ENEMY_SPAWN } from './arena';
 
 export type PowerupDropCallback = (position: pc.Vec3, enemyType: EnemyType) => void;
 
@@ -118,15 +119,19 @@ export class EnemySystem {
   private spawnEnemy(waveConfig: WaveEnemyConfig): void {
     const type = this.enemyTypeFromString(waveConfig.type);
 
-    // 3D 球面均匀分布：使用 theta + phi 球坐标，让敌人在 Y 轴也随机分布
-    const spawnRadius = 20 + Math.random() * 10;
+    // 3D 球面均匀分布：使用 theta + phi 球坐标，让敌人在 Y 轴也随机分布。
+    // 生成环半径与 Y 限幅的唯一真源是 arena.ts 的 ENEMY_SPAWN —— 它们必须与
+    // PLAYER_BOUNDS 同比例，否则场地放大后敌机会全部挤在中心，玩家跑到边缘就
+    // 「敌人在背后冒出来」。
+    const spawnRadius =
+      ENEMY_SPAWN.ringInner + Math.random() * (ENEMY_SPAWN.ringOuter - ENEMY_SPAWN.ringInner);
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1); // 球面均匀分布
     const x = Math.cos(theta) * Math.sin(phi) * spawnRadius;
     // Y 范围稍小（×0.6），避免极端垂直位置，并限制在玩家可达范围
     const y = Math.sin(theta) * Math.sin(phi) * spawnRadius * 0.6;
     const z = Math.cos(phi) * spawnRadius;
-    const clampedY = Math.max(-10, Math.min(10, y));
+    const clampedY = Math.max(-ENEMY_SPAWN.yLimit, Math.min(ENEMY_SPAWN.yLimit, y));
 
     const enemy = new Enemy({
       engine: this.engine,
