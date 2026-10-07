@@ -1,7 +1,8 @@
 import { luaEngine } from '../LuaEngine';
+import { getLuaSource } from '../luaSources';
 
-const powerupScriptModules = import.meta.glob('./powerup-system.lua', { as: 'raw', eager: true });
-const powerupSystemScript = powerupScriptModules['./powerup-system.lua'] || '';
+// 取源码统一走 luaSources（构建期内联）——理由见 luaSources.ts 头注释。
+const powerupSystemScript = getLuaSource('powerup/powerup-system') ?? '';
 
 export interface PowerupConfig {
   name: string;
@@ -48,7 +49,7 @@ export class PowerupSystemManager {
     await luaEngine.initialize();
 
     const powerupScript = await this.loadPowerupScript();
-    luaEngine.registerModule({ name: 'powerup_system', script: powerupScript });
+    luaEngine.registerModule({ name: 'powerup_system', script: powerupScript, host: true });
 
     this.initialized = true;
     console.log('[PowerupSystemManager] Initialized');
@@ -249,9 +250,7 @@ end
     }
   }
 
-  applyPowerup(
-    powerupType: PowerupType,
-  ):
+  applyPowerup(powerupType: PowerupType):
     | {
         success: boolean;
         powerupType: string;
@@ -448,7 +447,7 @@ end
   async reloadScript(): Promise<void> {
     console.log('[PowerupSystemManager] Reloading powerup script...');
     const newScript = await this.loadPowerupScript();
-    luaEngine.registerModule({ name: 'powerup_system', script: newScript });
+    luaEngine.registerModule({ name: 'powerup_system', script: newScript, host: true });
     console.log('[PowerupSystemManager] Powerup script reloaded');
   }
 

@@ -2,6 +2,7 @@ import {
   waveManager,
   powerupSystemManager,
   combatStatsManager,
+  enemyAIManager,
   luaEngine,
   WaveManager,
   PowerupSystemManager,
@@ -93,6 +94,9 @@ export class GameplayManager {
     await this.waveManager.initialize();
     await this.powerupManager.initialize();
     await this.combatStats.initialize();
+    // 敌机 AI 模块（enemy-ai.lua）在开局前装载：真实 Lua 运行时下这条会把模块真正编译执行，
+    // 之后 ?ai=lua 只是决定敌机用不用它；装载失败只告警不阻断（敌机回落 TS 行为）。
+    await enemyAIManager.initialize();
 
     this.waveManager.setDifficulty(difficulty);
     this.initialized = true;

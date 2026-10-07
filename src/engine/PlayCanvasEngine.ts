@@ -588,16 +588,29 @@ export class PlayCanvasGameEngine implements GameEngine {
   //
   // 套件清单与许可见 public/assets/textures/CREDITS.md。
 
-  /** 色调映射曲线名 → PlayCanvas 常量。配置层写可读名字，数值换算只在这里。 */
-  public static readonly TONEMAP_MODES: Record<string, number> = {
-    linear: pc.TONEMAP_LINEAR,
-    filmic: pc.TONEMAP_FILMIC,
-    hejl: pc.TONEMAP_HEJL,
-    aces: pc.TONEMAP_ACES,
-    aces2: pc.TONEMAP_ACES2,
-    neutral: pc.TONEMAP_NEUTRAL,
-    none: pc.TONEMAP_NONE,
-  };
+  /**
+   * 色调映射曲线名 → PlayCanvas 常量。配置层写可读名字，数值换算只在这里。
+   *
+   * 刻意做成**惰性求值**（而不是 `static readonly = { linear: pc.TONEMAP_LINEAR, … }`）：
+   * 后者会在模块求值期就去读 PlayCanvas 的常量，任何"在引擎之外引用本模块"的场景
+   * （单测、工具脚本、循环依赖链）都会因为这个大依赖尚未就绪而直接崩在 import 上。
+   * 惰性求值把这份耦合推迟到真正要设置色调映射的时候。
+   */
+  private static _tonemapModes: Record<string, number> | null = null;
+  public static get TONEMAP_MODES(): Record<string, number> {
+    if (!PlayCanvasGameEngine._tonemapModes) {
+      PlayCanvasGameEngine._tonemapModes = {
+        linear: pc.TONEMAP_LINEAR,
+        filmic: pc.TONEMAP_FILMIC,
+        hejl: pc.TONEMAP_HEJL,
+        aces: pc.TONEMAP_ACES,
+        aces2: pc.TONEMAP_ACES2,
+        neutral: pc.TONEMAP_NEUTRAL,
+        none: pc.TONEMAP_NONE,
+      };
+    }
+    return PlayCanvasGameEngine._tonemapModes;
+  }
 
   /** 一套 PBR 材质的贴图与标量参数。 */
   public static readonly PBR_SETS: Record<string, PbrSetDef> = {

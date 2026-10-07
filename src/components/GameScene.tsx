@@ -11,6 +11,14 @@ import { QuestTracker } from './QuestTracker';
 import { UpgradeChoiceOverlay } from './UpgradeChoiceOverlay';
 import { gameplayManager } from '../engine/GameplayManager';
 import type { GameplayEvents } from '../engine/GameplayManager';
+import { luaEngine } from '../lua/LuaEngine';
+import { enemyAIManager } from '../lua/ai/EnemyAIManager';
+import {
+  getEnemyAIMode,
+  setEnemyAIMode,
+  getLuaAIBridgeStats,
+  resetLuaAIBridgeStats,
+} from '../engine/LuaEnemyAIBridge';
 import { dailyChallengeManager } from '../engine/DailyChallengeManager';
 import { ModelAssetProvider } from '../engine/ModelAssetProvider';
 import { globalAudio } from '../engine/GlobalAudio';
@@ -1106,6 +1114,81 @@ export const GameScene: React.FC<{
               environment: engine.getEnvironmentLightingState(),
             }),
             levelConfig,
+          };
+
+          // 敌机 AI 后端的观测/开关钩子（Lua AI A/B 对照用）。
+          // 只读生产对象：luaEngine 的运行时模式、enemyAIManager 的桥接统计、
+          // 以及每架敌机**实际挂着的大脑**（不是另建影子状态）。
+          (window as unknown as Record<string, unknown>)['__aiDebug'] = {
+            /** 运行时模式：mode === 'lua' 才是真的在跑 Lua 脚本（stub = 宿主 JS 实现） */
+            runtime: () => luaEngine.getRuntimeInfo(),
+            /** 当前敌机 AI 后端（ts 原生 / lua 模块） */
+            getMode: () => getEnemyAIMode(),
+            /** 切换后端：只影响之后生成的敌机（已生成的不换脑） */
+            setMode: (mode: 'ts' | 'lua') => setEnemyAIMode(mode),
+            /** 桥接统计（句柄数 / 步进 / 动作 / 错误 / 兜底） */
+            stats: () => ({
+              ...enemyAIManager.getStats(),
+              ...getLuaAIBridgeStats(),
+              aliveEnemies: enemySystemRef.current?.getAliveCount() ?? -1,
+            }),
+            /** 逐架敌机：原生状态 + 是否由 Lua 接管 + Lua 侧最后的决策 */
+            inspect: () =>
+              (enemySystemRef.current?.getEnemies() ?? []).map((e, i) => {
+                const box = e as unknown as {
+                  ai?: {
+                    isExternalBrainActive?: () => boolean;
+                    getExternalBrainFrames?: () => number;
+                    getExternalBrainDiagnostics?: () => Record<string, unknown> | null;
+                  };
+                };
+                const ai = box.ai;
+                const p = e.getPosition();
+                return {
+                  i,
+                  type: e.getType(),
+                  state: e.getAIState(),
+                  brainActive: ai?.isExternalBrainActive?.() ?? false,
+                  brainFrames: ai?.getExternalBrainFrames?.() ?? 0,
+                  lua: ai?.getExternalBrainDiagnostics?.() ?? null,
+                  pos: [p.x, p.y, p.z].map((v) => Math.round(v * 100) / 100),
+                };
+              }),
+            /** 强制 Lua 侧抛错，用于验证「Lua 挂了敌机还能动」（回落 TS 行为） */
+            forceLuaError: (on: boolean = true) => {
+              enemyAIManager.setForceError(on);
+              return on;
+            },
+            /**
+             * 把存活敌机推到玩家周围的环上 —— 验证「AI 是否真的把它们带回来」。
+             *
+             * 为什么要这个：敌机一旦贴到玩家身上，位移就只剩微幅抖动（Lua 的近战阈值 2.0
+             * 附近来回切），用"位置变化量"判断 AI 是否在驱动会假阴性。推远之后，
+             * 位移量直接反映 AI 的追击行为 —— 对 ts / lua 两种后端都成立，A/B 才可比。
+             */
+            pushEnemiesAway: (radius: number = 26) => {
+              const system = enemySystemRef.current;
+              const player = playerRef.current;
+              if (!system || !player) return 0;
+              const center = player.getPosition();
+              const list = system.getEnemies().filter((e) => e.isAlive());
+              list.forEach((enemy, i) => {
+                const angle = (i / Math.max(1, list.length)) * Math.PI * 2;
+                enemy
+                  .getEntity()
+                  .setPosition(
+                    center.x + Math.cos(angle) * radius,
+                    center.y,
+                    center.z + Math.sin(angle) * radius,
+                  );
+              });
+              return list.length;
+            },
+            /** 清空统计与桥接计数，便于 A/B 分段对比 */
+            resetStats: () => {
+              enemyAIManager.resetStats();
+              resetLuaAIBridgeStats();
+            },
           };
 
           // 后处理观测钩子。同样只读生产对象，绝不另建影子状态。

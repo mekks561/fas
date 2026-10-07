@@ -2,6 +2,7 @@ import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { EnemyAI, EnemyAIFactory, AIState, StatusEffect } from './EnemyAI';
+import { attachLuaBrain, getEnemyAIMode } from './LuaEnemyAIBridge';
 import { ProceduralModelGenerator, EnemyModelType } from './ProceduralModelGenerator';
 import { ModelAssetProvider } from './ModelAssetProvider';
 
@@ -94,6 +95,20 @@ export class Enemy {
     // 同步 AI attackRadius 与 Enemy attackRange，确保 ATTACK 状态下能触发攻击
     // （FighterAI 被多种敌人复用，attackRange 各不相同，必须按实际 stats 同步）
     this.ai.syncAttackRange(this.stats.attackRange);
+
+    // 敌机 AI 后端：默认 ts（原生行为）。?ai=lua / __aiDebug.setMode('lua') 时把 Lua 大脑
+    // 挂上去接管行为；挂不上（Lua 未就绪 / 生成失败）就保持上面的原生 TS 行为。
+    if (getEnemyAIMode() === 'lua') {
+      attachLuaBrain(
+        this.ai,
+        this.entity,
+        config.player,
+        config.type,
+        config.position,
+        this.health,
+        this.maxHealth,
+      );
+    }
   }
 
   private getStatsForType(type: EnemyType): EnemyStats {
@@ -333,6 +348,15 @@ export class Enemy {
 
     this.ai.update(dt);
 
+    // 攻击判定：
+    //  - 原生 TS 后端：沿用「进入 attackRange 即攻击」
+    //  - Lua 后端接管时：攻击时机由 enemy-ai.lua 的 action 决定（近身/远程/混合各有自己的
+    //    距离与冷却阈值），伤害数值仍走本类 stats，所以数值平衡不受后端切换影响。
+    if (this.ai.isExternalBrainActive()) {
+      if (this.ai.consumeAttackIntent()) this.tryAttack();
+      return;
+    }
+
     const distance = this.getDistanceToPlayer();
     if (distance <= this.stats.attackRange) {
       this.tryAttack();
@@ -374,6 +398,8 @@ export class Enemy {
   private startDeath(): void {
     this.isDying = true;
     this.entity.enabled = false;
+    // 释放 Lua 侧句柄：注册表只保留存活敌机，否则长时间战斗会持续泄漏
+    this.ai.detachExternalBrain();
     this.createDeathExplosion();
   }
 
@@ -414,6 +440,8 @@ export class Enemy {
   }
 
   public destroy(): void {
+    // 兜底释放（destroyAll / 重置关卡会直接 destroy，不走 startDeath）
+    this.ai.detachExternalBrain();
     this.entity.destroy();
   }
 

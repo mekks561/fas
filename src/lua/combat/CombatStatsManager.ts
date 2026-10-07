@@ -1,7 +1,8 @@
 import { luaEngine } from '../LuaEngine';
+import { getLuaSource } from '../luaSources';
 
-const combatScriptModules = import.meta.glob('./combat-stats.lua', { as: 'raw', eager: true });
-const combatStatsScript = combatScriptModules['./combat-stats.lua'] || '';
+// 取源码统一走 luaSources（构建期内联）——理由见 luaSources.ts 头注释。
+const combatStatsScript = getLuaSource('combat/combat-stats') ?? '';
 
 export interface CombatStatsData {
   kills: number;
@@ -52,7 +53,7 @@ export class CombatStatsManager {
     await luaEngine.initialize();
 
     const combatStatsScript = await this.loadCombatStatsScript();
-    luaEngine.registerModule({ name: 'combat_stats', script: combatStatsScript });
+    luaEngine.registerModule({ name: 'combat_stats', script: combatStatsScript, host: true });
 
     this.initialized = true;
     console.log('[CombatStatsManager] Initialized');
@@ -757,7 +758,7 @@ end
   async reloadScript(): Promise<void> {
     console.log('[CombatStatsManager] Reloading combat stats script...');
     const newScript = await this.loadCombatStatsScript();
-    luaEngine.registerModule({ name: 'combat_stats', script: newScript });
+    luaEngine.registerModule({ name: 'combat_stats', script: newScript, host: true });
     console.log('[CombatStatsManager] Combat stats script reloaded');
   }
 

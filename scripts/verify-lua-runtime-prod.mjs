@@ -1,0 +1,147 @@
+/**
+ * 生产构建下的 Lua 运行时冒烟验证（不依赖任何调试钩子）
+ *
+ * 为什么单独有此脚本：
+ *  - `__aiDebug` / `__waveDebug` 这类钩子被 `import.meta.env.DEV` 包着，
+ *    生产构建会被整体剔除（这是对的，不该把调试面发到线上）。
+ *  - 于是 `verify-lua-ai.mjs` 只能在 dev server 上跑，**证明不了生产构建**。
+ *  - 但「dev 绿、prod 炸」恰恰是本轮抓到的真实缺陷类别：
+ *    取 .lua 源码的 5 处写法（`import.meta.glob as:'raw'` / `fetch('/src/lua/...')`）
+ *    在 dev 都能跑，在生产构建下分别退化成「资源 URL 字符串」和「404」。
+ *
+ * 所以本脚本改用**纯 console 证据**：
+ *  LuaEngine / EnemyAIManager 在装载成功时打的日志，其内容本身就来自真实 Lua
+ *  （`v2.0.0` 是 `enemy-ai.lua` 里 `EnemyAI.VERSION` 经 `__aiProbe()` 读回来的），
+ *  伪造不出来 —— 拿 URL 当源码 load 会直接抛语法错，落到「装载失败」分支。
+ *
+ * 断言：
+ *  P1. 出现 `[LuaEngine] 真实 Lua 运行时已启用`
+ *  P2. **没有**出现 `未启用真实 Lua 运行时`（stub 回落）
+ *  P3. 出现 `[EnemyAIManager] 已接通 enemy-ai.lua v2.0.0（运行时 lua）`
+ *  P4. **没有**出现 `enemy-ai.lua 装载失败`
+ *  P5. **没有**出现 `Lua 源码注册表存在非法条目`
+ *  P6. 无未捕获的页面错误
+ *  P7. 战斗确实跑起来了（canvas 有内容 + HUD 出现波次/生命文案）
+ *
+ * 用法：
+ *   npx vite build && NO_PROXY=localhost,127.0.0.1 \
+ *   VERIFY_URL=http://localhost:4180/ node scripts/verify-lua-runtime-prod.mjs
+ */
+
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const BASE = process.env.VERIFY_URL || 'http://localhost:4173/';
+const results = [];
+let failed = false;
+
+const checkTrue = (name, condition, detail) => {
+  if (!condition) failed = true;
+  results.push(`${condition ? '✅' : '❌'} ${name}: ${JSON.stringify(detail)}`);
+};
+
+const EXE = path.join(
+  process.env.LOCALAPPDATA || '',
+  'ms-playwright',
+  'chromium-1228',
+  'chrome-win64',
+  'chrome.exe',
+);
+
+const browser = await chromium.launch({
+  executablePath: fs.existsSync(EXE) ? EXE : undefined,
+  args: [
+    '--use-gl=angle',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--disable-background-timer-throttling',
+    '--disable-renderer-backgrounding',
+    '--disable-backgrounding-occluded-windows',
+  ],
+});
+
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+
+const logs = [];
+const errors = [];
+page.on('console', (m) => logs.push(m.text()));
+page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
+
+const hasLog = (needle) => logs.some((l) => l.includes(needle));
+
+console.log(`\n===== 生产构建 Lua 运行时冒烟（${BASE}） =====`);
+
+// —— 进入战斗（与 verify-lua-ai.mjs 同一路径，但不等调试钩子）——
+await page.goto(`${BASE}?ai=lua`, { waitUntil: 'load', timeout: 60000 });
+await page.waitForTimeout(9000);
+await page
+  .locator('button', { hasText: /开始游戏/ })
+  .first()
+  .click({ timeout: 15000 });
+await page.locator('p.line-clamp-2').first().waitFor({ timeout: 40000 });
+await page.waitForTimeout(800);
+await page.locator('h3', { hasText: '初次接触' }).first().click({ timeout: 15000 });
+await page.waitForTimeout(12000);
+for (let i = 0; i < 12; i++) {
+  const dlg = page.locator('text=点击继续').first();
+  const end = page.locator('text=点击结束').first();
+  if ((await dlg.count()) === 0 && (await end.count()) === 0) break;
+  await page.mouse.click(640, 560);
+  await page.waitForTimeout(700);
+}
+// 让真实 Lua 有完整的初始化与首次 step 窗口
+await page.waitForTimeout(8000);
+
+// —— P1 / P2：真实运行时 vs stub 回落 ——
+const readyLog = logs.find((l) => l.includes('真实 Lua 运行时已启用')) ?? null;
+checkTrue('P1 真实 Lua 运行时已启用', readyLog !== null, readyLog);
+checkTrue(
+  'P2 未回落到 stub（宿主 JS 实现）',
+  !hasLog('未启用真实 Lua 运行时'),
+  hasLog('未启用真实 Lua 运行时') ? '出现 stub 回落日志' : 'ok',
+);
+
+// —— P3 / P4：enemy-ai.lua 真的被 Lua 装载（版本号来自 Lua 侧读回）——
+const bridgeLog = logs.find((l) => l.includes('已接通 enemy-ai.lua')) ?? null;
+checkTrue('P3 enemy-ai.lua 已由真实 Lua 装载', bridgeLog !== null, bridgeLog);
+checkTrue('P3b 装载出的是 v2.0.0（Lua 侧读回）', /v2\.0\.0/.test(bridgeLog || ''), bridgeLog);
+checkTrue('P4 无 enemy-ai.lua 装载失败', !hasLog('enemy-ai.lua 装载失败'), 'ok');
+
+// —— P5：源码注册表健康（拿到 URL 而非源码就会在这里暴露）——
+checkTrue(
+  'P5 源码注册表无退化条目',
+  !hasLog('Lua 源码注册表存在非法条目'),
+  logs.filter((l) => l.includes('luaSources')).join(' | ') || 'ok',
+);
+
+// —— P6：运行时错误 ——
+checkTrue('P6 无未捕获页面错误', errors.length === 0, errors.slice(0, 3));
+
+// —— P7：玩法确实在跑（非空白场景）——
+const canvasOk = await page.evaluate(() => {
+  const c = document.querySelector('canvas');
+  return !!c && c.width > 0 && c.height > 0;
+});
+checkTrue('P7 战斗画布已渲染', canvasOk, canvasOk);
+const hud = await page.evaluate(() => document.body.innerText.slice(0, 400));
+checkTrue(
+  'P7b HUD 出现战斗文案（波次/生命/得分 任一）',
+  /波次|Wave|生命|HP|得分|Score/i.test(hud),
+  hud.replace(/\s+/g, ' ').slice(0, 160),
+);
+
+// —— 产出截图（归档）——
+const shot = path.resolve('docs/verify/lua-runtime-prod.png');
+await page.screenshot({ path: shot });
+console.log(`截图已保存: ${shot}`);
+
+await browser.close();
+
+console.log('\n================ 结果 ================');
+for (const r of results) console.log('  ' + r);
+const passed = results.filter((r) => r.startsWith('✅')).length;
+console.log(`\n通过 ${passed}/${results.length}`);
+if (errors.length) console.log(`运行时错误: ${errors.length}`);
+
+process.exit(failed ? 1 : 0);

@@ -3,17 +3,18 @@
  *
  * @example
  * ```typescript
- * import { luaEngine, EnemyAIManager, GameConfigManager } from './lua';
+ * import { luaEngine, enemyAIManager, EnemyAIManager } from './lua';
  *
- * // 初始化
- * await EnemyAIManager.initialize();
- * await GameConfigManager.initialize();
+ * // 初始化（会尝试启动真实 Lua 运行时；失败则回落宿主 JS 实现）
+ * await luaEngine.initialize();
+ * await enemyAIManager.initialize();
  *
- * // 使用 AI
- * const enemy = EnemyAIManager.createEnemy('AGGRESSIVE');
+ * // 运行时诊断：mode === 'lua' 才是真的在跑 Lua 脚本
+ * luaEngine.getRuntimeInfo();
  *
- * // 使用配置
- * const config = GameConfigManager.getDifficultyConfig('hard');
+ * // 敌机 AI：句柄常驻 Lua 侧
+ * const handle = enemyAIManager.spawn('AGGRESSIVE', x, z, health, maxHealth);
+ * enemyAIManager.step(handle, playerX, playerZ, dt);
  * ```
  */
 
@@ -24,14 +25,23 @@ export type {
   LuaFunction,
   LuaTable,
   LuaScriptModule,
+  LuaRuntimeMode,
   AIConfig,
   GameConfig,
   DifficultyLevel,
 } from './types';
 
+// 真实 Lua 模块源码注册表
+export {
+  getLuaSource,
+  getLuaSourceMap,
+  getLuaSourceRegistryErrors,
+  listLuaModuleNames,
+} from './luaSources';
+
 // AI 管理
 export { EnemyAIManager, enemyAIManager } from './ai/EnemyAIManager';
-export type { AIType } from './ai/EnemyAIManager';
+export type { AIType, LuaAIStepResult, LuaAIStats } from './ai/EnemyAIManager';
 
 // 配置管理
 export { GameConfigManager, gameConfigManager } from './config/GameConfigManager';

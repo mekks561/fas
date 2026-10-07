@@ -1,6 +1,9 @@
 import * as pc from 'playcanvas';
-import { PlayerShip } from './PlayerShip';
-import { EnemyType } from './Enemy';
+// 只引类型：Enemy.ts 会（经 ProceduralModelGenerator 等）拖进整个引擎图，
+// 而这里只在运行期用到 EnemyType 的取值。改成 type-only 后，本模块是"引擎无关"的
+// 纯行为逻辑 —— 单测可以直接构造它，不必起 WebGL。
+import type { PlayerShip } from './PlayerShip';
+import type { EnemyType } from './Enemy';
 
 export enum AIState {
   IDLE = 'idle',
@@ -32,6 +35,21 @@ export interface StatusEffect {
   lastTick: number;
 }
 
+/**
+ * 外部大脑（Lua）契约。
+ *
+ * 由 `LuaEnemyAIBridge` 实现：Lua 侧决策接管行为，但状态效果 / 眩晕 / 速度倍率
+ * 仍走本基类（技能对敌人的控制不会因为换 AI 后端而失效）。
+ */
+export interface ExternalAIBrain {
+  /** 返回 true = 本帧由外部大脑接管；false = 本帧不可用（调用方回落原生行为） */
+  update(dt: number): boolean;
+  getState(): AIState;
+  /** 取走一次攻击意图（由 Enemy 的攻击判定消费） */
+  consumeAttackIntent(): boolean;
+  dispose(): void;
+}
+
 export abstract class EnemyAI {
   protected entity: pc.Entity;
   protected player: PlayerShip;
@@ -39,6 +57,10 @@ export abstract class EnemyAI {
   protected statusEffects: StatusEffect[] = [];
   protected lastUpdateTime: number = 0;
   protected patrolCenter: pc.Vec3;
+  /** 外部大脑（Lua AI）；空 = 走原生 TS 行为 */
+  private externalBrain: ExternalAIBrain | null = null;
+  /** 外部大脑实际接管的帧数（诊断用：证明"真的接管了"而不是挂了个空壳） */
+  private externalBrainFrames: number = 0;
 
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     this.entity = entity;
@@ -65,7 +87,77 @@ export abstract class EnemyAI {
       return;
     }
 
+    if (this.externalBrain) {
+      if (this.externalBrain.update(dt)) {
+        this.externalBrainFrames += 1;
+        this.aiConfig.state = this.externalBrain.getState();
+        return;
+      }
+      // 外部大脑本帧起不可用（Lua 报错 / 运行时未就绪）→ 永久摘掉，回落到原生 TS 行为。
+      // 不做每帧重试：失败后重试只会持续产生同样的错误日志。
+      this.detachExternalBrain();
+    }
+
     this.executeBehavior(dt);
+  }
+
+  /** 挂载外部大脑（Lua）。原生 TS 行为仍完整保留作兜底 */
+  public attachExternalBrain(brain: ExternalAIBrain): void {
+    this.externalBrain = brain;
+    this.externalBrainFrames = 0;
+  }
+
+  public detachExternalBrain(): void {
+    if (!this.externalBrain) return;
+    this.externalBrain.dispose();
+    this.externalBrain = null;
+  }
+
+  /** 当前是否由外部大脑接管（Enemy 据此决定攻击判定走哪条路） */
+  public isExternalBrainActive(): boolean {
+    return this.externalBrain !== null;
+  }
+
+  /** 外部大脑本帧是否有攻击意图（取走后清零） */
+  public consumeAttackIntent(): boolean {
+    return this.externalBrain?.consumeAttackIntent() ?? false;
+  }
+
+  /** 诊断：外部大脑接管帧数 */
+  public getExternalBrainFrames(): number {
+    return this.externalBrainFrames;
+  }
+
+  /**
+   * 感知半径 = 原生 AI 的追击半径。
+   *
+   * 外部大脑（Lua 的 enemy-ai.lua）是通用行为模板，自带的 detectRange 只是示例值；
+   * 感知范围属于「敌人属性」，由宿主按这个值注入，避免通用模板的默认值把敌机
+   * 钉在出生点（本作刷怪半径 20~30 > 模块默认 20）。
+   */
+  public getDetectionRadius(): number {
+    return this.aiConfig.chaseRadius;
+  }
+
+  /**
+   * 外部大脑的可选诊断信息（Lua 桥接实现了 `getLuaDecision` 时返回，
+   * 否则 null）。仅用于调试钩子，不参与任何行为决策。
+   */
+  public getExternalBrainDiagnostics(): Record<string, unknown> | null {
+    const brain = this.externalBrain as unknown as {
+      getLuaDecision?: () => Record<string, unknown>;
+    } | null;
+    if (!brain?.getLuaDecision) return null;
+    return brain.getLuaDecision();
+  }
+
+  /** 直接设置 AI 状态（外部大脑回写状态用） */
+  public setAIState(state: AIState): void {
+    this.aiConfig.state = state;
+  }
+
+  public getAIState(): AIState {
+    return this.aiConfig.state;
   }
 
   protected abstract executeBehavior(dt: number): void;
@@ -611,6 +703,34 @@ export class BossAI extends EnemyAI {
   }
 }
 
+/**
+ * 敌人类型 → 原生 AI 的实现表。
+ *
+ * 键用 EnemyType 的字符串字面量（string enum 的 Record 键就是字面量），
+ * 于是既能拿到编译期的完整性检查，又不必在运行期 import 枚举对象
+ * （Enemy.ts ↔ EnemyAI.ts 的运行期循环就此消除）。
+ *
+ * 注意：这里**刻意保持**改造前 switch 的映射结果（原 switch 只显式列了
+ * SCOUT/FIGHTER/TANK/ELITE/BOSS，其余一律落到 default 的 FighterAI），
+ * 不要"顺手"把 bomber/assassin/destroyer 等映射到更贴合名字的 AI ——
+ * 那是行为改动，不属于本次接线范围。
+ */
+const NATIVE_AI_FACTORY: Record<EnemyType, (e: pc.Entity, p: PlayerShip, pos: pc.Vec3) => EnemyAI> =
+  {
+    scout: (e, p, pos) => new ScoutAI(e, p, pos),
+    fighter: (e, p, pos) => new FighterAI(e, p, pos),
+    bomber: (e, p, pos) => new FighterAI(e, p, pos),
+    tank: (e, p, pos) => new TankAI(e, p, pos),
+    assassin: (e, p, pos) => new FighterAI(e, p, pos),
+    drone: (e, p, pos) => new FighterAI(e, p, pos),
+    elite: (e, p, pos) => new EliteAI(e, p, pos),
+    corvette: (e, p, pos) => new FighterAI(e, p, pos),
+    destroyer: (e, p, pos) => new FighterAI(e, p, pos),
+    boss_sentinel: (e, p, pos) => new FighterAI(e, p, pos),
+    boss_overlord: (e, p, pos) => new FighterAI(e, p, pos),
+    boss: (e, p, pos) => new BossAI(e, p, pos),
+  };
+
 export class EnemyAIFactory {
   public static createAI(
     type: EnemyType,
@@ -618,19 +738,9 @@ export class EnemyAIFactory {
     player: PlayerShip,
     initialPosition: pc.Vec3,
   ): EnemyAI {
-    switch (type) {
-      case EnemyType.SCOUT:
-        return new ScoutAI(entity, player, initialPosition);
-      case EnemyType.FIGHTER:
-        return new FighterAI(entity, player, initialPosition);
-      case EnemyType.TANK:
-        return new TankAI(entity, player, initialPosition);
-      case EnemyType.ELITE:
-        return new EliteAI(entity, player, initialPosition);
-      case EnemyType.BOSS:
-        return new BossAI(entity, player, initialPosition);
-      default:
-        return new FighterAI(entity, player, initialPosition);
-    }
+    const make = NATIVE_AI_FACTORY[type];
+    return make
+      ? make(entity, player, initialPosition)
+      : new FighterAI(entity, player, initialPosition);
   }
 }

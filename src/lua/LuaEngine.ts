@@ -1,5 +1,6 @@
 import * as wasmoon from 'wasmoon';
-import type { LuaEngineOptions, LuaScriptModule } from './types';
+import type { LuaEngineOptions, LuaRuntimeMode, LuaScriptModule } from './types';
+import { getLuaSourceMap, getLuaSourceRegistryErrors, listLuaModuleNames } from './luaSources';
 
 interface LuaState {
   doString: (script: string) => void;
@@ -10,13 +11,80 @@ interface LuaState {
   };
   close: () => void;
   getStubModule?: (moduleName: string) => unknown;
+  /** 宿主实现的全局名清单（供真实 Lua 模式把它们搬进 Lua 沙箱） */
+  listGlobals?: () => string[];
 }
+
+/** 宿主 JS 提供的模块名（迁移期遗留实现，见 LuaScriptModule.host） */
+const HOST_MODULE_NAMES = [
+  'wave_manager_module',
+  'powerup_system_module',
+  'combat_stats_module',
+  'skill_system_module',
+] as const;
+
+/**
+ * Lua 侧模块装载器。
+ *
+ * 真实 Lua 自带 `require` 但没有任何文件系统 / 预加载器（wasm 里加载不到 .lua 文件），
+ * 所以由宿主把源码表与宿主模块表推进去，再接管全局 require：
+ *   1. 命中 `__hostModules`（宿主 JS 模块，迁移期遗留）→ 直接返回
+ *   2. 命中 `__luaSources`（真实 .lua 源码）→ `load(src, name)` 编译执行，返回值当模块表
+ *   3. 都没有 → error（不再像 stub 那样静默返回空表，避免"看起来跑通了"的假接线）
+ */
+const LUA_MODULE_LOADER = `
+local __modCache = {}
+
+local function __resolveModule(name)
+  local host = __hostModules[name]
+  if host ~= nil then return host end
+  local src = __luaSources[name]
+  if src == nil then return nil end
+  local chunk, err = load(src, '@' .. tostring(name))
+  if not chunk then error(err) end
+  return chunk()
+end
+
+function require(name)
+  if __modCache[name] ~= nil then return __modCache[name] end
+  local mod = __resolveModule(name)
+  if mod == nil then
+    error("module '" .. tostring(name) .. "' not found (未注册的 Lua / 宿主模块)")
+  end
+  __modCache[name] = mod
+  return mod
+end
+
+-- 诊断用：已加载模块数 / 运行时信息
+function __luaModuleCount()
+  local n = 0
+  for _ in pairs(__modCache) do n = n + 1 end
+  return n
+end
+
+function __luaRuntimeInfo()
+  return {
+    version = _VERSION,
+    cachedModules = __luaModuleCount(),
+    sourceCount = __luaSourceCount
+  }
+end
+`;
 
 export class LuaEngine {
   private lua: LuaState | null = null;
   private initialized = false;
   private forceStub = false;
   private registeredModules: Map<string, string> = new Map();
+  /**
+   * 宿主 JS 实现（wave / powerup / combat-stats / skill 四个迁移期遗留模块）。
+   * **两种模式都持有**：stub 模式下它就是运行时本身，真实 Lua 模式下它是注入进沙箱的
+   * 宿主模块表；PowerupSystemManager / CombatStatsManager 通过 getStubModule() 直接
+   * 取宿主实现，这条路径在两种模式下必须一致。
+   */
+  private hostModules: LuaState | null = null;
+  private runtimeMode: LuaRuntimeMode = 'stub';
+  private runtimeVersion = '';
 
   constructor(options: LuaEngineOptions = {}) {
     this.forceStub = options.forceStub ?? false;
@@ -28,28 +96,229 @@ export class LuaEngine {
       return;
     }
 
-    try {
-      const factory = (wasmoon as unknown as { factory: { create: () => Promise<LuaState> } })
-        .factory;
-      if (!this.forceStub && factory) {
-        this.lua = await factory.create();
-      } else {
-        this.lua = this.createStubLuaState();
-        console.warn('[LuaEngine] Using stub mode');
+    // 宿主实现先建好：真实 Lua 模式下要把它们的全局搬进沙箱，stub 模式下它就是运行时
+    this.hostModules = this.createStubLuaState();
+
+    const real = this.forceStub ? null : await this.tryCreateRealRuntime();
+
+    if (real && !this.selfTestRealRuntime(real)) {
+      // 能实例化 ≠ 能用。某些环境（例如 vitest/jsdom 下的 wasmoon）wasm 起来了但
+      // JS↔Lua 的桥是死的：global.get 恒返回 undefined。这种"假运行时"必须拒绝，
+      // 否则 getRuntimeMode() 会谎报 lua，而所有 Lua 调用静默返回空。
+      try {
+        real.close();
+      } catch {
+        /* 关闭失败无所谓 */
       }
-      this.setupDefaultLibs();
-      this.setupErrorHandler();
-      this.initialized = true;
-      console.log('[LuaEngine] Initialized successfully');
-    } catch (error) {
-      console.error('[LuaEngine] Failed to initialize:', error);
-      throw error;
+      this.lua = null;
+    } else if (real) {
+      // 真实运行时的接线失败（模块装载器语法错、宿主注入异常…）必须整体退回 stub，
+      // 绝不能把游戏初始化一起带崩。
+      try {
+        this.installHostGlobals(real);
+        this.installModuleLoader(real);
+        this.lua = real;
+        this.runtimeMode = 'lua';
+        console.log(
+          `[LuaEngine] 真实 Lua 运行时已启用（${this.runtimeVersion || 'Lua'}，` +
+            `${listLuaModuleNames().length} 个 .lua 模块可 require）`,
+        );
+      } catch (error) {
+        console.warn(
+          '[LuaEngine] 真实 Lua 运行时接线失败，回落宿主实现:',
+          error instanceof Error ? error.message : error,
+        );
+        try {
+          real.close();
+        } catch {
+          /* 关闭失败无所谓 */
+        }
+      }
     }
+
+    if (!this.lua) {
+      this.lua = this.hostModules;
+      this.runtimeMode = 'stub';
+      console.warn(
+        '[LuaEngine] 未启用真实 Lua 运行时，使用宿主 JS 实现（stub）——' +
+          'src/lua/**/*.lua 不会被执行',
+      );
+    }
+
+    this.setupDefaultLibs();
+    this.setupErrorHandler();
+    this.initialized = true;
+    console.log('[LuaEngine] Initialized successfully');
+  }
+
+  /**
+   * 真实运行时自检：**必须能取回 Lua 自己算出来的值**。
+   *
+   * 只验证"引擎能实例化"是不够的 —— vitest/jsdom 下的 wasmoon 就能实例化，
+   * 但 `global.get()` 恒返回 undefined（wasm 回不到 JS），此时所有 Lua 调用都会
+   * 静默返回空。自检把这种情况挡在门外，让 `getRuntimeMode()` 的报告可信。
+   */
+  private selfTestRealRuntime(real: LuaState): boolean {
+    try {
+      real.doString('__luaSelfTestValue = 40 + 2');
+      const value = real.global.get<unknown>('__luaSelfTestValue');
+      const version = real.global.get<unknown>('_VERSION');
+
+      const ok = value === 42 && typeof version === 'string' && version.startsWith('Lua ');
+      if (!ok) {
+        console.warn(
+          `[LuaEngine] 真实 Lua 自检未通过（算得 ${String(value)}，版本 ${String(version)}）——` +
+            '说明 wasm 能实例化但 JS↔Lua 桥不可用，回落宿主实现',
+        );
+      } else {
+        this.runtimeVersion = version as string;
+      }
+      return ok;
+    } catch (error) {
+      console.warn(
+        '[LuaEngine] 真实 Lua 自检抛错，回落宿主实现:',
+        error instanceof Error ? error.message : error,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 解析 wasmoon 的引擎工厂。
+   *
+   * 兼容三种形态，**这是历史上"Lua 从未跑起来"的根因**：
+   *  - 1.16+：`import { LuaFactory } from 'wasmoon'` / ESM 互操作时落在 `default.LuaFactory`
+   *  - 1.12 之前：`import { factory } from 'wasmoon'` 的单例（`factory.create()`）
+   *
+   * 旧代码只认 `wasmoon.factory`，在 1.16 上恒为 undefined → 静默落 stub。
+   */
+  private resolveRuntimeFactory(): (() => Promise<unknown>) | null {
+    const ns = wasmoon as unknown as Record<string, unknown>;
+
+    /**
+     * 容错取属性。
+     *
+     * CJS 依赖经不同打包器的 ESM 互操作后形态不一（Vite 把整个导出挂在 `default`、
+     * vitest 的模块代理对**不存在的命名导出会直接抛错**），所以逐层 try/catch 地找，
+     * 绝不因为"取不到某个名字"就把初始化整个炸掉。
+     */
+    const safeGet = (obj: unknown, key: string): unknown => {
+      if (!obj || (typeof obj !== 'object' && typeof obj !== 'function')) return undefined;
+      try {
+        return (obj as Record<string, unknown>)[key];
+      } catch {
+        return undefined;
+      }
+    };
+
+    const layers: unknown[] = [ns, safeGet(ns, 'default')];
+    const defaultLayer = safeGet(ns, 'default');
+    if (defaultLayer) layers.push(safeGet(defaultLayer, 'default'));
+
+    for (const layer of layers) {
+      const candidate = safeGet(layer, 'LuaFactory');
+      if (typeof candidate === 'function') {
+        const FactoryCtor = candidate as new () => { createEngine: () => Promise<unknown> };
+        return async () => new FactoryCtor().createEngine();
+      }
+    }
+
+    // wasmoon < 1.12 的旧 API：`factory` 单例
+    for (const layer of layers) {
+      const legacy = safeGet(layer, 'factory') as { create?: () => Promise<unknown> } | undefined;
+      if (legacy && typeof legacy.create === 'function') {
+        const create = legacy.create.bind(legacy);
+        return () => create();
+      }
+    }
+
+    return null;
+  }
+
+  /** 真实 Lua 引擎 → LuaState 适配。失败（含 wasm 在 Node 下的 WAI environ 断言）一律返回 null */
+  private async tryCreateRealRuntime(): Promise<LuaState | null> {
+    const create = this.resolveRuntimeFactory();
+    if (!create) {
+      console.warn('[LuaEngine] wasmoon 未提供可用的引擎工厂（LuaFactory / factory 均缺失）');
+      return null;
+    }
+
+    try {
+      const engine = (await create()) as {
+        doString?: (script: string) => void;
+        global: {
+          get: <T = unknown>(name: string) => T;
+          set: (name: string, value: unknown) => void;
+          close?: () => void;
+        };
+      };
+      if (!engine || typeof engine.doString !== 'function' || !engine.global) {
+        return null;
+      }
+
+      const adapted: LuaState = {
+        doString: (script: string) => engine.doString!(script),
+        global: {
+          get: <T = unknown>(name: string) => engine.global.get<T>(name),
+          set: (name: string, value: unknown) => engine.global.set(name, value),
+        },
+        // wasmoon 1.16 的关闭入口在 engine.global.close()
+        close: () => {
+          try {
+            engine.global.close?.();
+          } catch (error) {
+            console.warn('[LuaEngine] 关闭 Lua 运行时失败:', error);
+          }
+        },
+      };
+
+      const version = adapted.global.get<string | undefined>('_VERSION');
+      this.runtimeVersion = typeof version === 'string' ? version : '';
+      return adapted;
+    } catch (error) {
+      // Node（vitest）下 wasm 的 environ_get 会直接 Aborted，这里必须吞掉并回落 stub
+      console.warn(
+        '[LuaEngine] 真实 Lua 运行时启动失败，回落宿主实现:',
+        error instanceof Error ? error.message : error,
+      );
+      this.runtimeVersion = '';
+      return null;
+    }
+  }
+
+  /** 把宿主实现的全局 API 搬进真实 Lua 沙箱（迁移期：四个遗留模块的行为源） */
+  private installHostGlobals(real: LuaState): void {
+    const host = this.hostModules;
+    if (!host) return;
+
+    const names = host.listGlobals?.() ?? [];
+    for (const name of names) {
+      // require / package / math 由真实 Lua 自己提供，不能覆盖
+      if (name === 'require' || name === 'package' || name === 'math') continue;
+      real.global.set(name, host.global.get(name));
+    }
+
+    const hostModules: Record<string, unknown> = {};
+    for (const moduleName of HOST_MODULE_NAMES) {
+      const mod = host.getStubModule?.(moduleName);
+      if (mod) hostModules[moduleName] = mod;
+    }
+    real.global.set('__hostModules', hostModules);
+  }
+
+  /** 注入 Lua 模块装载器（源码表 + require 接管） */
+  private installModuleLoader(real: LuaState): void {
+    const sources = getLuaSourceMap();
+    real.global.set('__luaSources', sources);
+    real.global.set('__luaSourceCount', Object.keys(sources).length);
+    real.doString(LUA_MODULE_LOADER);
   }
 
   private createStubLuaState(): LuaState {
     const globalVars: Record<string, unknown> = {};
     const moduleCache: Record<string, unknown> = {};
+    /** getStubModule 的日志只打一次（UI 会频繁查询，避免淹控制台） */
+    const loggedHostModules = new Set<string>();
 
     const waveState = {
       waveNumber: 1,
@@ -987,8 +1256,18 @@ export class LuaEngine {
         },
       },
       close: () => {},
+      // 宿主实现的全局名清单：真实 Lua 模式下据此把 JS 实现搬进沙箱
+      listGlobals: () => Object.keys(globalVars),
       getStubModule: (moduleName: string) => {
-        console.log(`[LuaEngine stub] getStubModule('${moduleName}')`);
+        // 注意：这份实现两种模式共用 —— stub 模式下它就是运行时本身；
+        // 真实 Lua 模式下它是注入沙箱的宿主模块表（PowerupSystemManager /
+        // CombatStatsManager 会直接取宿主实现）。日志前缀不叫 stub，避免误读。
+        //
+        // 只打印一次：UI 会频繁查活动道具/统计，逐次打印会把控制台淹掉。
+        if (!loggedHostModules.has(moduleName)) {
+          loggedHostModules.add(moduleName);
+          console.log(`[LuaEngine host] getStubModule('${moduleName}')`);
+        }
         if (moduleName === 'wave_manager_module') return waveManagerModule;
         if (moduleName === 'powerup_system_module') return powerupSystemModule;
         if (moduleName === 'combat_stats_module') return combatStatsModule;
@@ -1027,7 +1306,15 @@ export class LuaEngine {
     }
 
     try {
-      const func = this.lua.global.get<(...args: unknown[]) => T>(functionName);
+      let func = this.lua.global.get<((...args: unknown[]) => T) | undefined>(functionName);
+
+      // 真实 Lua 模式下宿主注入的全局若取不回来（不同 wasmoon 版本互操作差异），
+      // 直接回退到宿主实现本身：调用面完全一致，不会因为桥接细节丢功能。
+      if (typeof func !== 'function') {
+        const hostFunc = this.hostModules?.global.get<unknown>(functionName);
+        if (typeof hostFunc === 'function') func = hostFunc as (...args: unknown[]) => T;
+      }
+
       if (typeof func !== 'function') {
         console.error(`[LuaEngine] Function ${functionName} not found`);
         return undefined;
@@ -1066,29 +1353,72 @@ export class LuaEngine {
     }
   }
 
+  /**
+   * 取宿主 JS 模块实现（wave / powerup / combat-stats / skill）。
+   *
+   * **两种模式都可用**：stub 模式下就是运行时本身，真实 Lua 模式下是注入沙箱的同一份对象。
+   * PowerupSystemManager / CombatStatsManager 依赖它拿到宿主实现，这条路径不能随模式变化。
+   */
   getStubModule(moduleName: string): unknown | undefined {
-    if (!this.lua) {
+    if (!this.hostModules) {
       console.error('[LuaEngine] Not initialized');
       return undefined;
     }
 
     try {
-      if (this.lua.getStubModule) {
-        return this.lua.getStubModule(moduleName);
-      }
-      return undefined;
+      return this.hostModules.getStubModule?.(moduleName);
     } catch (error) {
-      console.error(`[LuaEngine] Error getting stub module ${moduleName}:`, error);
+      console.error(`[LuaEngine] Error getting host module ${moduleName}:`, error);
       return undefined;
     }
   }
 
+  /** 当前运行时模式：`lua` = 真实 Lua；`stub` = 宿主 JS 实现 */
+  getRuntimeMode(): LuaRuntimeMode {
+    return this.runtimeMode;
+  }
+
+  /** 是否真的在跑 Lua 脚本（而不是宿主 JS 复刻） */
+  isRealRuntime(): boolean {
+    return this.runtimeMode === 'lua';
+  }
+
+  /** 运行时诊断信息（供调试钩子与验证脚本断言） */
+  getRuntimeInfo(): {
+    mode: LuaRuntimeMode;
+    version: string;
+    registeredModules: number;
+    availableLuaModules: number;
+    loadedLuaModules: number;
+    sourceRegistryErrors: string[];
+  } {
+    let loaded = -1;
+    if (this.isRealRuntime()) {
+      const count = this.call<number>('__luaModuleCount');
+      loaded = typeof count === 'number' ? count : -1;
+    }
+    return {
+      mode: this.runtimeMode,
+      version: this.runtimeVersion,
+      registeredModules: this.registeredModules.size,
+      availableLuaModules: listLuaModuleNames().length,
+      loadedLuaModules: loaded,
+      sourceRegistryErrors: getLuaSourceRegistryErrors(),
+    };
+  }
+
   destroy(): void {
     if (this.lua) {
-      this.lua.close();
+      try {
+        this.lua.close();
+      } catch (error) {
+        console.warn('[LuaEngine] close 失败:', error);
+      }
       this.lua = null;
     }
+    this.hostModules = null;
     this.initialized = false;
+    this.runtimeMode = 'stub';
     this.registeredModules.clear();
     console.log('[LuaEngine] Destroyed');
   }
@@ -1101,14 +1431,32 @@ export class LuaEngine {
     return new Map(this.registeredModules);
   }
 
+  /**
+   * 注册模块。
+   *
+   * - `host: true`（迁移期遗留模块）：真实 Lua 模式下**不执行** script，行为由 initialize()
+   *   注入的宿主实现全局提供 —— 与 stub 模式同一份 JS 实现，切换运行时不改行为。
+   * - 否则：真实 Lua 模式下执行 script（脚本内部可用 require 装载 .lua 源码模块）。
+   */
   registerModule(module: LuaScriptModule): void {
     if (!this.lua) {
       console.error('[LuaEngine] Not initialized');
       return;
     }
     this.registeredModules.set(module.name, module.script || '');
-    this.lua.doString(module.script || '');
-    console.log(`[LuaEngine] Registered module: ${module.name}`);
+
+    if (module.host) {
+      if (this.isRealRuntime()) {
+        console.log(
+          `[LuaEngine] Module ${module.name} 由宿主实现提供（迁移期），跳过 Lua 脚本执行`,
+        );
+      }
+      return;
+    }
+
+    const script = module.script || '';
+    if (script) this.lua.doString(script);
+    console.log(`[LuaEngine] Registered module: ${module.name} (${this.runtimeMode})`);
   }
 
   doString(script: string): void {

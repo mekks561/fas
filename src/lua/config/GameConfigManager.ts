@@ -1,4 +1,5 @@
 import { luaEngine } from '../LuaEngine';
+import { getLuaSource } from '../luaSources';
 import type { DifficultyLevel } from '../types';
 
 export interface DifficultyConfig {
@@ -36,6 +37,7 @@ export class GameConfigManager {
     luaEngine.registerModule({
       name: 'game_config',
       script: configScript,
+      host: true,
     });
 
     this.initialized = true;
@@ -44,11 +46,11 @@ export class GameConfigManager {
 
   private async loadConfigScript(): Promise<string> {
     try {
-      const response = await fetch('/src/lua/config/game-config.lua');
-      if (!response.ok) {
-        throw new Error(`Failed to load game-config.lua: ${response.status}`);
+      // 走 luaSources 内联取源（同 SkillSystemManager：fetch('/src/...') 生产必 404）。
+      const luaCode = getLuaSource('config/game-config');
+      if (!luaCode) {
+        throw new Error('game-config.lua 不在 luaSources 注册表中');
       }
-      const luaCode = await response.text();
 
       return `
 ${luaCode}
@@ -319,7 +321,7 @@ end
   async reloadConfig(): Promise<void> {
     console.log('[GameConfigManager] Reloading config...');
     const newScript = await this.loadConfigScript();
-    luaEngine.registerModule({ name: 'game_config', script: newScript });
+    luaEngine.registerModule({ name: 'game_config', script: newScript, host: true });
     console.log('[GameConfigManager] Config reloaded');
   }
 

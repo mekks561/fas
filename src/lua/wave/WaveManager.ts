@@ -1,8 +1,11 @@
 import { luaEngine } from '../LuaEngine';
+import { getLuaSource } from '../luaSources';
 import type { DifficultyLevel } from '../types';
 
-const waveScriptModules = import.meta.glob('./wave-manager.lua', { as: 'raw', eager: true });
-const waveManagerScript = waveScriptModules['./wave-manager.lua'] || '';
+// 取源码统一走 luaSources（构建期内联，dev / 生产同一条路）。
+// 不要改回 `import.meta.glob('./x.lua', { as: 'raw' })`：Vite 8 下该选项已失效且不报错，
+// 产物里会变成 '/assets/x-xxxx.lua' 这样的 **URL 字符串**——dev 正常、生产必炸。
+const waveManagerScript = getLuaSource('wave/wave-manager') ?? '';
 
 export interface EnemyConfig {
   type: string;
@@ -79,7 +82,7 @@ export class WaveManager {
     await luaEngine.initialize();
 
     const waveScript = await this.loadWaveScript();
-    luaEngine.registerModule({ name: 'wave_manager', script: waveScript });
+    luaEngine.registerModule({ name: 'wave_manager', script: waveScript, host: true });
 
     this.initialized = true;
     console.log('[WaveManager] Initialized');
@@ -918,7 +921,7 @@ end
   async reloadScript(): Promise<void> {
     console.log('[WaveManager] Reloading wave script...');
     const newScript = await this.loadWaveScript();
-    luaEngine.registerModule({ name: 'wave_manager', script: newScript });
+    luaEngine.registerModule({ name: 'wave_manager', script: newScript, host: true });
     console.log('[WaveManager] Wave script reloaded');
   }
 

@@ -1,6 +1,13 @@
 /**
  * Lua 引擎类型定义
  */
+/**
+ * Lua 运行时模式。
+ * - `lua`：真实 Lua（wasmoon / Lua 5.4），`doString` 真的执行脚本
+ * - `stub`：宿主 JS 复刻实现（无真实 Lua，`doString` 为空操作，仅作兜底）
+ */
+export type LuaRuntimeMode = 'lua' | 'stub';
+
 export interface LuaEngineOptions {
   /** 是否开启调试模式 */
   debug?: boolean;
@@ -32,6 +39,14 @@ export interface LuaScriptModule {
   path?: string;
   /** 加载优先级 */
   priority?: number;
+  /**
+   * 实现由宿主 JS 提供（迁移期遗留模块）。
+   *
+   * 置 true 时：真实 Lua 模式下**不执行** script，改用引擎注入的宿主实现全局
+   * （与 stub 模式走同一份 JS 实现，行为逐字节等价）。
+   * 这些模块的 `.lua` 源码是「目标实现」，逐个迁移完成后去掉此标记即可切到真实 Lua。
+   */
+  host?: boolean;
 }
 
 /**

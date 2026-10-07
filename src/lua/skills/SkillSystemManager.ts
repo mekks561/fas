@@ -1,4 +1,5 @@
 import { luaEngine } from '../LuaEngine';
+import { getLuaSource } from '../luaSources';
 
 export interface SkillTemplate {
   id: string;
@@ -90,7 +91,7 @@ export class SkillSystemManager {
     await luaEngine.initialize();
 
     const skillScript = await this.loadSkillScript();
-    luaEngine.registerModule({ name: 'skill_system', script: skillScript });
+    luaEngine.registerModule({ name: 'skill_system', script: skillScript, host: true });
 
     this.initialized = true;
     console.log('[SkillSystemManager] Initialized');
@@ -98,11 +99,12 @@ export class SkillSystemManager {
 
   private async loadSkillScript(): Promise<string> {
     try {
-      const response = await fetch('/src/lua/skills/skill-system.lua');
-      if (!response.ok) {
-        throw new Error(`Failed to load skill-system.lua: ${response.status}`);
+      // 走 luaSources 内联取源。**不要**改回 fetch('/src/lua/...')：dev 能跑、
+      // 生产构建必然 404，静默退化成空脚本（典型假接线）。
+      const luaCode = getLuaSource('skills/skill-system');
+      if (!luaCode) {
+        throw new Error('skill-system.lua 不在 luaSources 注册表中');
       }
-      const luaCode = await response.text();
 
       return `
 ${luaCode}
@@ -435,7 +437,7 @@ end
     console.log('[SkillSystemManager] Reloading skill script...');
     try {
       const newScript = await this.loadSkillScript();
-      luaEngine.registerModule({ name: 'skill_system', script: newScript });
+      luaEngine.registerModule({ name: 'skill_system', script: newScript, host: true });
       console.log('[SkillSystemManager] Skill script reloaded');
     } catch (error) {
       console.warn(
