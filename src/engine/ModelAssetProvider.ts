@@ -84,12 +84,17 @@ const BOSS_SCALE = 3.0;
 const STRUCTURE_SCALE = 1.0;
 
 /**
- * 朝向修正：不少 glTF 素材的「机头」指向与引擎默认的 +Z 不一致。
- * 若画面里飞船横着飞，就调这里的角度（单位：度）。
+ * 朝向修正：Kenney 飞行器素材的机头实测朝 **-Z**（切片分析：机头端截面窄、
+ * 机尾翼展端宽，见 scripts/analyze-glb-nose.mjs），而 PlayCanvas 实体的
+ * forward 也是 -Z（PlayerShip 沿 entity.forward 移动、尾焰粒子挂 +Z）——
+ * 两者天然对齐，无需修正。
+ *
+ * 历史：曾设 180 想把「机头」转向 -Z，实际把机头转到了 +Z，飞机全程倒飞。
+ * 若以后换机头朝 +Z 的素材，把这里改回 180（单位：度）。
  */
-const SHIP_YAW = 180;
-const ENEMY_YAW = 180;
-const BOSS_YAW = 180;
+const SHIP_YAW = 0;
+const ENEMY_YAW = 0;
+const BOSS_YAW = 0;
 
 export interface AttachOptions {
   /** 战斗配色。会按「保持亮度」的方式叠到模型原有配色上，不会把模型压暗 */

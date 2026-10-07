@@ -947,6 +947,28 @@ export const GameScene: React.FC<{
             const p = playerRef.current;
             if (p && on) p.setInvincible(3_600_000);
           },
+          /** 玩家姿态观测（只读）：forward 与 GLB 几何机头的世界方向。
+           *  几何机头在模型局部 -Z（scripts/analyze-glb-nose.mjs 实测），
+           *  经实例世界矩阵变换后应与 forward 同向（点积 > 0）。 */
+          getPlayerPose: () => {
+            const p = playerRef.current;
+            if (!p) return null;
+            const fwd = p.getForward();
+            let nose: number[] | null = null;
+            p.getEntity().forEach((n: pc.GraphNode) => {
+              if (nose || !n.name.endsWith('-instance')) return;
+              const dir = new pc.Vec3(0, 0, -1);
+              n.getWorldTransform().transformVector(dir, dir);
+              nose = [dir.x, dir.y, dir.z];
+            });
+            const pos = p.getPosition();
+            return {
+              forward: [fwd.x, fwd.y, fwd.z],
+              nose,
+              pos: [pos.x, pos.y, pos.z],
+              speed: p.getSpeed(),
+            };
+          },
           /** 直接杀死指定敌人（按索引），便于逐个验证击杀结算 */
           killOne: (index: number) => {
             const enemies = enemySystemRef.current?.getEnemies() ?? [];

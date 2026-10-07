@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-10-07
 
+### Fixed — 飞船模型错位与倒飞（用户报告）
+
+- **错位**：Kenney 官方 GLB 的根节点自带 `translation=[2,0,1.5]`（Blender 导出时模型摆在场景
+  (2,0,1.5) 处），`instantiateRenderEntity()` 以根节点为 pivot → 16 个模型实例全部悬在
+  逻辑位置右侧 2 单位、前方 1.5 单位，与尾焰粒子脱节，转向时绕偏移点公转。
+  新增 `scripts/fix-glb-pivot.mjs`：计算世界 AABB 中心，把根节点平移改为
+  `t - center`（只重写 JSON chunk、bin 原样），16 个 GLB 几何中心全部归零
+  （复跑 `analyze-glb-geometry.mjs` 验证 center=0,0,0）。
+- **倒飞**：`SHIP_YAW/ENEMY_YAW/BOSS_YAW = 180` 是错的。新脚本 `analyze-glb-nose.mjs`
+  沿机身轴切片统计 X 宽度分布，实测 Kenney 飞行器**机头在 -Z**（机头端截面窄、
+  机尾翼展端宽），而 PlayCanvas 实体 forward 也是 -Z（PlayerShip 沿 entity.forward
+  移动、尾焰挂 +Z）—— yaw=180 把机头转到了 +Z，飞机全程倒飞。三常量改 0。
+- `__waveDebug` 新增 `getPlayerPose()` 观测钩子（只读）：forward 与 GLB 几何机头
+  （局部 -Z 经实例世界矩阵变换）点积，实测 ≈1.6（同向），修复前为负。
+- 占位程序化模型本身 cockpit(+Z) 与 engineGlow(-Z) 布局自相矛盾，一直未被发现——
+  已被 GLB 覆盖掩盖；本次以引擎语义（forward=-Z）为准。
+- 新增 `scripts/verify-glb-pivot.mjs`（进战斗截图 + 姿态数值断言）。
+
+### Verified
+
+- tsc 0 错；vitest 348/348 全绿；e2e：glb-models（0 加载失败 0 运行时错误）、
+  level-system 18/18、wave-plans 16/16 全绿。
+
+## [Unreleased] - 2026-10-07
+
 ### Removed
 
 - **源码死簇清理（阶段 1）：14 文件 / 3,853 行** —— 判据是「每一行都有活替代品」，
