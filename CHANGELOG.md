@@ -23,6 +23,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     （GameScene 已改用类型级 `import('...')` 直接指向真实模块）。
 - `package.json` 的 `main` 字段原指向已删的 `src/index.ts`，改为 `src/main.tsx`（本项目
   无 lib 构建，该字段对 SPA 无意义，但不留悬空）。
+- **阶段 2-A（同日追加）：20 文件 / 4,153 行** —— 「有活替代品的旧版重复残留」，
+  每项都确认替代品在 LIVE 可达链上：
+
+  | 删除                                                                                                                                                       | 行数 | 活替代品                                                        |
+  | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------- |
+  | `src/GameStateManager.ts`                                                                                                                                  | 194  | `src/game/GameStateMachine.ts`（App.tsx 引用）                  |
+  | `src/EffectSystem.ts`                                                                                                                                      | 173  | `engine/VisualEffectSystem.ts`（GameScene 引用）                |
+  | `src/engine/ObjectPool.ts`                                                                                                                                 | 491  | `src/utils/ObjectPool.ts`（有单测）                             |
+  | `src/game/AchievementSystem.ts`                                                                                                                            | 309  | `engine/AchievementSystem.ts`（活的 `GameplayManager.ts` 引用） |
+  | `src/game/CombatSystem.ts` + `GameEventBus.ts`                                                                                                             | 325  | `game/` 下未接线旧核心，同目录只有 `GameStateMachine` 是活的    |
+  | `src/UIManager.ts`                                                                                                                                         | 329  | React 组件体系                                                  |
+  | `src/AudioGenerator.ts` + `engine/ProceduralAudioGenerator.ts`                                                                                             | 551  | `AudioSystem` + `GlobalAudio`                                   |
+  | 资源下载族 6 个（`DownloadManager` / `FileStorageManager` / `ResourceDownloadUI` / `ResourceTestUI` / `ResourceLoadingProgress` / `types/resource-types`） | 907  | 上一轮死链清理的同族残骸                                        |
+  | `src/hooks/useInputManager.ts` + `engine/InputSystem.ts`                                                                                                   | 614  | 活的输入在 `PlayerShip` + GameScene 内联                        |
+  | `src/store/useGameStateHooks.ts`                                                                                                                           | 60   | 活的 `useGameStore`                                             |
+  | `src/lua/examples.ts`                                                                                                                                      | 188  | Lua 集成示例，非生产代码                                        |
+  | `src/components/ErrorOverlay.tsx`                                                                                                                          | 32   | 零引用 UI                                                       |
+
+  删前做反向依赖检查：仅 2 处命中且均安全（`utils/ObjectPool.test.ts` 引的是 utils 版；
+  `GameplayManager.ts` 引的是 engine 版成就系统）。
+
+- **顺带修 e2e 首跑假失败**：`verify-icon-wiring.mjs` 的 `goto` 加 3 次重试——
+  dev server 冷启动时首次 goto 要触发 vite 按需编译整条依赖链，会超过 60s 上限，
+  表现为「一轮里第一个跑的验证脚本」稳定假失败（本轮与上一轮各复现一次，单独复跑必过）。
 
 ### Added
 
@@ -41,22 +65,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Verified
 
-- tsc 0 错；vitest **348/348 全绿**；e2e 六套全绿（icon 5/5、pbr 6/6、particle 9/9、
-  audio 9/9、level 18/18、wave 16/16）。
-- 审计复跑：DEAD **54 → 40 个**（16,627 → 12,760 行）；**LIVE 前后都是 107**，
-  证明删掉的全是死文件、没有一个活文件被误伤。
+- tsc 0 错；vitest **348/348 全绿**；
+- e2e 全绿：阶段 1 后跑满六套（icon 5/5、pbr 6/6、particle 9/9、audio 9/9、
+  level 18/18、wave 16/16）；阶段 2-A 后复跑三套（icon 5/5、level 18/18、wave 16/16）；
+- 审计复跑：DEAD **54 → 40 → 20 个**（16,627 → 12,760 → 8,587 行）；
+  **LIVE 三个阶段都是 107**，证明删掉的全是死文件、没有一个活文件被误伤。
 
 ### Discovered（待决策）
 
-- 剩余 40 个死文件 / 12,760 行分两组：
-  - **2-A 有活替代品的旧版重复残留**（约 4,100 行，建议继续删）：`GameStateManager`、
-    `EffectSystem`、`engine/ObjectPool`、`game/AchievementSystem`、`game/CombatSystem`、
-    `game/GameEventBus`、`UIManager`、`AudioGenerator`、`ProceduralAudioGenerator`、
-    资源下载族 6 个、输入三套、`store/useGameStateHooks`、`lua/examples`、`components/ErrorOverlay`；
-  - **2-B 无替代品的功能**（属「做完了没接」）：联机三件套 1700 行（README 至今挂着
-    未勾选的 `- [ ] 多人游戏`，方向文档标「计划中 P1 / 后端冻结」）、`LevelEditor` 1081 行、
-    引擎能力系统 5,209 行（LOD / ObjectPool / MobileSystem / ComputePhysics…）、
-    性能监控 560 行。需决定**接线 / 冻结 / 删除**。
+- 剩余 **20 个死文件 / 8,587 行**（旧版重复残留那一组已在阶段 2-A 清掉，见 Removed）：
+  - **2-B 无替代品的功能**，属「做完了没接」：联机三件套 1,700 行（README 至今挂着
+    未勾选的 `- [ ] 多人游戏`，方向文档标「计划中 P1 / 后端冻结」）、`LevelEditor` 1,081 行、
+    引擎能力系统（`ProceduralTextureGenerator` / `AnimationSystem` / `DebugSystem` /
+    `MobileSystem` / `ComputePhysics` / `AINPCController` / `ScreenAdapter` / `MemoryManager` /
+    `AssetBundleSystem` / `LODSystem` / `PBRMaterialSystem`）、性能监控 560 行、
+    `components/LevelUI.tsx` 327 行。需决定**接线 / 冻结 / 删除**。
 - 另 11 个 TESTONLY（仅被单测引用，2,554 行），删则连带删测试。
 - **注意：死代码不进 bundle** —— Vite 只打包入口可达模块，`src` 里这些文件本来就没进过
   `dist/`。本轮收益是**可维护性与编译信噪比**，不是包体积。

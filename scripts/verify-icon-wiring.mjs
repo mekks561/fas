@@ -43,7 +43,19 @@ page.on('response', (r) => {
     badRequests.push(`${r.status()} ${r.url()}`);
 });
 
-await page.goto(URL, { waitUntil: 'load', timeout: 60000 });
+// dev server 冷启动时首次 goto 会触发 vite 按需编译整条依赖链（数千模块），
+// 可能超过单次 60s 上限 —— 表现为「一轮里第一个跑的验证脚本」稳定假失败
+// （实测复现两次，单独复跑必过）。这里加 3 次重试兜底；后续脚本已预热不会命中。
+for (let attempt = 1; ; attempt++) {
+  try {
+    await page.goto(URL, { waitUntil: 'load', timeout: 90000 });
+    break;
+  } catch (err) {
+    if (attempt >= 3) throw err;
+    console.warn(`[verify] dev server 冷启动中，goto 重试 ${attempt}/3：${err.message}`);
+    await page.waitForTimeout(3000);
+  }
+}
 await page.waitForTimeout(9000);
 
 // ---- 商店面板 ----
