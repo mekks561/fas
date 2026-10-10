@@ -10,11 +10,18 @@
 //
 // 断言链：
 //   初始（清档）level=1 / points=0 / 高等级天赋锁着
-//   → 清 3 波 → level=4、points=3（每波 +1，store 为唯一真源）
+//   → 清 3 波 → level=4、points=3（经验 = 3 波 ×100 = 300，等级由经验推导）
 //   → 点 3 个天赋 → 天赋面板统计变化
-//   → **实际生效**：PlayerShip.maxHealth 110 / maxShield 55，
+//   → **重新进一关**后断言实际生效值：PlayerShip.maxHealth 110 / maxShield 55、
 //     WeaponSystem.damageMultiplier 1.05（读的是战斗系统内部状态，非技能树自述）
 //   → UI 可达：主菜单「技能树」入口打开面板，点数与天赋卡片正确渲染
+//
+// ⚠ 为什么第 5 步必须「重新进一关」：
+//   第 1 关只有 **3 波**。上面清完 3 波 = **直接通关** → GameScene 被 React 卸载
+//   （canvas 消失、`__waveDiag.ticks` 冻结），`playerRef` 还握着**已经冻结的旧
+//   PlayerShip**。在那个窗口里读属性，读到的永远是加点前的 100/50/1 —— 曾经据此
+//   把「技能树加成没被消费」写进了 README 与长期记忆，**那是误判**：
+//   真凶是脚本时序，不是产品缺陷。改为通关后重进第 1 关再断言，三项全达标。
 //
 // 用法：先起 dev server（`npx vite --port 5175`），再
 //   VERIFY_URL=http://localhost:5175/ node scripts/verify-skilltree-wiring.mjs
@@ -82,6 +89,50 @@ const click = async (patterns) => {
   return false;
 };
 
+/** 关掉可能挡住逃生菜单的「三选一强化」弹窗（它会把游戏暂停）。 */
+const closeUpgradeIfAny = async () => {
+  const card = page.locator('.upgrade-card').first();
+  if ((await card.count()) > 0) {
+    await card.click({ timeout: 3000 }).catch(() => {});
+    await page.waitForTimeout(800);
+  }
+};
+
+/** 从战斗回到主菜单。 */
+const backToMainMenu = async () => {
+  await closeUpgradeIfAny();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(1200);
+  await click([/返回主菜单/, /主菜单/, /Main Menu/i]);
+  await page.waitForTimeout(2500);
+};
+
+/**
+ * 从主菜单进入第 1 关（关卡选择页默认已选中第 1 关）。
+ * 重新进入会**重建** GameScene / PlayerShip，这正是第 5 步需要的「干净读数」。
+ */
+const enterLevelOne = async () => {
+  await click([/开始游戏/, /Start Game/i]);
+  await page.waitForTimeout(2500);
+  const entered = await click([/开始挑战/, /开始游戏/, /Start/i]);
+  await page.waitForTimeout(9000);
+  // 剧情对话挡着时先点掉
+  for (let i = 0; i < 12; i++) {
+    const dlg = page.locator('text=点击继续').first();
+    const end = page.locator('text=点击结束').first();
+    if ((await dlg.count()) === 0 && (await end.count()) === 0) break;
+    await page.mouse.click(640, 560);
+    await page.waitForTimeout(600);
+  }
+  const ready = await page
+    .waitForFunction(() => typeof window.__waveDebug === 'object', { timeout: 30000 })
+    .then(() => true)
+    .catch(() => false);
+  // 新场景要重新开无敌：这是验证加成链路，不是验证生存能力
+  if (ready) await page.evaluate(() => window.__waveDebug.godMode(true));
+  return { entered, ready };
+};
+
 const skillMeta = () =>
   page
     .evaluate(() => window.__skillDebug?.getMeta?.() ?? null)
@@ -107,29 +158,14 @@ await page.waitForTimeout(9000);
 
 // ───────────────────────── 1. 进入战斗 ─────────────────────────
 console.log('\n===== 1. 主菜单 → 关卡选择 → 战斗 =====');
-const hasMainMenu = await click([/开始游戏/, /Start Game/i]);
-check('主菜单有「开始游戏」', hasMainMenu, true);
-await page.waitForTimeout(2500);
 // 关卡选择页的关卡是卡片（div），默认已选中第 1 关，点「开始挑战」即可进战斗
-const entered = await click([/开始挑战/, /开始游戏/, /Start/i]);
-check('关卡选择页可进入战斗', entered, true);
-await page.waitForTimeout(10000);
-
-const hasDebug = await page
-  .waitForFunction(
-    () => typeof window.__waveDebug === 'object' && typeof window.__skillDebug === 'object',
-    { timeout: 20000 },
-  )
-  .then(() => true)
-  .catch(() => false);
-check('调试钩子可用（__waveDebug + __skillDebug）', hasDebug, true);
-if (!hasDebug) {
+const firstEntry = await enterLevelOne();
+check('关卡选择页可进入战斗', firstEntry.entered, true);
+check('调试钩子可用（__waveDebug）', firstEntry.ready, true);
+if (!firstEntry.ready) {
   await browser.close();
   process.exit(1);
 }
-
-// 开无敌：验证的是技能树链路，不让玩家在驱动波次时被击杀
-await page.evaluate(() => window.__waveDebug.godMode(true));
 
 // ───────────────────────── 2. 初始状态 ─────────────────────────
 console.log('\n===== 2. 初始状态（清档后） =====');
@@ -148,15 +184,10 @@ const lockedHigh = nodes0?.filter((n) => n.unlockLevel > 1).length ?? 0;
 console.log(`  解锁门槛 > 1 级的天赋数：${lockedHigh}`);
 
 // 波次完成后会弹出「三选一强化」并**暂停游戏**。不清掉它的话，下一波不会完整
-// 生成敌人，波次也就无法再次完成。点第一张卡即关闭（会给 BuildSystem 加强化，
-// 所以后面的属性断言一律用「相对变化」而不是绝对值）。
-const closeUpgradeIfAny = async () => {
-  const card = page.locator('.upgrade-card').first();
-  if ((await card.count()) > 0) {
-    await card.click({ timeout: 3000 }).catch(() => {});
-    await page.waitForTimeout(800);
-  }
-};
+// 生成敌人，波次也就无法再次完成。`closeUpgradeIfAny` 见文件上方。
+//
+// 注意它会给 BuildSystem 加一条局内强化 —— 所以第 5 步的绝对属性断言必须在
+// **重新进一关**之后做（那时 BuildSystem 是全新的、没有局内强化污染基线）。
 
 /** 启动指定波次并把它的敌人清空，直到该波被判定完成（等级因此 +1）。 */
 const clearWave = async (waveNumber, levelBefore) => {
@@ -191,14 +222,28 @@ for (let w = 1; w <= 3; w++) {
 
 const meta1 = await skillMeta();
 check('成功清空 3 波', clearedWaves, 3);
-// 每波只应发 1 点：清 3 波 → 等级 1+3=4、点数 3
-check('清 3 波后等级 = 4（每波 +1，不重复发）', meta1?.level, 4);
+// 每波发 100 经验：清 3 波 = 300 经验 → 等级 4（曲线 1~4 级每级 100 点 = 1 波）
+check('清 3 波后等级 = 4（300 经验，等级由经验推导）', meta1?.level, 4);
 check('清 3 波后天赋点 = 3', meta1?.points, 3);
+// 经验真源：store 里应记着 300（+ 通关奖励，见下），而不是「只涨等级不记经验」
+const expAfterWaves = await page
+  .evaluate(() => {
+    const raw = localStorage.getItem('fighter-game-save');
+    return raw ? (JSON.parse(raw)?.state?.player?.experience ?? -1) : -1;
+  })
+  .catch(() => -1);
+console.log(`  store 持久化的累计经验 = ${expAfterWaves}`);
+check('清 3 波 + 通关奖励后累计经验 = 400', expAfterWaves, 400);
 
-// 记录「加点前」的战斗属性作为相对断言的基准
-const effBefore = await effective();
+// 此时第 1 关已经通关、GameScene 正在卸载 —— 读属性没有意义（见文件头说明），
+// 唯一的用途是**证明这个陷阱真实存在**：这一读必然是加点前的旧值。
+const effStale = await effective();
+const staleDiag = await page
+  .evaluate(() => window.__waveDiag?.ticks ?? -1)
+  .catch(() => -1);
 console.log(
-  `  加点前基准：生命=${effBefore?.maxHealth} 护盾=${effBefore?.maxShield} 伤害倍率=${effBefore?.damageMultiplier}`,
+  `  通关后残留读数（证明有陷阱）：生命=${effStale?.maxHealth} 护盾=${effStale?.maxShield} ` +
+    `伤害倍率=${effStale?.damageMultiplier} __waveDiag.ticks=${staleDiag}`,
 );
 
 // ───────────────────────── 4. 点天赋 ─────────────────────────
@@ -222,40 +267,32 @@ check('生命加成统计 = 10%', meta2?.stats?.healthBonus, 10);
 check('护盾加成统计 = 10%', meta2?.stats?.shieldBonus, 10);
 
 // ───────────────────────── 5. 关键：加成是否真的走到战斗系统 ─────────────────────────
-console.log('\n===== 5. 属性出口（读 PlayerShip / WeaponSystem 内部状态） =====');
-// 等两帧，让 GameScene 的每帧同步把新修饰符推进去
-await page.waitForTimeout(2000);
+console.log('\n===== 5. 属性出口（通关后**重新进第 1 关**再读 PlayerShip / WeaponSystem） =====');
+console.log('  说明：第 1 关只有 3 波，上面清完 3 波即通关、场景已卸载。');
+console.log('        必须重进一关，否则读到的是冻结的旧 PlayerShip（上一轮据此误判过）。');
+
+await backToMainMenu();
+const reentry = await enterLevelOne();
+check('通关后可重新进入第 1 关（用于读数）', reentry.entered && reentry.ready, true);
+
+// 等两帧，让每帧同步把新修饰符推进去
+await page.waitForTimeout(2500);
 const eff1 = await effective();
 console.log(
-  `  加点后：生命=${eff1?.maxHealth} 护盾=${eff1?.maxShield} 伤害倍率=${eff1?.damageMultiplier} 射速倍率=${eff1?.fireRateMultiplier}`,
+  `  重进后：生命=${eff1?.maxHealth} 护盾=${eff1?.maxShield} 伤害倍率=${eff1?.damageMultiplier} 射速倍率=${eff1?.fireRateMultiplier}`,
 );
-// 天赋 healthBonus=10% → maxHealthBonus += 基线100 × 10% = 10（绝对值增量，与局内强化无关）
-checkNear(
-  '生命上限增量 = +10（基线 100 × 10%）',
-  (eff1?.maxHealth ?? 0) - (effBefore?.maxHealth ?? 0),
-  10,
-  0.01,
-);
-// 天赋 shieldBonus=10% → setMaxShield(基线50 × 1.1) = 55（绝对赋值）
-checkNear('护盾上限 = 55（基线 50 × 1.1）', eff1?.maxShield, 55, 0.01);
-// 天赋 damageBonus=5% → 伤害倍率相对提升 5%（除以加点前值，剔除局内强化的影响）
-checkNear(
-  '伤害倍率相对提升 5%',
-  (eff1?.damageMultiplier ?? 0) / (effBefore?.damageMultiplier || 1),
-  1.05,
-  0.005,
-);
+// 重进第 1 关 = 全新场景，BuildSystem 无局内强化，所以基线就是关卡基础值 100/50，
+// 可以直接断言**绝对值**（比相对值更强：相对值无法区分「加成生效」与「基线变了」）。
+checkNear('生命上限 = 110（基础 100 × 1.10）', eff1?.maxHealth, 110, 0.01);
+checkNear('护盾上限 = 55（基础 50 × 1.10）', eff1?.maxShield, 55, 0.01);
+checkNear('伤害倍率 = 1.05（+5%）', eff1?.damageMultiplier, 1.05, 0.005);
+checkNear('射速倍率 = 1（未点射速天赋，不应被顺手改动）', eff1?.fireRateMultiplier, 1, 0.005);
 
 await page.screenshot({ path: path.join(OUT_DIR, 'skilltree-01-battle.png') });
 
 // ───────────────────────── 6. UI 可达性 ─────────────────────────
 console.log('\n===== 6. 主菜单「技能树」入口与面板渲染 =====');
-// 先清掉可能残留的强化弹窗，否则 Escape 会被它吃掉、退不出战斗
-await closeUpgradeIfAny();
-await page.keyboard.press('Escape');
-await page.waitForTimeout(1200);
-await click([/返回主菜单/, /主菜单/, /Main Menu/i]);
-await page.waitForTimeout(2500);
+await backToMainMenu();
 
 const hasEntry = await click([/技能树/]);
 check('主菜单有「技能树」入口', hasEntry, true);

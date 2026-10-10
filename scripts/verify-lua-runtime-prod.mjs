@@ -22,6 +22,8 @@
  *  P5. **没有**出现 `Lua 源码注册表存在非法条目`
  *  P6. 无未捕获的页面错误
  *  P7. 战斗确实跑起来了（canvas 有内容 + HUD 出现波次/生命文案）
+ *  P8. 元进度（商店已购物品 → 下一局属性）在生产构建下同样被折算
+ *      —— 开局日志必须把预置的两件已购物品算成「生命 +200 / 伤害 +43%」
  *
  * 用法：
  *   npx vite build && NO_PROXY=localhost,127.0.0.1 \
@@ -62,6 +64,39 @@ const browser = await chromium.launch({
 });
 
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+
+// 预置「已购物品」，让生产构建下的元进度分支真的被走到。
+// 购买只发生在菜单里（点按钮 → 写 OwnedItems），这里直接写存储，等价于玩家刚买完：
+// 巡洋舰（生命 +200 / 护盾 +100 / 速度 +50% / 伤害 ×1.3）+ 伤害强化模块（×1.1）
+await page.addInitScript(() => {
+  try {
+    localStorage.setItem(
+      'ownedItems',
+      JSON.stringify([
+        {
+          id: 'shop-item-01',
+          name: '重型巡洋舰',
+          type: 'ship',
+          subtype: 'cruiser',
+          price: 15000,
+          attributes: { health: 200, shield: 100, speed: 50, damage: 30, weaponSlots: 4 },
+          purchasedAt: 1,
+        },
+        {
+          id: 'shop-item-17',
+          name: '伤害强化模块',
+          type: 'upgrade',
+          subtype: 'damage',
+          price: 10000,
+          attributes: { damageBonus: 0.1, permanent: true },
+          purchasedAt: 2,
+        },
+      ]),
+    );
+  } catch {
+    /* about:blank 上写 localStorage 会抛，忽略 */
+  }
+});
 
 const logs = [];
 const errors = [];
@@ -129,6 +164,20 @@ checkTrue(
   'P7b HUD 出现战斗文案（波次/生命/得分 任一）',
   /波次|Wave|生命|HP|得分|Score/i.test(hud),
   hud.replace(/\s+/g, ' ').slice(0, 160),
+);
+
+// —— P8：元进度（商店已购物品 → 下一局生效）在生产构建下同样成立 ——
+// 这行日志不在 `import.meta.env.DEV` 分支里，所以它是**生产可观测**的证据：
+// 加成确实被折算出来了，且数量与预置的两件物品一致。
+const metaLog = logs.find((l) => l.includes('[GameScene] 元进度')) ?? null;
+checkTrue('P8 生产构建下元进度被折算（已购 2 件）', /已购 2 件/.test(metaLog || ''), metaLog);
+checkTrue(
+  'P8b 加成与换算表一致（生命 +200 / 护盾 +100 / 速度 +50% / 伤害 +43%）',
+  /生命 \+200/.test(metaLog || '') &&
+    /护盾 \+100/.test(metaLog || '') &&
+    /速度 \+50%/.test(metaLog || '') &&
+    /伤害 \+43%/.test(metaLog || ''),
+  metaLog,
 );
 
 // —— 产出截图（归档）——

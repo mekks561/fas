@@ -11,7 +11,15 @@ export interface PlayerConfig {
   health?: number;
   shield?: number;
   shipModel?: ShipModelType;
+  /**
+   * 舰体主色（RGB 0-1）。来自元进度的涂装（已购 `cosmetic` 物品）；
+   * 不传 = 用本类自己的默认色。**默认色只在这里定义**，避免两处各写一份。
+   */
+  tint?: [number, number, number];
 }
+
+/** 舰体默认主色（渲染侧唯一真源）。 */
+const DEFAULT_HULL_TINT: [number, number, number] = [0.2, 0.5, 0.8];
 
 export interface PlayerControls {
   left: boolean; // 偏航左（A）
@@ -31,6 +39,8 @@ export class PlayerShip {
   private entity: pc.Entity;
   private modelGenerator: ProceduralModelGenerator;
   private shipModelType: ShipModelType;
+  /** 舰体主色：程序化模型与 GLB tint 共用它，保证涂装两条渲染路径一致。 */
+  private hullTint: [number, number, number] = DEFAULT_HULL_TINT;
 
   private health: number;
   private maxHealth: number;
@@ -96,9 +106,15 @@ export class PlayerShip {
     this.shield = config.shield || 50;
     this.maxShield = this.shield;
     this.shipModelType = config.shipModel || 'fighter';
+    if (config.tint) this.hullTint = config.tint;
 
     this.modelGenerator = new ProceduralModelGenerator(this.engine.getApp());
     this.entity = this.createPlayerShip(config.initialPosition || new pc.Vec3(0, 0, 0));
+  }
+
+  /** 当前舰体主色（验证脚本用；涂装是元进度里唯一可见的外观差异）。 */
+  public getHullTint(): [number, number, number] {
+    return [this.hullTint[0], this.hullTint[1], this.hullTint[2]];
   }
 
   private createPlayerShip(position: pc.Vec3): pc.Entity {
@@ -106,7 +122,7 @@ export class PlayerShip {
     player.setPosition(position);
 
     const modelRoot = this.modelGenerator.createShipModel(this.shipModelType, {
-      primaryColor: [0.2, 0.5, 0.8],
+      primaryColor: this.hullTint,
       secondaryColor: [0.1, 0.3, 0.6],
       emissiveColor: [0.1, 0.2, 0.4],
       scale: 0.8,
@@ -119,7 +135,7 @@ export class PlayerShip {
     this.engine
       .getModelAssets()
       .upgrade(player, modelRoot, ModelAssetProvider.shipPath(this.shipModelType), {
-        tint: [0.2, 0.5, 0.8],
+        tint: this.hullTint,
         scaleMultiplier: ModelAssetProvider.shipScale(),
         yaw: ModelAssetProvider.shipYaw(),
       });
@@ -454,6 +470,16 @@ export class PlayerShip {
 
   public addShield(amount: number): void {
     this.shield = Math.min(this.maxShield, this.shield + amount);
+  }
+
+  /**
+   * 设置加速能量上限（元进度的「能量强化模块」走这条）。
+   * 当前能量按新上限夹取，避免缩小时越界。
+   */
+  public setMaxBoostEnergy(maxBoostEnergy: number): void {
+    if (!Number.isFinite(maxBoostEnergy) || maxBoostEnergy <= 0) return;
+    this.maxBoostEnergy = maxBoostEnergy;
+    this.boostEnergy = Math.min(this.boostEnergy, maxBoostEnergy);
   }
 
   /**

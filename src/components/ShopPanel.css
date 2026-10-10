@@ -55,6 +55,38 @@
   color: #ffdd44;
 }
 
+/* 已购加成条：把购买结果换算成「下一局会多什么」，与 GameScene 用同一个函数 */
+.shop-bonus-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(20, 30, 48, 0.85);
+  border: 1px solid rgba(90, 140, 200, 0.28);
+  font-size: 13px;
+}
+.shop-bonus-title {
+  color: #9fb4cc;
+  font-weight: 600;
+}
+.shop-bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.shop-bonus-chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #6ee7a0;
+}
+.shop-bonus-empty {
+  color: #7d8fa6;
+}
+
 .shop-filters {
   display: flex;
   gap: 8px;

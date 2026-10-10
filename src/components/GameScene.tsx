@@ -59,6 +59,20 @@ import {
   applySkillBonusesToWeapon,
   computeSkillMaxShield,
 } from '../engine/SkillBonusAdapter';
+import { EXP_PER_WAVE } from '../engine/Experience';
+// 元进度（商店购买 → 下一局生效）的读取侧：已购物品是唯一真源，加成在这里折算。
+import { getOwnedItems } from '../engine/OwnedItems';
+import {
+  applyMetaBonusesToMaxBoostEnergy,
+  applyMetaBonusesToPlayer,
+  applyMetaBonusesToShield,
+  applyMetaBonusesToWeapon,
+  computeMetaBonuses,
+  describeMetaBonuses,
+  getOwnedHullTint,
+  IDENTITY_META_BONUSES,
+  type MetaBonuses,
+} from '../engine/MetaBonuses';
 
 const enginePowerupTypeToLua = (engineType: string): string | null => {
   const mapping: Record<string, string> = {
@@ -161,6 +175,14 @@ export const GameScene: React.FC<{
    * 引擎销毁，整局游戏永久冻结。
    */
   const finalWaveClearedRef = useRef(false);
+
+  /**
+   * 本局的元进度加成（商店已购物品 → 属性）。
+   *
+   * **开局读一次**即可：购买只发生在菜单里（那时 GameScene 已卸载），
+   * 每局重新挂载时重新读取，等价于「始终最新」，不必每帧碰 localStorage。
+   */
+  const metaBonusesRef = useRef<MetaBonuses>(IDENTITY_META_BONUSES);
 
   /**
    * 已发放过升级奖励的最大波号。
@@ -555,6 +577,18 @@ export const GameScene: React.FC<{
       console.log('[GameScene] Environment created (with asteroid field, structures, fog, VFX)');
 
       const gameState = useGameStore.getState();
+
+      // 元进度：商店已购物品 → 本局属性加成。
+      // 读一次、存进 ref，之后每帧的合并直接用（合并点见 update 循环）。
+      const ownedItems = getOwnedItems();
+      metaBonusesRef.current = computeMetaBonuses(ownedItems);
+      const hullTint = getOwnedHullTint(ownedItems);
+      console.log(
+        `[GameScene] 元进度：已购 ${ownedItems.length} 件，加成 [${
+          describeMetaBonuses(metaBonusesRef.current).join(' / ') || '无'
+        }]${hullTint ? `，涂装 rgb(${hullTint.join(',')})` : ''}`,
+      );
+
       // 玩家初始生命/护盾以关卡配置为准（player.health / player.shield）；
       // store 里的值是上一局残留或默认值，仅在配置缺失时回落。
       const player = new PlayerShip({
@@ -562,6 +596,7 @@ export const GameScene: React.FC<{
         initialPosition: new pc.Vec3(0, 0, 0),
         health: levelConfig?.player.health ?? gameState.player.health,
         shield: levelConfig?.player.shield ?? gameState.player.shield,
+        tint: hullTint ?? undefined,
       });
       playerRef.current = player;
       console.log('[GameScene] Player created at position (0, 0, 0)');
@@ -572,6 +607,7 @@ export const GameScene: React.FC<{
       const skillBaseStats = {
         maxHealth: player.getMaxHealth(),
         maxShield: player.getMaxShield(),
+        maxBoostEnergy: player.getMaxBoostEnergy(),
       };
 
       // 小行星碰撞检测系统（需在 player 和小行星场都就绪后实例化）
@@ -621,6 +657,27 @@ export const GameScene: React.FC<{
 
       const storyMgr = new StoryMissionManager();
       storyManagerRef.current = storyMgr;
+
+      // 任务奖励入账：任务完成 → 经验 + 信用点，与关卡奖励同一套真源。
+      //
+      // 差分识别「新完成的任务」（subscribe 每次变更都会回调，包括目标进度），
+      // 而不是让 StoryMissionManager 去依赖 store —— 引擎模块保持无存储依赖。
+      // 任务追踪面板显示的 `+N EXP / +N 信用` 从此是按实际发放的值渲染的。
+      const rewardedMissionIds = new Set<string>();
+      storyMgr.subscribe(() => {
+        for (const mission of storyMgr.getAllMissions()) {
+          if (rewardedMissionIds.has(mission.id)) continue;
+          if (storyMgr.getMissionState(mission.id)?.status !== 'completed') continue;
+          rewardedMissionIds.add(mission.id);
+          const store = useGameStore.getState();
+          store.addExperience(mission.rewards.experience);
+          const credits = addCredits(mission.rewards.credits);
+          console.log(
+            `[GameScene] 任务奖励：${mission.id} → 经验 +${mission.rewards.experience}` +
+              `（等级 ${useGameStore.getState().player.level}）、信用点 +${mission.rewards.credits}（${credits}）`,
+          );
+        }
+      });
       storyMgr.loadAll().then(() => {
         setStoryManager(storyMgr);
         const startDialogue = storyMgr.getDialogueByTrigger('story', 'story-chapter-01', 'start');
@@ -647,22 +704,26 @@ export const GameScene: React.FC<{
           }
         },
         onWaveComplete: (waveNumber, _score) => {
-          // 元进度：每清空一波，玩家等级 +1。
+          // 元进度：每清空一波发放 `EXP_PER_WAVE` 点经验。
+          //
+          // 等级不再由波次计数直接 +1，而是**由累计经验推导**
+          // （`useGameStore.addExperience` 内部用 `levelForExp` 同步写入等级）。
+          // 原因：关卡奖励里一直配着 `rewards.experience`、结算/成就/任务界面也
+          // 一直在显示 `+N EXP`，却没有任何系统消费它 —— 属于「界面发了、系统没收」。
+          // 现在经验是等级的唯一输入，界面上的每一个经验数字都真的进了账。
+          //
+          // 曲线标定见 `Experience.ts`：1~4 级每级 100 点（= 1 波），
+          // 与改之前的「每波 +1 级」在节奏上等价，不会顺带改动关卡解锁时机。
           //
           // 等级是技能树天赋点的**唯一来源**（SkillTreeManager.setPlayerLevel
           // 按差值发点），同时也是关卡选择里 recommendedLevel 的解锁依据。
-          // 此前全项目没有任何代码调用 setPlayerLevel，等级恒为 1 —— 后果是
-          // 第 2~5 关（需等级 3/5/8/10）在关卡选择里永远锁着，玩家只能反复玩
-          // 第 1 关；技能树也永远是 0 点、12 个天赋全部点不动。
-          //
-          // resetGame() 保留 level（见 useGameStore），所以它是跨局累积的
-          // 元进度，而非单局内的临时数值。
+          // resetGame() 保留 level + experience（见 useGameStore），所以它是跨局
+          // 累积的元进度，而非单局内的临时数值。
           //
           // 去重：同一波 onWaveComplete 可能被触发多次（见 lastRewardedWaveRef 注释）。
           if (waveNumber > lastRewardedWaveRef.current) {
             lastRewardedWaveRef.current = waveNumber;
-            const store = useGameStore.getState();
-            store.setPlayerLevel(store.player.level + 1);
+            useGameStore.getState().addExperience(EXP_PER_WAVE);
           }
 
           // 生存模式：本波清空交给 SurvivalModeManager —— 它加分波奖励并进入
@@ -1041,9 +1102,13 @@ export const GameScene: React.FC<{
             const w = weaponSystemRef.current as unknown as {
               buildMods?: Record<string, number>;
             } | null;
+            const pb = p as unknown as { buildMods?: Record<string, number> } | null;
             return {
               maxHealth: p?.getMaxHealth() ?? -1,
               maxShield: p?.getMaxShield() ?? -1,
+              maxBoostEnergy: p?.getMaxBoostEnergy() ?? -1,
+              maxSpeedMultiplier: pb?.buildMods?.['maxSpeedMultiplier'] ?? -1,
+              hullTint: p?.getHullTint() ?? null,
               damageMultiplier: w?.buildMods?.['damageMultiplier'] ?? -1,
               fireRateMultiplier: w?.buildMods?.['fireRateMultiplier'] ?? -1,
               critChanceBonus: w?.buildMods?.['critChanceBonus'] ?? -1,
@@ -1053,6 +1118,15 @@ export const GameScene: React.FC<{
           upgrade: (nodeId: string) => skillTreeManager.upgradeTalent(nodeId),
           /** 清空技能树与其 localStorage，保证验证可重复 */
           resetTree: () => skillTreeManager.reset(),
+        };
+
+        // 元进度（商店 → 下一局生效）调试钩子：同样只**观测**生产对象。
+        // `bonuses` 读的是本局真正使用的那个 ref（不是重新算一遍），
+        // 所以它能证明「加成确实进了合并点」，而不是证明「函数算得对」。
+        (window as unknown as Record<string, unknown>)['__metaDebug'] = {
+          owned: () => getOwnedItems().map((i) => ({ id: i.id, type: i.type, name: i.name })),
+          bonuses: () => ({ ...metaBonusesRef.current }),
+          summary: () => describeMetaBonuses(metaBonusesRef.current),
         };
 
         // 粒子贴图观测钩子：报告 7 张贴图的就绪状态与引擎缓存数量（只读生产对象）
@@ -1295,22 +1369,41 @@ export const GameScene: React.FC<{
         //
         // 每帧重新构造对象（getStats / getPlayerModifiers 都返回新对象）与改动前
         // 的开销同量级：都是几十个小字段的浅对象，对 60fps 无实际影响。
+        //
+        // 三条线的合并顺序固定为 **局内三选一 → 技能树 → 元进度（最外层乘区）**。
+        // 顺序只影响浮点末位，但固定下来才好推理：元进度是「永久全局加成」，
+        // 语义上就该在所有其它加成之上再乘一次。
         if (playerRef.current && buildSystemRef.current) {
           const skillStats = skillTreeManager.getStats();
+          const meta = metaBonusesRef.current;
           playerRef.current.setBuildModifiers(
-            applySkillBonusesToPlayer(
-              buildSystemRef.current.getPlayerModifiers(),
-              skillStats,
-              skillBaseStats.maxHealth,
+            applyMetaBonusesToPlayer(
+              applySkillBonusesToPlayer(
+                buildSystemRef.current.getPlayerModifiers(),
+                skillStats,
+                skillBaseStats.maxHealth,
+              ),
+              meta,
             ),
           );
-          // 护盾上限不在 PlayerModifiers 里（它只描述回复速率），单独推
+          // 护盾上限不在 PlayerModifiers 里（它只描述回复速率），单独推。
+          // 先技能百分比（作用于**关卡基础护盾**），再元进度（舰体绝对值 + 模块倍率）。
           playerRef.current.setMaxShield(
-            computeSkillMaxShield(skillBaseStats.maxShield, skillStats),
+            applyMetaBonusesToShield(
+              computeSkillMaxShield(skillBaseStats.maxShield, skillStats),
+              meta,
+            ),
+          );
+          // 加速能量上限同样不在 PlayerModifiers 里
+          playerRef.current.setMaxBoostEnergy(
+            applyMetaBonusesToMaxBoostEnergy(skillBaseStats.maxBoostEnergy, meta),
           );
           if (weaponSystemRef.current) {
             weaponSystemRef.current.setBuildModifiers(
-              applySkillBonusesToWeapon(buildSystemRef.current.getWeaponModifiers(), skillStats),
+              applyMetaBonusesToWeapon(
+                applySkillBonusesToWeapon(buildSystemRef.current.getWeaponModifiers(), skillStats),
+                meta,
+              ),
             );
           }
         }
@@ -1434,8 +1527,14 @@ export const GameScene: React.FC<{
             }
           }
 
-          useGameStore.getState().updatePlayerHealth(playerRef.current.getHealth());
-          useGameStore.getState().updatePlayerShield(playerRef.current.getShield());
+          // 顺序要紧：**先推上限、再推当前值**。
+          // updatePlayerHealth/Shield 会按 store 里的上限夹取，上限落后会让
+          // 技能树/元进度抬起来的生命护盾在 HUD 上被截成默认值（100/50）。
+          const vitals = useGameStore.getState();
+          vitals.setPlayerMaxHealth(playerRef.current.getMaxHealth());
+          vitals.setPlayerMaxShield(playerRef.current.getMaxShield());
+          vitals.updatePlayerHealth(playerRef.current.getHealth());
+          vitals.updatePlayerShield(playerRef.current.getShield());
           useGameStore.getState().setSpeed(playerRef.current.getSpeed());
           useGameStore.getState().setBoostActive(playerRef.current.isBoostActive());
           useGameStore.getState().setBoostEnergy(playerRef.current.getBoostEnergy());
@@ -1537,15 +1636,19 @@ export const GameScene: React.FC<{
             if (finalWaveCleared && noMoreWaves && enemies.length === 0) {
               levelCompleteFiredRef.current = true;
               console.log('[GameScene] Level complete: final wave cleared');
-              // 关卡奖励结算（src/levels 的 rewards）：信用点真正入账，
-              // 与商店消费共用 CreditsStore 这一个真源。experience 暂无消费方
-              // （经验/等级系统尚未接线），先只记日志、不假装已发放。
+              // 关卡奖励结算（src/levels 的 rewards）：信用点走 CreditsStore，
+              // 经验走 useGameStore.addExperience（等级由经验推导）。
+              // 两者现在都有下游消费方 —— 不再是「记个日志假装发了」。
               if (levelConfig) {
                 const before = getCredits();
                 const after = addCredits(levelConfig.rewards.credits);
+                const store = useGameStore.getState();
+                const expBefore = store.player.experience;
+                store.addExperience(levelConfig.rewards.experience);
+                const storeAfter = useGameStore.getState();
                 console.log(
                   `[GameScene] 关卡奖励：信用点 +${levelConfig.rewards.credits}（${before} → ${after}）；` +
-                    `配置经验 +${levelConfig.rewards.experience}（暂无消费方）；` +
+                    `经验 +${levelConfig.rewards.experience}（${expBefore} → ${storeAfter.player.experience}，等级 ${storeAfter.player.level}）；` +
                     `解锁 ${levelConfig.rewards.unlocks.join('/') || '无'}`,
                 );
               }

@@ -185,8 +185,10 @@ fighter-game/
 - **道具**：多种随机掉落（`PowerupSystem`）
 - **建造 / 升级**：局内三选一升级（`BuildSystem` + `UpgradeChoiceOverlay` + `config/build-upgrades.json`）
 - **难度自适应**：按玩家表现动态缩放（`DifficultyManager`）
-- **成长系统**：技能树加点（✅ 属性真实生效）、金币、商店、云存档、成就、每日挑战、
-  任务与剧情对话 —— 其中**金币的消费端（商店）与 EXP 尚未闭环**，见「已知问题」
+- **元进度（三条链已全部闭环）**：
+  - 波次 → 等级 → 天赋点 → 属性（技能树加点，✅ 属性真实生效）
+  - 通关/任务 → **经验** → 等级（等级由累计经验推导，✅ 界面上的每个 `+N EXP` 都真入账）
+  - 通关 → **信用点** → 商店 → **下一局真的生效**（✅ 已购物品折算成永久全局加成）
 - **双语言**：简体中文 / English
 
 ### 已接线的界面
@@ -194,8 +196,10 @@ fighter-game/
 主菜单、选关、HUD、暂停、结算、设置、成就、商店、技能树、生存模式、
 每日挑战、排行榜、好友、剧情对话、任务追踪、连线提示。
 
-> **界面接线 ≠ 功能生效**：商店界面能开、能扣钱、能显示「已购买 ✓」，
-> 但购买结果没有任何系统消费（详见「已知问题」第 1 条）。
+> **界面接线 ≠ 功能生效**：这条判据是本项目反复踩到的坑。曾经「商店」能开、
+> 能扣钱、能显示「已购买 ✓」，但购买结果**没有任何下游读取方**。
+> 现在的口径是：每个界面写出的存储/字段，都必须能指出**它的读取方在哪**。
+> 元进度闭环的做法与验证见 `docs/2026-10-10-元进度闭环.md`。
 
 > **多人游戏未实现**：`MultiplayerPanel.tsx` 存在但**没有任何入口引用**（属死代码），
 > `MultiplayerSystem` 亦不可达。规划中，尚未开工。
@@ -214,6 +218,9 @@ fighter-game/
 | Lua 源码取用           | `src/lua/luaSources.ts`                                                                         | `getLuaSource(name)` 是**唯一取源口**（构建期内联）                 |
 | 敌机类型换算           | `ENEMY_TYPE_TO_RUNTIME`（`levels/index.ts`）<br>`ENEMY_TYPE_TO_LUA_AI`（`LuaEnemyAIBridge.ts`） | 配置侧 `enemy-scout` ↔ 运行时侧 `scout` 的换算只允许写在这里        |
 | 进度 / 金币            | `LevelProgress.ts` / `CreditsStore.ts`                                                          | 各自的唯一读写入口                                                  |
+| **已购物品（商店）**   | `src/engine/OwnedItems.ts`                                                                      | 含属性快照 + 旧 key 迁移；`getOwnedItemsStorageIssues()` 是自检护栏 |
+| **商店加成换算**       | `src/engine/MetaBonuses.ts`                                                                     | 「已购物品 → 属性」的**唯一换算表** + 倍率夹取                      |
+| **经验 → 等级曲线**    | `src/engine/Experience.ts`                                                                      | 纯函数；累计经验本身存在 `useGameStore.player.experience`（真源）   |
 
 ### 活动空间（arena）
 
@@ -326,23 +333,25 @@ npx vite --port 5177 --strictPort
 VERIFY_URL=http://localhost:5177/ NO_PROXY=localhost,127.0.0.1 node scripts/verify-<名字>.mjs
 ```
 
-| 脚本                                                               | 覆盖点                                                 |
-| ------------------------------------------------------------------ | ------------------------------------------------------ |
-| `verify-level-system`                                              | 关卡配置驱动（18 项）                                  |
-| `verify-wave-plans`                                                | 波次计划（16 项，含 `?level=5` 深链 Boss 断言）        |
-| `verify-arena-bounds`                                              | **真实键盘飞行**，活动边界（14 项，dev + 生产各跑）    |
-| `verify-lua-ai`                                                    | Lua 敌机 AI 接线 + A/B 对照（21 项）                   |
-| `verify-lua-runtime-prod`                                          | **生产构建**的 Lua 运行时冒烟（纯 console 证据，9 项） |
-| `verify-environment`                                               | 环境光照 / 色调映射（14 项差分）                       |
-| `verify-survival-wiring`                                           | 生存模式接线（36 项）                                  |
-| `verify-glb-models` / `verify-glb-pivot`                           | GLB 模型加载与几何中心归一                             |
-| `verify-pbr-materials`                                             | PBR 材质                                               |
-| `verify-particle-textures`                                         | 粒子贴图                                               |
-| `verify-postfx`                                                    | 后处理                                                 |
-| `verify-icon-wiring` / `verify-audio-wiring`                       | 图标 / 音频接线                                        |
-| `verify-wave-progression`                                          | 波次推进                                               |
-| `verify-skilltree-wiring`                                          | 技能树（见「已知问题」）                               |
-| …（`verify-audio` / `verify-asset-reserve` / `verify-final-wave`） | 见脚本头注释                                           |
+| 脚本                                         | 覆盖点                                                     |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| `verify-level-system`                        | 关卡配置驱动（18 项）                                      |
+| `verify-wave-plans`                          | 波次计划（16 项，含 `?level=5` 深链 Boss 断言）            |
+| `verify-arena-bounds`                        | **真实键盘飞行**，活动边界（14 项，dev + 生产各跑）        |
+| `verify-lua-ai`                              | Lua 敌机 AI 接线 + A/B 对照（21 项）                       |
+| `verify-lua-runtime-prod`                    | **生产构建**的 Lua 运行时冒烟（纯 console 证据，9 项）     |
+| `verify-environment`                         | 环境光照 / 色调映射（14 项差分）                           |
+| `verify-survival-wiring`                     | 生存模式接线（36 项）                                      |
+| `verify-glb-models` / `verify-glb-pivot`     | GLB 模型加载与几何中心归一                                 |
+| `verify-pbr-materials`                       | PBR 材质                                                   |
+| `verify-particle-textures`                   | 粒子贴图                                                   |
+| `verify-postfx`                              | 后处理                                                     |
+| `verify-icon-wiring` / `verify-audio-wiring` | 图标 / 音频接线                                            |
+| `verify-wave-progression`                    | 波次推进                                                   |
+| `verify-skilltree-wiring`                    | 技能树（清档→清波→加点→**重进一关**后断言真实属性）        |
+| `verify-final-wave`                          | 末波闭环（波数从 `getState().totalWaves` 推导）            |
+| `verify-meta-progression`                    | **元进度闭环**（商店买 → 下一局 PlayerShip/Weapon 真的变） |
+| …（`verify-audio` / `verify-asset-reserve`） | 见脚本头注释                                               |
 
 > **「dev 绿、prod 炸」是真实存在的缺陷类别**（上面 Lua 取源那条就是）。
 > 调试钩子被 `import.meta.env.DEV` 包着，生产会被整体剔除，
@@ -363,43 +372,28 @@ npm run audit:dead-code  # src 可达性（LIVE / DEAD / TESTONLY）
 
 ## 已知问题与待办
 
-### 已知缺陷（已定位，未修）
+### 仍存在的缺陷
 
-1. **商店是假闭环 —— 买了什么也不会发生。** `ShopPanel` 会扣金币、把 id 记进
-   `localStorage.purchasedItems`，但**该字段没有任何下游读取方**（唯一读取处是
-   ShopPanel 自己，只用来把按钮改成「已购买 ✓」）；`shop-item-*.json` 里的
-   `attributes`（生命/护盾/速度/火力/武器位）也无人消费；`subtype`、关卡
-   `rewards.unlocks` 同样只用于日志。
-   **算总账**：通关全部 10 关累计 19,250 金币，而商店最便宜的飞船 15,000 ——
-   打穿整个战役刚好买一艘，且买了没有反馈。
-2. **经验值（EXP）没有消费方。** 结算 / 成就 / 任务界面都在显示 `+N EXP`
-   （全战役 3,850），但等级来自**波次计数**，与 EXP 无关。代码注释自己写着
-   「配置经验 +N（暂无消费方）」。
-3. **Lua 模式下无人机不开火**。`enemy-ai.lua` 的 `PATROL` 模板不返回攻击动作。
+1. **Lua 模式下无人机不开火**。`enemy-ai.lua` 的 `PATROL` 模板不返回攻击动作。
    属模块设计导致的行为差异（非 bug），切后端前需决策。
-
-### 陈旧脚本（写于关卡系统上线之前，脚本假设的"10 波世界"已不存在）
-
-- `scripts/verify-skilltree-wiring.mjs` 报 25/28，**是脚本时序错误，不是产品缺陷**。
-  它清完 3 波（= 第 1 关通关）才去加点，此时 GameScene 已卸载
-  （`canvas: false`、`__waveDiag.ticks` 不再增长），`playerRef` 握着**冻结的旧
-  PlayerShip**，读回的就是加点前的值。**加点后重新进一关再读，三项全部达标**：
-  生命 110（+10%）、伤害 1.05（+5%）、护盾 82.5（= 第 2 关基础 75 × 1.1）。
-  修法：加点后重新进一关再断言。
-- `scripts/verify-final-wave.mjs` 的 `startWave(9)` 会被
-  `waveNumber exceeds maxWaves` 拒绝（第 1 关只有 3 波），因此它对「wave 10 专属」
-  的断言必然报错（实际已正常结算胜利）。修法：`startWave(maxWaves - 1)`，
-  或深链到一个 10 波关卡。
+2. **成就面板是一套平行数据。** 面板读 `/assets/achievements/*.json`
+   （字段 `rewards.{experience,credits}`），而运行时 `AchievementSystem` 用的是
+   另一份定义（`reward.score`）；且 `localStorage.unlockedAchievements`
+   **全仓没有任何写入方** → 面板永远显示全部未解锁。EXP 部分已由元进度闭环
+   解决了「发了没人收」，但这个面板本身的接线仍是断的。
+3. **`rewards.unlocks` 仍只写日志**（`['ship-fighter']` / `['skill-missile-strike']` …）。
+   「解锁内容」与「数值加成」是两件事，后者已闭环，前者未做。
+4. **消耗品不可购买**：需要背包 + 使用时机，商店里已如实标为「即将开放」，
+   而不是卖了不生效。涂装则已真实生效（改变舰体主色）。
 
 ### 待办
 
-优先方向与实测依据见 `docs/2026-10-10-下一步开发方向.md`。
+优先方向与实测依据见 `docs/2026-10-10-下一步开发方向.md`；
+元进度这一轮已完成的与明确不做的，见 `docs/2026-10-10-元进度闭环.md`。
 
-- **接通元进度闭环**：商店购买结果落地（`OwnedItems` 真源 + 属性出口）、EXP 接进等级或撤显示
-- 修上面两个陈旧脚本的时序
+- **方向 B：部署体积治理** —— `public/assets` 458.93 MB 中 **422.87 MB / 52,506 个文件
+  无消费方**（Kenney 全库 361 MB 只用到 714 个文件，占 1%），全部原样进 `dist`（583 MB）
 - 把 4 个 `host: true` 的 Lua 模块逐个迁到真实 Lua（先决条件已就绪）
-- 部署体积治理：`public/assets` 458.93 MB 中 **422.87 MB / 52,506 个文件无消费方**
-  （Kenney 全库 361 MB 只用到 714 个文件，占 1%），全部原样进 `dist`
 - 多人游戏（UI 骨架在，系统与入口均未实现）
 - 源码债：`src` 仍有 20 个死文件 / 8,587 行；另有 11 个文件**只被测试引用**、
   生产不可达（含 `ResourceManager` 672 行、`SecuritySystem` 421 行）
@@ -408,19 +402,20 @@ npm run audit:dead-code  # src 可达性（LIVE / DEAD / TESTONLY）
 
 ## 文档索引
 
-| 文档                                           | 内容                                             |
-| ---------------------------------------------- | ------------------------------------------------ |
-| `CHANGELOG.md`                                 | 完整变更历史（Keep a Changelog 格式）            |
-| `docs/2026-10-10-下一步开发方向.md`            | **当前推荐方向**：元进度闭环（含纠错与实测数据） |
-| `docs/2026-10-07-Lua运行时接通与敌机AI接线.md` | **Lua 运行时事实纠正、改造细节、迁移清单**       |
-| `docs/2026-10-07-飞船活动范围扩大.md`          | arena 唯一真源的设计与验证                       |
-| `docs/2026-10-07-源码死簇审计与清理.md`        | 死代码分类与处置建议                             |
-| `docs/2026-10-05-资源库利用率审计.md`          | 资产使用率审计                                   |
-| `docs/2026-10-03-playcanvas2-迁移执行记录.md`  | PlayCanvas 1.x → 2.x 迁移记录                    |
-| `docs/2026-10-03-项目现状体检.md`              | 项目全面体检                                     |
-| `docs/API_DESIGN.md` / `DATABASE_DESIGN.md`    | 后端接口与数据模型                               |
-| `docs/dev-status.md`                           | 开发状态速览                                     |
-| `docs/verify/*.png`                            | 各验证脚本的截图证据                             |
+| 文档                                           | 内容                                                      |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| `CHANGELOG.md`                                 | 完整变更历史（Keep a Changelog 格式）                     |
+| `docs/2026-10-10-元进度闭环.md`                | **本轮完成**：商店→下一局生效、EXP→等级、换算表与验证证据 |
+| `docs/2026-10-10-下一步开发方向.md`            | 方向评估（含纠错与实测数据；方向 A 已执行）               |
+| `docs/2026-10-07-Lua运行时接通与敌机AI接线.md` | **Lua 运行时事实纠正、改造细节、迁移清单**                |
+| `docs/2026-10-07-飞船活动范围扩大.md`          | arena 唯一真源的设计与验证                                |
+| `docs/2026-10-07-源码死簇审计与清理.md`        | 死代码分类与处置建议                                      |
+| `docs/2026-10-05-资源库利用率审计.md`          | 资产使用率审计                                            |
+| `docs/2026-10-03-playcanvas2-迁移执行记录.md`  | PlayCanvas 1.x → 2.x 迁移记录                             |
+| `docs/2026-10-03-项目现状体检.md`              | 项目全面体检                                              |
+| `docs/API_DESIGN.md` / `DATABASE_DESIGN.md`    | 后端接口与数据模型                                        |
+| `docs/dev-status.md`                           | 开发状态速览                                              |
+| `docs/verify/*.png`                            | 各验证脚本的截图证据                                      |
 
 ---
 

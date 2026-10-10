@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { DifficultySnapshot } from '../engine/DifficultyManager';
 import type { UpgradeChoice } from '../engine/BuildSystem';
+import { expForLevel, levelForExp } from '../engine/Experience';
 
 interface ActiveBuildUpgrade {
   id: string;
@@ -18,6 +19,11 @@ interface PlayerState {
   maxShield: number;
   score: number;
   level: number;
+  /**
+   * 累计经验（跨局累积）。**元进度的真源**：等级由它推导
+   * （`levelForExp`），而不是各自独立累加 —— 两者必须同一次写入。
+   */
+  experience: number;
   speed: number;
   isBoostActive: boolean;
   boostEnergy: number;
@@ -126,8 +132,21 @@ interface GameActions {
   toggleAchievements: () => void;
   updatePlayerHealth: (health: number) => void;
   updatePlayerShield: (shield: number) => void;
+  /**
+   * 同步**上限**。必须和当前值一起推：
+   * `updatePlayerHealth/Shield` 会按 store 里的上限夹取，而上限默认是 100/50。
+   * 技能树/元进度把上限抬到 300/150 之后，若不推上限，HUD 会一直显示
+   * 「100/100」「50/50」—— 玩家买了船却在属性条上看不见变化。
+   */
+  setPlayerMaxHealth: (maxHealth: number) => void;
+  setPlayerMaxShield: (maxShield: number) => void;
   addScore: (score: number) => void;
   setPlayerLevel: (level: number) => void;
+  /**
+   * 发放经验（清波 / 通关 / 任务完成）。等级由累计经验**推导**并同步写入，
+   * 所以这是「涨级」的唯一入口 —— 不要再直接 setPlayerLevel 做加法。
+   */
+  addExperience: (amount: number) => void;
   setSpeed: (speed: number) => void;
   setBoostActive: (active: boolean) => void;
   setBoostEnergy: (energy: number) => void;
@@ -223,6 +242,7 @@ const defaultPlayerState: PlayerState = {
   maxShield: 50,
   score: 0,
   level: 1,
+  experience: 0,
   speed: 0,
   isBoostActive: false,
   boostEnergy: 100,
@@ -321,6 +341,22 @@ export const useGameStore = create<GameState & GameActions>()(
           },
         })),
 
+      // 上限每帧都会被推一次，但只在**真的变了**时才写 state。
+      // 否则每帧新建 player 对象会让所有订阅者白白重渲染。
+      setPlayerMaxHealth: (maxHealth) =>
+        set((state) => {
+          const next = Math.max(1, maxHealth);
+          if (state.player.maxHealth === next) return state;
+          return { player: { ...state.player, maxHealth: next } };
+        }),
+
+      setPlayerMaxShield: (maxShield) =>
+        set((state) => {
+          const next = Math.max(0, maxShield);
+          if (state.player.maxShield === next) return state;
+          return { player: { ...state.player, maxShield: next } };
+        }),
+
       addScore: (score) =>
         set((state) => ({
           player: { ...state.player, score: state.player.score + score },
@@ -330,6 +366,14 @@ export const useGameStore = create<GameState & GameActions>()(
         set((state) => ({
           player: { ...state.player, level },
         })),
+
+      addExperience: (amount) =>
+        set((state) => {
+          const safe = Number.isFinite(amount) ? amount : 0;
+          const experience = Math.max(0, state.player.experience + safe);
+          // 等级恒由经验推导：一次写入，二者不可能漂移
+          return { player: { ...state.player, experience, level: levelForExp(experience) } };
+        }),
 
       setSpeed: (speed) =>
         set((state) => ({
@@ -403,7 +447,14 @@ export const useGameStore = create<GameState & GameActions>()(
       resetGame: () =>
         set({
           ...defaultState,
-          player: { ...defaultPlayerState, score: get().player.score, level: get().player.level },
+          // 分数与元进度（等级 = 经验）跨局保留；**两者必须一起保留**，
+          // 只带 level 不带 experience 会让下一次 addExperience 把等级打回 1。
+          player: {
+            ...defaultPlayerState,
+            score: get().player.score,
+            level: get().player.level,
+            experience: get().player.experience,
+          },
         }),
 
       saveGame: () => {
@@ -412,6 +463,7 @@ export const useGameStore = create<GameState & GameActions>()(
           player: {
             score: state.player.score,
             level: state.player.level,
+            experience: state.player.experience,
           },
           lastSaved: new Date().toISOString(),
         };
@@ -429,6 +481,7 @@ export const useGameStore = create<GameState & GameActions>()(
                   ...get().player,
                   score: data.player.score ?? get().player.score,
                   level: data.player.level ?? get().player.level,
+                  experience: data.player.experience ?? get().player.experience,
                 },
               });
             }
@@ -441,7 +494,7 @@ export const useGameStore = create<GameState & GameActions>()(
       clearSave: () => {
         safeLocalStorage.removeItem(STORAGE_KEY);
         set({
-          player: { ...get().player, score: 0, level: 1 },
+          player: { ...get().player, score: 0, level: 1, experience: 0 },
         });
       },
 
@@ -525,8 +578,27 @@ export const useGameStore = create<GameState & GameActions>()(
         player: {
           score: state.player.score,
           level: state.player.level,
+          experience: state.player.experience,
         },
       }),
+      /**
+       * 老存档（v1 只存了 score / level）没有 experience 字段。
+       * 不处理的话会得到「等级 4 + 经验 0」这种自相矛盾的状态，
+       * 下一次 addExperience 就会把等级打回 1。
+       *
+       * 口径：**经验是元进度的真源，等级一律由它推导**。
+       * 缺经验就按曲线从等级反推（保住老存档的等级），有经验就以经验为准。
+       */
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<GameState>;
+        const persistedPlayer: Partial<PlayerState> = p.player ?? {};
+        const player: PlayerState = { ...current.player, ...persistedPlayer };
+        if (!Number.isFinite(player.experience) || player.experience <= 0) {
+          player.experience = expForLevel(player.level);
+        }
+        player.level = levelForExp(player.experience);
+        return { ...current, ...p, player };
+      },
       version: 1,
       onRehydrateStorage: () => (state) => {
         if (state) {
