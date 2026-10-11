@@ -346,6 +346,7 @@ export class Enemy {
       return;
     }
 
+    this.updateHitFeedback(dt);
     this.ai.update(dt);
 
     // 攻击判定：
@@ -385,10 +386,87 @@ export class Enemy {
     const actualDamage = Math.max(1, amount - this.stats.armor * 0.5);
     this.health -= actualDamage;
 
+    this.beginHitFeedback();
+
     if (this.health <= 0) {
       this.health = 0;
       this.startDeath();
     }
+  }
+
+  // ─── 受击反馈：闪白 + 体量鼓包 ───────────────────────────────────────────
+  // 此前 takeDamage 只有数值变化，画面上**零反馈**——打中敌机和没打中一样。
+  // 材质可放心改：ModelAssetProvider.upgrade 给每个实例 clone 了独立材质
+  // （见 ModelAssetProvider.ts 的 tint 分支），不会出现「打一个全类型同闪」。
+
+  /** 闪白剩余时长（秒）。 */
+  private hitFlashTime: number = 0;
+  /** 体量鼓包剩余时长（秒）。 */
+  private hitPunchTime: number = 0;
+  /** 首次闪白时抓取的材质原值快照，恢复用。 */
+  private hitFlashMaterials:
+    { mat: pc.StandardMaterial; emissive: pc.Color; intensity: number }[] | null = null;
+
+  private static readonly HIT_FLASH_DURATION = 0.12;
+  private static readonly HIT_PUNCH_DURATION = 0.1;
+  private static readonly HIT_FLASH_COLOR = new pc.Color(1, 1, 1);
+
+  private beginHitFeedback(): void {
+    if (this.isDying) return;
+    this.hitFlashTime = Enemy.HIT_FLASH_DURATION;
+    this.hitPunchTime = Enemy.HIT_PUNCH_DURATION;
+  }
+
+  /** 每帧衰减两路反馈；归零时恢复原值。 */
+  private updateHitFeedback(dt: number): void {
+    if (this.hitFlashTime > 0) {
+      this.hitFlashTime -= dt;
+      if (this.hitFlashTime <= 0) {
+        this.endHitFlash();
+      } else {
+        this.applyHitFlash();
+      }
+    }
+    if (this.hitPunchTime > 0) {
+      this.hitPunchTime -= dt;
+      const t = Math.max(0, this.hitPunchTime / Enemy.HIT_PUNCH_DURATION);
+      // 正弦鼓包：从 1.15 平滑缩回 1，不会跳变
+      const s = 1 + 0.15 * Math.sin(t * Math.PI);
+      this.entity.setLocalScale(s, s, s);
+    }
+  }
+
+  private applyHitFlash(): void {
+    if (!this.hitFlashMaterials) {
+      this.hitFlashMaterials = [];
+      const renders = this.entity.findComponents('render') as pc.RenderComponent[];
+      for (const r of renders) {
+        for (const mi of r.meshInstances ?? []) {
+          const mat = mi.material as pc.StandardMaterial | null;
+          if (!mat) continue;
+          this.hitFlashMaterials.push({
+            mat,
+            emissive: mat.emissive.clone(),
+            intensity: mat.emissiveIntensity,
+          });
+        }
+      }
+    }
+    for (const f of this.hitFlashMaterials) {
+      f.mat.emissive = Enemy.HIT_FLASH_COLOR;
+      f.mat.emissiveIntensity = 2.5;
+      f.mat.update();
+    }
+  }
+
+  private endHitFlash(): void {
+    if (!this.hitFlashMaterials) return;
+    for (const f of this.hitFlashMaterials) {
+      f.mat.emissive = f.emissive;
+      f.mat.emissiveIntensity = f.intensity;
+      f.mat.update();
+    }
+    this.hitFlashMaterials = null;
   }
 
   public addStatusEffect(type: StatusEffect['type'], duration: number, intensity: number): void {
@@ -398,6 +476,12 @@ export class Enemy {
   private startDeath(): void {
     this.isDying = true;
     this.entity.enabled = false;
+    // 复原受击反馈：死亡后 update 不再衰减这两路状态，
+    // 不复原会留下「最后一次鼓包的缩放」和「闪白的 emissive」（下次复用前会被覆盖，但防御起见）
+    this.hitFlashTime = 0;
+    this.hitPunchTime = 0;
+    this.endHitFlash();
+    this.entity.setLocalScale(1, 1, 1);
     // 释放 Lua 侧句柄：注册表只保留存活敌机，否则长时间战斗会持续泄漏
     this.ai.detachExternalBrain();
     this.createDeathExplosion();

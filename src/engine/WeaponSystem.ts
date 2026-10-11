@@ -305,6 +305,9 @@ export class WeaponSystem {
     }
 
     this.lastShootTime = now;
+
+    // 枪口闪光：一次射击闪一次（散弹多管齐发也只闪一次），挂在机头前缘
+    this.createMuzzleFlash(playerPos.clone().add(playerForward.clone().mulScalar(2)));
   }
 
   private getWeaponConfig(): WeaponConfig {
@@ -511,6 +514,9 @@ export class WeaponSystem {
           // 命中率统计的「命中数」（与 createProjectileEntity 里的发射数配对）
           this.shotsHit++;
 
+          // 命中火花：受击的即时视觉反馈（普通弹此前除了掉血没有任何表现）
+          this.createImpactSparks(projPos, isCrit);
+
           // 应用 Build 修饰符：吸血
           if (this.player.getLifestealRatio() > 0) {
             this.player.healFromDamage(damage);
@@ -571,6 +577,55 @@ export class WeaponSystem {
       proj.pierceRemaining = 0;
       this.projectiles.push(proj);
     }
+  }
+
+  /** 命中火花：子弹打到敌人身上的即时反馈。暴击喷更多、更亮。 */
+  private createImpactSparks(position: pc.Vec3, isCrit: boolean): void {
+    const sparks = new pc.Entity('impact-sparks');
+    sparks.setPosition(position);
+
+    this.engine.addParticleSystem(sparks, {
+      lifetime: 0.25,
+      rate: 0,
+      loop: false,
+      numParticles: isCrit ? 14 : 8,
+      initialVelocity: 12,
+      colorGraph: new pc.CurveSet([
+        [1, 0.9, 0.4],
+        [1, 0.6, 0.1],
+        [0.6, 0.2, 0],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.25, 0.6]),
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.hitLight,
+    });
+
+    this.engine.addToScene(sparks);
+    setTimeout(() => sparks.destroy(), 300);
+  }
+
+  /** 枪口闪光：开火瞬间机头一次短促光斑。 */
+  private createMuzzleFlash(position: pc.Vec3): void {
+    const flash = new pc.Entity('muzzle-flash');
+    flash.setPosition(position);
+
+    this.engine.addParticleSystem(flash, {
+      lifetime: 0.1,
+      rate: 0,
+      loop: false,
+      numParticles: 3,
+      initialVelocity: 2,
+      colorGraph: new pc.CurveSet([
+        [1, 0.85, 0.5],
+        [1, 0.6, 0.2],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.5, 0.9]),
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.engineFlame,
+    });
+
+    this.engine.addToScene(flash);
+    setTimeout(() => flash.destroy(), 150);
   }
 
   private createExplosion(position: pc.Vec3): void {

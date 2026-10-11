@@ -789,6 +789,19 @@ export const GameScene: React.FC<{
         onEnemyKilled: (enemyType, score) => {
           useGameStore.getState().addScore(score);
           useGameStore.getState().addKill();
+          // 击杀屏幕震动：体量越大震得越狠（受伤另有自己的震动）。
+          // 幅度克制 —— 震动是反馈不是特效，过强会晕。
+          if (enemyType.includes('boss')) {
+            cameraSystemRef.current?.shake(0.3, 0.6, 20, 2);
+          } else if (
+            enemyType.includes('elite') ||
+            enemyType.includes('tank') ||
+            enemyType.includes('destroyer')
+          ) {
+            cameraSystemRef.current?.shake(0.12, 0.3, 25, 1.5);
+          } else {
+            cameraSystemRef.current?.shake(0.06, 0.2, 30, 1.5);
+          }
           // 生存模式：把击杀同步进生存面板的统计（分数/击杀数/Boss 数）。
           // 用 addKill 而非 recordEnemyDefeat —— 后者会推进生存管理器自己的
           // 波次计数，而真实战斗的敌人数由 WaveManager 决定（见 externalControl）。
