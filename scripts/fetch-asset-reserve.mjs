@@ -10,10 +10,11 @@
  *     不进 public/、不参与构建、不进版本库。
  *     要用某个素材时，从库里挑出来复制到 public/assets/ 并登记到对应 CREDITS.md。
  *
- * 三个源（全部 CC0-1.0，可商用、无需署名）：
- *   1. Kenney  —— 全库（钉 commit），游戏素材的事实标准
+ * 四个源（全部 CC0-1.0，可商用、无需署名）：
+ *   1. Kenney     —— 全库（钉 commit），游戏素材的事实标准
  *   2. Poly Haven —— HDRI 环境贴图（天空盒 / IBL 打光）
- *   3. ambientCG —— PBR 材质贴图（金属装甲板 / 太阳能板 / 岩石）
+ *   3. ambientCG  —— PBR 材质贴图（金属装甲板 / 太阳能板 / 岩石）
+ *   4. Quaternius —— 高模飞船/科幻套件（GLTF，经 Google Drive，需代理）
  *
  * 用法：
  *   node scripts/fetch-asset-reserve.mjs                # 抓取（已存在且校验通过则跳过）
@@ -67,7 +68,10 @@ const POLYHAVEN = {
   note: 'HDRI 环境贴图，可作天空盒或 IBL 打光；.hdr 需 Radiance 解码',
   byCategory: [
     // 天光渐变（59 张）——干净的全天球天空，适合天空盒/菜单背景
-    { category: 'pure skies', res: '1k' },
+    // 2026-10-11 扩容：1k → 2k（1k 版本已在盘上，两档共存；2k 作主力备份）
+    { category: 'pure skies', res: '2k' },
+    // 夜空（约 30 张）——星空/银河/月夜，太空题材天空盒的核心储备
+    { category: 'night', res: '2k' },
     // 月面实验室——Poly Haven 唯一的太空站环境
     { category: 'moon', res: '4k' },
   ],
@@ -90,13 +94,32 @@ const POLYHAVEN = {
   ],
 };
 
-/** 源 3：ambientCG PBR 材质。1K 包 ≈4.7-9.7MB。 */
+/**
+ * 源 3：ambientCG PBR 材质。1K 包 ≈4.7-9.7MB。
+ * 2026-10-11 扩容：`ids` 是手工点名的优先项（保证必到）；
+ * `queries` 按 API 关键词检索补量，合并去重后截到 `maxTotal` 套。
+ * API: /api/v2/full_json?q=…&type=Material → foundAssets[].assetId
+ */
 const AMBIENTCG = {
   id: 'ambientcg',
   license: 'CC0-1.0',
   homepage: 'https://ambientcg.com',
   note: 'PBR 材质包（Color/Normal/Roughness/AO/Displacement），解压后每套约 8-12 张贴图',
   res: '1K',
+  maxTotal: 160,
+  queries: [
+    // 关键词 → 该词下取多少套（太空舰体/地面场景相关优先）
+    { q: 'MetalPlates', limit: 60 },
+    { q: 'Metal', limit: 60 },
+    { q: 'Rock', limit: 40 },
+    { q: 'Ground', limit: 40 },
+    { q: 'Concrete', limit: 30 },
+    { q: 'Gravel', limit: 20 },
+    { q: 'Fabric', limit: 15 },
+    { q: 'Plastic', limit: 15 },
+    { q: 'CorrugatedSteel', limit: 10 },
+    { q: 'Foil', limit: 10 },
+  ],
   ids: [
     // 太阳能板——空间站外层最显眼的部件
     'SolarPanel001',
@@ -124,6 +147,40 @@ const AMBIENTCG = {
   ],
 };
 AMBIENTCG.zipUrl = (id) => `https://ambientcg.com/get?file=${id}_${AMBIENTCG.res}-JPG.zip`;
+
+/**
+ * 源 4：Quaternius 科幻模型包（CC0-1.0，比 Kenney 高一档的高模）。
+ * 官网下载全部走 Google Drive 文件夹 → 用 gdown 拉（受管 venv 里 pip install gdown）。
+ * Drive 在国内网络不可直达，需代理：优先 QUATERNIUS_PROXY 环境变量，
+ * 其次自动探测本机常见代理端口（FlClash 7890 / Clash 7890 / 常见混入端口）。
+ * 每个包解压/下载完成后落 .reserve-ok 标记，重跑跳过。
+ * 文件夹 ID 从各包页面抓取钉死（2026-10-11）：
+ *   quaternius.com/packs/<pack>.html 里 grep drive.google.com/drive/folders/
+ */
+const QUATERNIUS = {
+  id: 'quaternius',
+  license: 'CC0-1.0',
+  homepage: 'https://quaternius.com',
+  note: '高模飞船/太空套件/科幻枪械/机甲异形（GLTF+FBX+OBJ），Kenney 低模的升级备选',
+  gdownModule: 'gdown', // python -m gdown
+  packs: [
+    { pack: 'ultimatespaceships', folderId: '1NpfT3wqe2k3Jwue2xryi7tzxP4bWzETu' },
+    { pack: 'spaceships', folderId: '1ZxWZ-KuSOA-9s53PA1B1-O0txRJvne2i' },
+    { pack: 'ultimatespacekit', folderId: '17F8HlI2zPTlo32aieW5YPPwOk78xo-2m' },
+    { pack: 'ultimatemodularscifi', folderId: '1zpr6HxVa-sCV93IHubN3A1d8HhF2wGbM' },
+    { pack: 'scifimodularguns', folderId: '1P5j8xZyIEmZGHjGYmIgYCev9SVmB-IHC' },
+    { pack: 'scifigun', folderId: '1jaszGQ7QN2KIWFFoOVYy8y8qFe27yVL2' },
+    { pack: 'animatedmech', folderId: '1sueV_4CGMpZC8y30mWfgKK9UaT3mkHBX' },
+    { pack: 'animatedalien', folderId: '1ADdETHqjSIEUhjKjhLB9hQjeppXEqcvL' },
+    { pack: 'animatedrobot', folderId: '18MU0RtRu9G6SU6uSZ_zMQFmVkRlB4zH5' },
+    { pack: 'cyberpunkgamekit', folderId: '1GyKLypoBxrpLN6GERF9U610Wiub48v9y' },
+  ],
+};
+
+/** 找一个能连 Google 的代理：QUATERNIUS_PROXY 显式指定 → 否则默认 FlClash/Clash 的 7890。 */
+function resolveQuaterniusProxy() {
+  return process.env.QUATERNIUS_PROXY || 'http://127.0.0.1:7890';
+}
 
 // ---------------------------------------------------------------------------
 // 小工具
@@ -460,6 +517,37 @@ async function fetchPolyHaven() {
   return source;
 }
 
+/** 按 queries 关键词调 API 检索 assetId，与手工 ids 合并去重后截到 maxTotal。 */
+async function resolveAmbientCGIds() {
+  const merged = [...AMBIENTCG.ids];
+  const seen = new Set(merged);
+  for (const { q, limit } of AMBIENTCG.queries ?? []) {
+    try {
+      const res = await fetch(
+        `https://ambientcg.com/api/v2/full_json?q=${encodeURIComponent(q)}&type=Material&limit=100`,
+        { signal: AbortSignal.timeout(30_000) },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const ids = (data.foundAssets ?? []).map((a) => a.assetId).filter(Boolean).slice(0, limit);
+      let added = 0;
+      for (const id of ids) {
+        if (merged.length >= AMBIENTCG.maxTotal) break;
+        if (!seen.has(id)) {
+          seen.add(id);
+          merged.push(id);
+          added++;
+        }
+      }
+      log(`[ambientCG] 检索「${q}」→ ${ids.length} 命中，补 ${added} 套`);
+    } catch (e) {
+      log(`[ambientCG] ⚠ 检索「${q}」失败（${String(e.message).slice(0, 60)}），跳过该词`);
+    }
+    if (merged.length >= AMBIENTCG.maxTotal) break;
+  }
+  return merged;
+}
+
 async function fetchAmbientCG() {
   const dest = path.join(RESERVE, 'ambientcg');
   const source = {
@@ -473,12 +561,14 @@ async function fetchAmbientCG() {
   };
 
   if (LIST_ONLY) {
-    AMBIENTCG.ids.forEach((id) => log(`  ${AMBIENTCG.res}  ${id}  ${AMBIENTCG.zipUrl(id)}`));
+    const ids = CHECK_ONLY ? AMBIENTCG.ids : await resolveAmbientCGIds();
+    ids.forEach((id) => log(`  ${AMBIENTCG.res}  ${id}  ${AMBIENTCG.zipUrl(id)}`));
     return source;
   }
 
-  log(`\n[ambientCG] 共 ${AMBIENTCG.ids.length} 套材质 @ ${AMBIENTCG.res}，开始下载 …`);
-  await pool(AMBIENTCG.ids, 4, async (id, idx) => {
+  const ids = await resolveAmbientCGIds();
+  log(`\n[ambientCG] 共 ${ids.length} 套材质 @ ${AMBIENTCG.res}，开始下载 …`);
+  await pool(ids, 4, async (id, idx) => {
     const zipName = `${id}_${AMBIENTCG.res}-JPG.zip`;
     const zipPath = path.join(ARCHIVES, 'ambientcg', zipName);
     const outDir = path.join(dest, id);
@@ -543,6 +633,91 @@ async function fetchAmbientCG() {
       }
     }
   });
+
+  return source;
+}
+
+/** Quaternius：gdown 按 Drive 文件夹拉 zip（zip 只解 GLTF 包，其余格式留压缩包备用）。 */
+async function fetchQuaternius() {
+  const dest = path.join(RESERVE, 'quaternius');
+  const source = {
+    ...QUATERNIUS,
+    extractedTo: 'quaternius',
+    packs: undefined,
+    folders: QUATERNIUS.packs.map((p) => p.pack),
+    files: [],
+  };
+
+  if (LIST_ONLY) {
+    log('\n[Quaternius] 计划抓取的 Drive 文件夹：');
+    for (const p of QUATERNIUS.packs) log(`  ${p.pack.padEnd(22)} https://drive.google.com/drive/folders/${p.folderId}`);
+    return source;
+  }
+
+  // 依赖自检：gdown 必须在受管 venv 里（可用 QUATERNIUS_PYTHON 覆盖）
+  const pyCandidates = [
+    process.env.QUATERNIUS_PYTHON,
+    'C:/Users/Administrator/.workbuddy/binaries/python/envs/default/Scripts/python.exe',
+  ].filter(Boolean);
+  let py = null;
+  for (const c of pyCandidates) {
+    if (await exists(c)) {
+      py = c;
+      break;
+    }
+  }
+  if (!py) {
+    log('[Quaternius] ⚠ 未找到受管 python，跳过本源（手动装 gdown 后重跑可补）');
+    source.skipped = 'no-python';
+    return source;
+  }
+
+  const proxy = resolveQuaterniusProxy();
+  log(`\n[Quaternius] ${QUATERNIUS.packs.length} 个包，gdown 代理 = ${proxy}`);
+
+  for (const { pack, folderId } of QUATERNIUS.packs) {
+    const packDir = path.join(dest, pack);
+    const marker = await readMarker(packDir);
+    if (marker && marker.folderId === folderId && (await exists(packDir))) {
+      source.files.push({
+        pack,
+        path: `quaternius/${pack}`,
+        bytes: marker.bytes,
+        fileCount: marker.fileCount,
+      });
+      log(`[Quaternius] ${pack} 已就绪（${marker.fileCount} 个文件 / ${mb(marker.bytes)}），跳过`);
+      continue;
+    }
+    try {
+      await fsp.mkdir(packDir, { recursive: true });
+      // 关键：必须清掉 env 里的 http_proxy 等变量 —— 本机 env 里钉着一个已失效的
+      // 127.0.0.1:5301，gdown 内部有一段请求不接收 --proxy、回落 env → 502。
+      // 清干净后统一走 --proxy 指定的端口。
+      const cleanEnv = { ...process.env };
+      for (const k of ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY']) {
+        delete cleanEnv[k];
+      }
+      execFileSync(
+        py,
+        [
+          '-m', 'gdown',
+          '--folder', `https://drive.google.com/drive/folders/${folderId}`,
+          '-O', packDir,
+          '--proxy', proxy,
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'], timeout: 600_000, env: cleanEnv },
+      );
+      const t = await walkTree(packDir);
+      if (t.files === 0) throw new Error('下载后目录为空');
+      await writeMarker(packDir, { pack, folderId, fileCount: t.files, bytes: t.bytes });
+      source.files.push({ pack, path: `quaternius/${pack}`, bytes: t.bytes, fileCount: t.files });
+      log(`[Quaternius] ${pack} → ${t.files} 个文件 / ${mb(t.bytes)}`);
+    } catch (e) {
+      const msg = String(e.message ?? e).slice(0, 100);
+      log(`[Quaternius] ⚠ ${pack} 失败: ${msg}`);
+      source.files.push({ pack, path: `quaternius/${pack}`, bytes: 0, failed: msg });
+    }
+  }
 
   return source;
 }
@@ -623,6 +798,20 @@ function writeIndex(manifest) {
     L.push('');
   }
 
+  const qt = manifest.sources.find((s) => s.id === 'quaternius');
+  if (qt) {
+    L.push('## Quaternius 模型包');
+    L.push('');
+    L.push(`共 ${(qt.files || []).filter((f) => !f.failed).length}/${(qt.files || []).length} 个包。高模 GLTF/FBX/OBJ，Kenney 低模的升级备选（第三批「模型材质」的素材来源）。`);
+    L.push('');
+    L.push('| 包 | 文件 | 体积 |');
+    L.push('| -- | ---- | ---- |');
+    for (const f of qt.files || []) {
+      L.push(`| \`${f.pack}\` | ${f.fileCount ?? '-'} | ${f.failed ? `⚠ ${f.failed}` : mb(f.bytes || 0)} |`);
+    }
+    L.push('');
+  }
+
   L.push('## 复验');
   L.push('');
   L.push('```bash');
@@ -640,7 +829,7 @@ async function main() {
 
   const sources = [];
   // 单源失败不拖垮全局：备用库的价值在「已抓到的部分」，清单照常产出
-  for (const fetcher of [fetchKenney, fetchPolyHaven, fetchAmbientCG]) {
+  for (const fetcher of [fetchKenney, fetchPolyHaven, fetchAmbientCG, fetchQuaternius]) {
     try {
       sources.push(await fetcher());
     } catch (e) {

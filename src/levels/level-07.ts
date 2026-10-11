@@ -4,7 +4,7 @@ export const level07Config = {
   description: 'Engage in a massive fleet battle.',
   difficulty: 'hard',
   environment: {
-    skybox: 'env-space-01',
+    skybox: 'env-fleet-01',
     nebula: true,
     asteroidField: false,
     lighting: 'normal',

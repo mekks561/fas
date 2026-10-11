@@ -4,7 +4,7 @@ export const level08Config = {
   description: 'Survive the chaotic maelstrom of enemy forces.',
   difficulty: 'hard',
   environment: {
-    skybox: 'env-nebula-01',
+    skybox: 'env-maelstrom-01',
     nebula: true,
     asteroidField: true,
     lighting: 'dramatic',

@@ -4,7 +4,7 @@ export const level04Config = {
   description: 'Face the enemy in the depths of space.',
   difficulty: 'medium',
   environment: {
-    skybox: 'env-space-01',
+    skybox: 'env-deep-01',
     nebula: true,
     asteroidField: false,
     lighting: 'dark',

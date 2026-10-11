@@ -11,12 +11,23 @@ export type GameConfig = GameEngineConfig;
 export interface PbrSetDef {
   diffuseMap: string;
   normalMap?: string;
-  /** 粗糙度标量（0 光滑 → 1 全哑光）。ambientCG 的 Roughness 图极性与
-   * PlayCanvas 的 glossMap 相反（白=粗糙 vs 白=光滑），直接贴会反，
-   * 所以这里用标量、不贴图。 */
+  /**
+   * 粗糙度贴图（ambientCG 的 Roughness 通道，白 = 粗糙）。
+   * 走 PlayCanvas 的 `glossMap` + `glossInvert = true` 组合：glossInvert 的语义
+   * 就是「把 gloss 成员当 roughness 解释」，所以可以直贴，无需预生成反相图。
+   * （早前注释判断「极性相反不能贴」是在不知道 glossInvert 时下的，已作废。）
+   */
+  roughnessMap?: string;
+  /** 环境光遮蔽贴图（ambientCG 的 AmbientOcclusion 通道）。 */
+  aoMap?: string;
+  /** 金属度贴图（ambientCG 的 Metalness 通道）。就绪时逐像素调制 metalness。 */
+  metalnessMap?: string;
+  /** 粗糙度标量（0 光滑 → 1 全哑光）。roughnessMap 就绪时作为其乘数基准。 */
   roughness: number;
-  /** 金属度标量（0 非金属 → 1 纯金属）。 */
+  /** 金属度标量（0 非金属 → 1 纯金属）。metalnessMap 就绪时作为其乘数基准。 */
   metalness: number;
+  /** 法线强度（默认 0.8）。岩石类可调高以获得更硬的凹凸。 */
+  bumpiness?: number;
 }
 
 /** 环境光照（IBL）运行状态。只读观测面——验证脚本读它，不另建影子状态。 */
@@ -455,11 +466,15 @@ export class PlayCanvasGameEngine implements GameEngine {
       container.addChild(holder);
 
       // 9 种岩石外壳随机分配；失败则静默保留上面的程序化模型。
-      // GLB 替换完成后叠加 ambientCG 岩石 PBR（真实矿物质感）。
+      // GLB 替换完成后按**外壳**叠加对应岩石 PBR（晶体岩单列，见 rockSetForAsteroid）。
       this.getModelAssets().upgradeStructure(holder, placeholder, 'asteroid', {
         scaleMultiplier: scale * ModelAssetProvider.structureScale(),
         yaw: Math.random() * 360,
-        onReplaced: (instance) => this.applyPbrMaterialWhenReady(instance, 'rock'),
+        onReplaced: (instance, assetPath) =>
+          this.applyPbrMaterialWhenReady(
+            instance,
+            PlayCanvasGameEngine.rockSetForAsteroid(assetPath),
+          ),
       });
     }
 
@@ -621,26 +636,89 @@ export class PlayCanvasGameEngine implements GameEngine {
     return PlayCanvasGameEngine._tonemapModes;
   }
 
-  /** 一套 PBR 材质的贴图与标量参数。 */
+  /**
+   * 一套 PBR 材质的贴图与标量参数。
+   *
+   * 贴图全部来自 ambientCG（CC0），通道文件是小写约定名
+   * `color / normal / roughness / ao / metalness`（不带后缀的通道直接省略）。
+   * 这些通道由 `public/assets/textures/pbr/ambientcg/` 的全套包挑出，
+   * 原始全套仍完整保留在 `.workbuddy/asset-cache/ambientcg/` 备用库中。
+   */
   public static readonly PBR_SETS: Record<string, PbrSetDef> = {
+    // ── 岩石（小行星带）：三套轮换，避免整条带子是同一种石头 ─────────────
     rock: {
       diffuseMap: '/assets/textures/pbr/rock030/color.jpg',
+      normalMap: '/assets/textures/pbr/rock030/normal.jpg',
+      roughnessMap: '/assets/textures/pbr/rock030/roughness.jpg',
+      aoMap: '/assets/textures/pbr/rock030/ao.jpg',
       roughness: 0.9,
       metalness: 0.0,
+      bumpiness: 1.0,
     },
+    rockB: {
+      diffuseMap: '/assets/textures/pbr/rock058/color.jpg',
+      normalMap: '/assets/textures/pbr/rock058/normal.jpg',
+      roughnessMap: '/assets/textures/pbr/rock058/roughness.jpg',
+      aoMap: '/assets/textures/pbr/rock058/ao.jpg',
+      roughness: 0.88,
+      metalness: 0.0,
+      bumpiness: 1.0,
+    },
+    // 晶体岩（rock_crystalsLargeA/B 外壳专配）：更硬的凹凸 + 更低粗糙度，
+    // 让结晶面有方向性的高光。
+    rockC: {
+      diffuseMap: '/assets/textures/pbr/rock064/color.jpg',
+      normalMap: '/assets/textures/pbr/rock064/normal.jpg',
+      roughnessMap: '/assets/textures/pbr/rock064/roughness.jpg',
+      aoMap: '/assets/textures/pbr/rock064/ao.jpg',
+      roughness: 0.72,
+      metalness: 0.0,
+      bumpiness: 1.25,
+    },
+
+    // ── 空间站舱段：金属板，全套通道（含金属度贴图）──────────────────────
     metalPlates: {
       diffuseMap: '/assets/textures/pbr/metalplates016a/color.jpg',
       normalMap: '/assets/textures/pbr/metalplates016a/normal.jpg',
+      roughnessMap: '/assets/textures/pbr/metalplates016a/roughness.jpg',
+      aoMap: '/assets/textures/pbr/metalplates016a/ao.jpg',
+      metalnessMap: '/assets/textures/pbr/metalplates016a/metalness.jpg',
       roughness: 0.45,
       metalness: 0.85,
+      bumpiness: 0.9,
     },
+
+    // ── 卫星天线：抛光金属（无 AO 通道，靠法线 + 逐像素粗糙度）────────────
     metal: {
       diffuseMap: '/assets/textures/pbr/metal049a/color.jpg',
       normalMap: '/assets/textures/pbr/metal049a/normal.jpg',
+      roughnessMap: '/assets/textures/pbr/metal049a/roughness.jpg',
+      metalnessMap: '/assets/textures/pbr/metal049a/metalness.jpg',
       roughness: 0.35,
       metalness: 0.85,
+      bumpiness: 0.7,
     },
   };
+
+  /** 小行星带可用的岩石材质集合（三套轮换，按外壳路径分派见 rockSetForAsteroid）。 */
+  public static readonly ASTEROID_MATERIAL_SETS: readonly string[] = ['rock', 'rockB', 'rockC'];
+
+  /**
+   * 小行星外壳 GLB 相对路径 → 岩石材质套件。
+   *
+   * 分派刻意做成**确定性**（按路径散列）而非每次随机：
+   * 同一个外壳 GLB 在任何一局、任何一颗小行星上都拿同一套石头，
+   * 否则「同一块岩石转个角度材质就变了」会在密集的小行星带里被看出来。
+   *
+   * 晶体岩（`rock_crystalsLarge*`）单列 —— 它的几何有结晶面，
+   * 配 rockC（更硬的凹凸 1.25 + 更低粗糙度 0.72）才有方向性高光。
+   */
+  public static rockSetForAsteroid(assetPath: string): string {
+    if (assetPath.includes('crystals')) return 'rockC';
+    let h = 0;
+    for (let i = 0; i < assetPath.length; i++) h = (h * 31 + assetPath.charCodeAt(i)) | 0;
+    return (h & 1) === 0 ? 'rock' : 'rockB';
+  }
 
   public static get ALL_PBR_TEXTURE_URLS(): string[] {
     return Object.values(PlayCanvasGameEngine.PBR_SETS).flatMap((s) =>
@@ -720,13 +798,39 @@ export class PlayCanvasGameEngine implements GameEngine {
         material.diffuseMap = diffuse;
         material.diffuse = new pc.Color(1, 1, 1); // 让贴图原色说话
         material.useMetalness = true;
-        material.roughness = def.roughness;
         material.metalness = def.metalness;
+
+        // 粗糙度：有贴图就完全交给贴图，没有才用标量。
+        // 组合方式照抄引擎官方 glTF 导入器的 createMaterial：
+        //   gloss = 1（标量不衰减贴图）+ glossMap（贴 roughness 图）+ glossInvert = true
+        // glossInvert 的语义是「把 gloss 成员当 roughness 解释」，所以可以直接贴
+        // ambientCG 的 Roughness 图（白 = 粗糙），不必预生成反相图。
+        const rough = def.roughnessMap ? this.getPbrTexture(def.roughnessMap) : undefined;
+        if (rough) {
+          material.gloss = 1;
+          material.glossMap = rough;
+          material.glossInvert = true;
+        } else {
+          material.roughness = def.roughness;
+        }
+
         const normal = def.normalMap ? this.getPbrTexture(def.normalMap) : undefined;
         if (normal) {
           material.normalMap = normal;
-          material.bumpiness = 0.8;
+          material.bumpiness = def.bumpiness ?? 0.8;
         }
+
+        const metalMap = def.metalnessMap ? this.getPbrTexture(def.metalnessMap) : undefined;
+        if (metalMap) material.metalnessMap = metalMap;
+
+        const ao = def.aoMap ? this.getPbrTexture(def.aoMap) : undefined;
+        if (ao) {
+          material.aoMap = ao;
+          // AO 同时遮挡环境光与镜面高光（官方 glTF 同款）。默认只压漫射，
+          // 会让金属在缝隙处「亮得不合理」。
+          material.occludeSpecular = pc.SPECOCC_AO;
+        }
+
         material.update();
         meshInstance.material = material;
         applied++;

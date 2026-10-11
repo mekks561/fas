@@ -55,12 +55,35 @@ export const getLevelByIndex = (index: number): LevelConfig | undefined => {
  * 关卡天幕 id → 贴图 URL。
  * Kenney「Skyboxes」（CC0），见 public/assets/textures/CREDITS.md。
  * 未登记的 id（或加载失败）由调用方回落默认天幕。
+ *
+ * ⚠ 天幕贴图是**风格化的 LDR 全景图**（4096×2048 PNG），与 ENV_HDRI 的物理 HDR
+ * 是两套东西：天幕决定「你看到什么」，ENV_HDRI 决定「光照从哪来、什么颜色」。
+ * 两者同键但不要求同源 —— 太空场景里「深空天幕 + 有色温的环境光」是常见搭配
+ * （远处恒星/星云照亮舰体，天空本身仍是黑的）。
+ *
+ * Kenney 只有 5 张可选，其中 day(0.75)/morning(0.91) 亮度太高，配深空夜战会
+ * 「天比舰亮」，故 10 关只在 space/night/alien 三张里按环境光色温搭配。
  */
 export const SKYBOX_TEXTURES: Record<string, string> = {
-  'env-space-01': '/assets/textures/skybox-space.png',
-  'env-nebula-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-night.png',
-  'env-station-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-alien.png',
+  //        id                  天幕              搭配的环境光（色温）
+  'env-space-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-space.png', // 深蓝星云 ← 中性冷灰
+  'env-debris-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-night.png', // 夜空 ← 微暖暗
+  'env-station-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-alien.png', // 紫调异形 ← 影棚中性
+  'env-deep-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-space.png', // 深空 ← 极暗
+  'env-sentinel-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-space.png', // 深蓝 ← 亮中性
+  'env-hidden-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-night.png', // 夜空 ← 强冷蓝
+  'env-fleet-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-night.png', // 夜空 ← 冷蓝工业
+  'env-maelstrom-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-night.png', // 夜空 ← 暖暗
+  'env-approach-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-night.png', // 夜空 ← 暖橙
+  'env-overlord-01': '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-alien.png', // 紫调异形 ← 冷蓝紫
 };
+
+/**
+ * 默认天幕（未登记的 id / 关卡配置缺失时回落）。
+ * 与 SKYBOX_TEXTURES 指向同一批 Kenney 素材 —— 这里保留一份显式常量，
+ * 是为了让「回落」也有唯一真源，而不是散落在调用方里的字面量路径。
+ */
+export const DEFAULT_SKYBOX = '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-space.png';
 
 /**
  * 关卡光照档位 → 主平行光强度（normal 档 = 原硬编码值 1.5）。
@@ -86,13 +109,42 @@ export const LEVEL_LIGHTING: Record<string, { sunIntensity: number }> = {
 
 /**
  * 关卡天幕 id → 环境贴图（HDR，equirect 2:1）。
- * 与 SKYBOX_TEXTURES 同键：一次选天空，同时决定「看到的背景」与「反射的环境」。
+ * 与 SKYBOX_TEXTURES 同键：一次选环境，同时决定「反射的环境」。
  * 未登记的 id 由调用方回落 DEFAULT_ENV_HDRI。
+ *
+ * 十关十张，每关一套「亮度 × 色温」组合 —— 这是本作「氛围差异化」的主要手段。
+ * 原先 10 关只用 3 张，且实测**色温全是近中性**（天空 R-B 在 ±0.03 内），
+ * 无论打哪一关，舰体受光都是同一种灰白 → 画面上「每关都一样」。
+ *
+ * 下表是实测数据（天空半球平均色，equirect 上半球均值）：
+ *
+ *   id                  亮度     暖度(R−B)   特征
+ *   env-deep-01         0.072    +0.016    极暗（纯黑深空）
+ *   env-debris-01       0.210    +0.074    暗·微暖
+ *   env-maelstrom-01    0.259    +0.203    暗·暖（暖色轮廓光）
+ *   env-space-01        0.303    −0.013    暗·中性（基准）
+ *   env-station-01      0.441    +0.028    中·影棚中性
+ *   env-fleet-01        0.883    −0.364    亮·冷蓝（工业）
+ *   env-overlord-01     1.094    −0.294    亮·冷蓝紫
+ *   env-hidden-01       1.100    −0.620    亮·强冷蓝
+ *   env-approach-01     1.187    +0.375    亮·暖橙
+ *   env-sentinel-01     1.219    −0.028    亮·中性
+ *
+ * 新增的 4 张（fleet/hidden/overlord/approach）来自备用素材库
+ * `.workbuddy/asset-cache/polyhaven/`：它们是库里少见的「有色温倾向」的天空
+ * （其余 100+ 张同样偏中性，换上也不会有氛围差异）。
  */
 export const ENV_HDRI: Record<string, string> = {
-  'env-space-01': '/assets/textures/hdr/rogland_clear_night_2k.hdr',
-  'env-nebula-01': '/assets/textures/hdr/qwantani_night_2k.hdr',
-  'env-station-01': '/assets/textures/hdr/qwantani_moonrise_2k.hdr',
+  'env-space-01': '/assets/textures/hdr/rogland_clear_night_2k.hdr', // 1 初次接触：基准深空
+  'env-debris-01': '/assets/textures/hdr/moonless_golf_2k.hdr', // 2 陨石航道：无月暗场
+  'env-station-01': '/assets/textures/hdr/monochrome_studio_02_1k.hdr', // 3 空间站防御：人工白光
+  'env-deep-01': '/assets/textures/hdr/satara_night_no_lamps_2k.hdr', // 4 深空：近乎全黑
+  'env-sentinel-01': '/assets/textures/hdr/qwantani_moonrise_2k.hdr', // 5 Boss·哨兵：月出强光
+  'env-hidden-01': '/assets/textures/hdr/qwantani_dusk_1_puresky_2k.hdr', // 6 隐藏基地：强冷蓝
+  'env-fleet-01': '/assets/textures/hdr/industrial_sunset_puresky_2k.hdr', // 7 舰队战：冷蓝工业
+  'env-maelstrom-01': '/assets/textures/hdr/solitude_night_2k.hdr', // 8 漩涡：暖色暗场
+  'env-approach-01': '/assets/textures/hdr/qwantani_sunset_puresky_2k.hdr', // 9 最终接近：暖橙
+  'env-overlord-01': '/assets/textures/hdr/qwantani_dusk_2_puresky_2k.hdr', // 10 Boss·帝王：冷蓝紫
 };
 
 /** 环境贴图默认值（未登记天幕 id / 生存模式）。 */

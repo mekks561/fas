@@ -4,7 +4,7 @@ export const level05Config = {
   description: 'Face the Sentinel, the guardian of the enemy fleet.',
   difficulty: 'hard',
   environment: {
-    skybox: 'env-nebula-01',
+    skybox: 'env-sentinel-01',
     nebula: true,
     asteroidField: false,
     lighting: 'dramatic',

@@ -101,7 +101,7 @@ check('playerMaxHealth（配置 player.health）', s.playerMaxHealth, 100);
 check('maxWaves（配置波数，非 Lua 默认 10）', s.maxWaves, 3);
 check('asteroidCount（本关无小行星带）', s.asteroidCount, 0);
 check('skybox id', s.skybox, 'env-space-01');
-check('skyboxUrl 映射', s.skyboxUrl, '/assets/textures/skybox-space.png');
+check('skyboxUrl 映射', s.skyboxUrl, '/assets/kenney/2d/Skyboxes/Skyboxes/skybox-space.png');
 
 console.log('\n===== C. 关卡进度与解锁（差分）=====');
 // 注入「第 1 关已通关」的存档（模拟真实通关后的写入），刷新后第 2 关应解锁
@@ -147,7 +147,7 @@ if (ready2) {
   check('levelId（第 2 关）', s2.levelId, 'level-02');
   check('asteroidCount（本关有行星带，≠ 第 1 关的 0）', s2.asteroidCount, 40);
   check('playerMaxShield（本关 75，≠ 第 1 关的 50）', s2.playerMaxShield, 75);
-  check('skybox id（本关星云，≠ 第 1 关的太空）', s2.skybox, 'env-nebula-01');
+  check('skybox id（本关陨石带，≠ 第 1 关的太空）', s2.skybox, 'env-debris-01');
   check('lighting 档位（本关 dim，≠ 第 1 关的 normal）', s2.lighting, 'dim');
 }
 

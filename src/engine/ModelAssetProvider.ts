@@ -104,11 +104,15 @@ export interface AttachOptions {
   /** 绕 Y 轴的朝向修正（度） */
   yaw?: number;
   /**
-   * GLB 实例替换占位模型**之后**的回调（拿到新实例）。
+   * GLB 实例替换占位模型**之后**的回调（拿到新实例 + 实际选中的素材相对路径）。
    * 用于追加材质/特效等后处理 —— 此时占位模型已销毁，
    * 直接对 placeholder 施加的任何改动都会随销毁而丢失。
+   *
+   * 第二参数 `assetPath` 是本次真正加载的 GLB 相对路径（如
+   * `structures/rock_crystalsLargeA`）。结构物有多个候选外壳时，调用方
+   * 可以据此做「不同外壳配不同材质」的分派。
    */
-  onReplaced?: (instance: pc.Entity) => void;
+  onReplaced?: (instance: pc.Entity, assetPath: string) => void;
 }
 
 /**
@@ -208,7 +212,7 @@ export class ModelAssetProvider {
 
       parent.addChild(instance);
       placeholder.destroy();
-      options.onReplaced?.(instance);
+      options.onReplaced?.(instance, relPath);
       console.log(`[ModelAssetProvider] ${relPath}.glb 已替换程序化模型`);
     });
   }

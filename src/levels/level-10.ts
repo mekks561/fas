@@ -4,7 +4,7 @@ export const level10Config = {
   description: 'Face the ultimate challenge - the Overlord awaits.',
   difficulty: 'extreme',
   environment: {
-    skybox: 'env-nebula-01',
+    skybox: 'env-overlord-01',
     nebula: true,
     asteroidField: false,
     lighting: 'dramatic',

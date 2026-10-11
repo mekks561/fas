@@ -15,7 +15,7 @@
  *   4. toneMapping = 4（aces2，非默认 linear=0）
  *   5. exposure = 1.0（normal 档 ×1.0）
  *  B. level-02（天幕 env-nebula-01 / 光照 dim）——与 A 差分
- *   6. url 换成 qwantani_night_2k.hdr（天幕 id 真的换了环境贴图）
+ *   6. url 换成 moonless_golf_2k.hdr（天幕 id 真的换了环境贴图）
  *   7. exposure = 1.15（dim 档 ×1.15，非 A 的 1.0）
  *  C. level-04（天幕 env-space-01 / 光照 dark）
  *   8. exposure ≈ 1.35（dark 档补偿最高）
@@ -128,23 +128,23 @@ checkClose('A6 曝光（normal ×1.0）', envA?.exposure, 1.0);
 await page.screenshot({ path: `${OUT_DIR}/env-01-level01.png` });
 console.log('  截图: env-01-level01.png');
 
-// ── B. level-02：dim 光照 / env-nebula-01（与 A 差分）──────────────────────
-console.log('=== B. level-02（陨石航道，dim / env-nebula-01）===');
+// ── B. level-02：dim 光照 / env-debris-01（与 A 差分）────────────────────
+console.log('=== B. level-02（陨石航道，dim / env-debris-01）===');
 await enterLevel(2, '陨石航道');
 const envB = await waitForEnv();
 console.log('  environment =', JSON.stringify(envB));
-check('B1 环境贴图 url（换关卡换 HDR）', envB?.url, '/assets/textures/hdr/qwantani_night_2k.hdr');
+check('B1 环境贴图 url（换关卡换 HDR）', envB?.url, '/assets/textures/hdr/moonless_golf_2k.hdr');
 check('B2 status', envB?.status, 'ready');
 check('B3 envAtlas 已挂载', envB?.envAtlas, true);
 checkClose('B4 曝光（dim ×1.15，≠ A 的 1.0）', envB?.exposure, 1.15);
 await page.screenshot({ path: `${OUT_DIR}/env-02-level02.png` });
 
-// ── C. level-04：dark 光照 / env-space-01 ────────────────────────────────
-console.log('=== C. level-04（废弃空间站，dark / env-space-01）===');
+// ── C. level-04：dark 光照 / env-deep-01 ────────────────────────────────
+console.log('=== C. level-04（深空，dark / env-deep-01）===');
 await enterLevel(4, '废弃空间站');
 const envC = await waitForEnv();
 console.log('  environment =', JSON.stringify(envC));
-check('C1 环境贴图 url', envC?.url, '/assets/textures/hdr/rogland_clear_night_2k.hdr');
+check('C1 环境贴图 url', envC?.url, '/assets/textures/hdr/satara_night_no_lamps_2k.hdr');
 check('C2 status', envC?.status, 'ready');
 checkClose('C3 曝光（dark ×1.35，补偿最高）', envC?.exposure, 1.35);
 await page.screenshot({ path: `${OUT_DIR}/env-03-level04.png` });

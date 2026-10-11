@@ -4,7 +4,7 @@ export const level09Config = {
   description: 'Make your final approach to the enemy stronghold.',
   difficulty: 'hard',
   environment: {
-    skybox: 'env-space-01',
+    skybox: 'env-approach-01',
     nebula: false,
     asteroidField: false,
     lighting: 'bright',

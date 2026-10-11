@@ -4,7 +4,7 @@ export const level06Config = {
   description: 'Infiltrate the enemy hidden base.',
   difficulty: 'medium',
   environment: {
-    skybox: 'env-space-01',
+    skybox: 'env-hidden-01',
     nebula: false,
     asteroidField: true,
     lighting: 'dim',

@@ -41,6 +41,7 @@ import { survivalModeManager } from '../engine/SurvivalModeManager';
 import {
   getLevelByIndex,
   SKYBOX_TEXTURES,
+  DEFAULT_SKYBOX,
   LEVEL_LIGHTING,
   ASTEROID_BELT,
   ENGINE_DIFFICULTY,
@@ -469,8 +470,7 @@ export const GameScene: React.FC<{
       // 映射见 src/levels/index.ts 的 SKYBOX_TEXTURES）；未登记则回落默认星空。
       // 挂在相机下 ⇒ 无限远背景；单 draw call；加载失败回落深色，不影响开局。
       const skyboxUrl =
-        SKYBOX_TEXTURES[levelConfig?.environment.skybox ?? 'env-space-01'] ??
-        '/assets/textures/skybox-space.png';
+        SKYBOX_TEXTURES[levelConfig?.environment.skybox ?? 'env-space-01'] ?? DEFAULT_SKYBOX;
       engine.createSkyDome(skyboxUrl, 400);
 
       // 粒子贴图：开局预加载全部 7 张（尾焰/导弹/命中/爆炸/道具/技能，共 ~430KB），
@@ -1233,7 +1233,7 @@ export const GameScene: React.FC<{
               skybox: levelConfig?.environment.skybox ?? null,
               skyboxUrl:
                 SKYBOX_TEXTURES[levelConfig?.environment.skybox ?? 'env-space-01'] ??
-                '/assets/textures/skybox-space.png',
+                DEFAULT_SKYBOX,
               asteroidField: levelConfig?.environment.asteroidField ?? null,
               lighting: levelConfig?.environment.lighting ?? null,
               configuredHealth: levelConfig?.player.health ?? null,

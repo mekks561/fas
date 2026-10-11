@@ -4,7 +4,7 @@ export const level02Config = {
   description: 'Navigate through dangerous asteroid fields while fighting enemies.',
   difficulty: 'easy',
   environment: {
-    skybox: 'env-nebula-01',
+    skybox: 'env-debris-01',
     nebula: true,
     asteroidField: true,
     lighting: 'dim',
