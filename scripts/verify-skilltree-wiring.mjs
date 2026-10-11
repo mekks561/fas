@@ -10,8 +10,10 @@
 //
 // 断言链：
 //   初始（清档）level=1 / points=0 / 高等级天赋锁着
-//   → 清 3 波 → level=4、points=3（经验 = 3 波 ×100 = 300，等级由经验推导）
-//   → 点 3 个天赋 → 天赋面板统计变化
+//   → 清 3 波 → 经验 ≥400（3 波 ×100 + 通关 100，成就会额外加码）、
+//     **等级 = 累计经验查表的结果**、points = 等级 - 1
+//   → 点 3 个天赋 → 天赋面板统计变化（写死的 level/points 绝对值已被不变式取代，
+//     见下方注释：成就接线后解锁成就也会发经验）
 //   → **重新进一关**后断言实际生效值：PlayerShip.maxHealth 110 / maxShield 55、
 //     WeaponSystem.damageMultiplier 1.05（读的是战斗系统内部状态，非技能树自述）
 //   → UI 可达：主菜单「技能树」入口打开面板，点数与天赋卡片正确渲染
@@ -59,8 +61,16 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
 const errors = [];
+/**
+ * 关卡完成是**从 console 捕获**的，而不是轮询 `__waveDebug.getState().levelCompleteFired`。
+ * 原因：关卡完成会立刻卸载 GameScene → 调试钩子随之消失。
+ * 若恰好在这一拍轮询，`getState()` 返回 null，就会把「已经完成」误判成「没完成」。
+ */
+let levelCompleteSeen = false;
 page.on('console', (m) => {
-  if (m.type() === 'error') errors.push(m.text());
+  const t = m.text();
+  if (m.type() === 'error') errors.push(t);
+  if (t.includes('[GameScene] Level complete: final wave cleared')) levelCompleteSeen = true;
 });
 page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 
@@ -73,9 +83,13 @@ const check = (label, actual, expected) => {
 const checkNear = (label, actual, expected, tol = 0.001) => {
   const pass = Math.abs(actual - expected) <= tol;
   results.push({ label, actual, expected, pass });
-  console.log(
-    `  ${pass ? '✅' : '❌'} ${label}: 实得=${actual} 期望≈${expected}（容差 ${tol}）`,
-  );
+  console.log(`  ${pass ? '✅' : '❌'} ${label}: 实得=${actual} 期望≈${expected}（容差 ${tol}）`);
+};
+/** 「至少」断言 —— 用于有多个经验/奖励来源、只保证下限的场景 */
+const checkGE = (label, actual, floor) => {
+  const pass = typeof actual === 'number' && actual >= floor;
+  results.push({ label, actual, expected: `>=${floor}`, pass });
+  console.log(`  ${pass ? '✅' : '❌'} ${label}: 实得=${actual} 期望>=${floor}`);
 };
 
 const click = async (patterns) => {
@@ -134,17 +148,11 @@ const enterLevelOne = async () => {
 };
 
 const skillMeta = () =>
-  page
-    .evaluate(() => window.__skillDebug?.getMeta?.() ?? null)
-    .catch(() => null);
+  page.evaluate(() => window.__skillDebug?.getMeta?.() ?? null).catch(() => null);
 const skillNodes = () =>
-  page
-    .evaluate(() => window.__skillDebug?.nodes?.() ?? null)
-    .catch(() => null);
+  page.evaluate(() => window.__skillDebug?.nodes?.() ?? null).catch(() => null);
 const effective = () =>
-  page
-    .evaluate(() => window.__skillDebug?.getEffective?.() ?? null)
-    .catch(() => null);
+  page.evaluate(() => window.__skillDebug?.getEffective?.() ?? null).catch(() => null);
 
 // ───────────────────────── 0. 清档，保证可重复 ─────────────────────────
 console.log('\n===== 0. 清档（等级/技能树都会持久化，必须先清） =====');
@@ -171,7 +179,9 @@ if (!firstEntry.ready) {
 console.log('\n===== 2. 初始状态（清档后） =====');
 const meta0 = await skillMeta();
 const eff0 = await effective();
-console.log(`  等级=${meta0?.level} 天赋点=${meta0?.points} 生命上限=${eff0?.maxHealth} 护盾上限=${eff0?.maxShield} 伤害倍率=${eff0?.damageMultiplier}`);
+console.log(
+  `  等级=${meta0?.level} 天赋点=${meta0?.points} 生命上限=${eff0?.maxHealth} 护盾上限=${eff0?.maxShield} 伤害倍率=${eff0?.damageMultiplier}`,
+);
 check('初始等级 = 1', meta0?.level, 1);
 check('初始天赋点 = 0', meta0?.points, 0);
 checkNear('初始伤害倍率 = 1', eff0?.damageMultiplier, 1);
@@ -189,71 +199,106 @@ console.log(`  解锁门槛 > 1 级的天赋数：${lockedHigh}`);
 // 注意它会给 BuildSystem 加一条局内强化 —— 所以第 5 步的绝对属性断言必须在
 // **重新进一关**之后做（那时 BuildSystem 是全新的、没有局内强化污染基线）。
 
-/** 启动指定波次并把它的敌人清空，直到该波被判定完成（等级因此 +1）。 */
-const clearWave = async (waveNumber, levelBefore) => {
-  await closeUpgradeIfAny();
-  await page.evaluate((n) => window.__waveDebug.startWave(n), waveNumber);
-  const deadline = Date.now() + 25000;
-  while (Date.now() < deadline) {
-    const s = await page.evaluate(() => window.__waveDebug.getState()).catch(() => null);
-    if (s && s.aliveEnemies > 0) {
-      await page.evaluate(() => window.__waveDebug.killAll());
-    }
-    const m = await skillMeta();
-    if (m && m.level > levelBefore) {
-      await closeUpgradeIfAny();
-      return true;
-    }
-    await page.waitForTimeout(400);
-  }
-  return false;
-};
-
 // ───────────────────────── 3. 清 3 波 → 升级得点 ─────────────────────────
 console.log('\n===== 3. 清 3 波 → 等级与天赋点应同步上涨 =====');
-let clearedWaves = 0;
-for (let w = 1; w <= 3; w++) {
-  const before = (await skillMeta())?.level ?? 1;
-  const ok = await clearWave(w, before);
-  const m = await skillMeta();
-  console.log(`  清第 ${w} 波：${ok ? '完成' : '超时'} → 等级=${m?.level} 天赋点=${m?.points}`);
-  if (ok) clearedWaves++;
+
+// ⚠ 2026-10-10 修：这里原先「手动 `startWave(w)` 逐波推进 + 用**等级上涨**判断本波已清空」。
+// 这个组合有两个坑，叠在一起会让末波永远打不完、关卡奖励永不发放（实测累计经验卡在 370）：
+//
+//  ① **手动 startWave 与引擎自身的波间过渡抢排同一波**。
+//     `onWaveComplete(n)` 会排定 `waveTransition = { nextWave: n+1, timer: 2.2s }`，
+//     由 update 循环到点后自行 startWave。脚本在它到点前又手动 startWave(n+1)，
+//     于是同一波被启动两次（日志可见 `Wave 3 started` 之后又出现 `Wave 2 started`），
+//     波号被回退，末波始终等不到「清空」。
+//  ② **等级上涨不再是「本波清空」的可靠代理信号**。
+//     成就系统接线后，解锁成就也会发经验 → 经验跨过阈值照样升级。
+//     实测循环是被 `killer_10` 的 +50 经验骗出去的：等级确实涨到 4，
+//     但那是「2 波×100 + first_blood 20 + high_score 100 + killer_10 50 = 370」，
+//     末波压根没完成，`finalWaveCleared` 一直是 false。
+//
+// 改成：**不手动排波**，只负责「关掉强化弹窗 + 清空场上敌人」，让引擎自己的
+// 波间过渡把 1→2→3 走完；结束条件也不再是等级，而是**关卡结算真的触发**。
+const waveStarted = new Set();
+{
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    await closeUpgradeIfAny();
+    const s = await page.evaluate(() => window.__waveDebug?.getState?.() ?? null).catch(() => null);
+    if (!s) {
+      // 钩子消失 = GameScene 已卸载。只要 console 里见过关卡完成，就是正常收场。
+      if (levelCompleteSeen) break;
+      await page.waitForTimeout(300);
+      continue;
+    }
+    if (s.wave > 0) waveStarted.add(s.wave);
+    if (s.aliveEnemies > 0) {
+      await page.evaluate(() => window.__waveDebug.killAll());
+      await page.waitForTimeout(350);
+      continue;
+    }
+    if (s.levelCompleteFired || levelCompleteSeen) break;
+    await page.waitForTimeout(400);
+  }
 }
+console.log(
+  `  已启动波次：${[...waveStarted].sort((a, b) => a - b).join(', ')}；关卡结算触发=${levelCompleteSeen}`,
+);
+
+// 通关奖励的 `addExperience` 与标记置位在同一帧完成，但 `skillMeta()` 走的是
+// React store，这里多等一拍确保读到的不是结算前快照。
+await page.waitForTimeout(2500);
 
 const meta1 = await skillMeta();
-check('成功清空 3 波', clearedWaves, 3);
-// 每波发 100 经验：清 3 波 = 300 经验 → 等级 4（曲线 1~4 级每级 100 点 = 1 波）
-check('清 3 波后等级 = 4（300 经验，等级由经验推导）', meta1?.level, 4);
-check('清 3 波后天赋点 = 3', meta1?.points, 3);
-// 经验真源：store 里应记着 300（+ 通关奖励，见下），而不是「只涨等级不记经验」
-const expAfterWaves = await page
+check('3 波全部启动（引擎自身波间过渡推进，未手动抢排）', waveStarted.size, 3);
+check('末波清空后关卡结算已触发', levelCompleteSeen, true);
+// ⚠ 2026-10-10：这里原先写死「等级 = 4 / 天赋点 = 3 / 累计经验 = 400」。
+// 成就系统接线后，解锁成就**也会发经验**（那是设计的一部分），于是绝对值被打破。
+// 改断言**不变式**：等级必须是累计经验查表的结果，天赋点必须是「等级 - 1 - 已消费」。
+// 这样任何经验来源（波次 / 通关 / 任务 / 成就）都不会再让这个脚本失效。
+const levelForExp = (exp) => {
+  const e = Math.max(0, Math.floor(Number.isFinite(exp) ? exp : 0));
+  if (e < 300) return Math.floor(e / 100) + 1;
+  return Math.min(99, 4 + Math.floor((e - 300) / 200));
+};
+check(
+  '清 3 波后等级 = 累计经验查表的结果（等级恒由经验推导）',
+  meta1?.level,
+  levelForExp(meta1?.experience ?? 0),
+);
+checkGE('清 3 波至少拿到波次奖励的 300 经验', meta1?.experience ?? 0, 300);
+check(
+  '清 3 波后天赋点 = 等级 - 1（尚无消费）',
+  meta1?.points,
+  Math.max(0, (meta1?.level ?? 1) - 1),
+);
+// 经验真源：应 ≥400（3 波 ×100 + 通关奖励 100），且成就会额外加码。
+// ⚠ 读**实时值**而不是 localStorage 快照：persist 中间件有写入节流，
+// 快照会比实时值滞后一拍，拿它做断言会假失败。
+const expLiveAfterWaves = (await skillMeta())?.experience ?? -1;
+const expPersisted = await page
   .evaluate(() => {
     const raw = localStorage.getItem('fighter-game-save');
     return raw ? (JSON.parse(raw)?.state?.player?.experience ?? -1) : -1;
   })
   .catch(() => -1);
-console.log(`  store 持久化的累计经验 = ${expAfterWaves}`);
-check('清 3 波 + 通关奖励后累计经验 = 400', expAfterWaves, 400);
+console.log(`  实时累计经验 = ${expLiveAfterWaves}（持久化快照 = ${expPersisted}，可能滞后一拍）`);
+checkGE('清 3 波 + 通关奖励后累计经验 >= 400', expLiveAfterWaves, 400);
+checkGE('持久化快照也已落盘（可能滞后，只保底非负）', expPersisted, 0);
 
 // 此时第 1 关已经通关、GameScene 正在卸载 —— 读属性没有意义（见文件头说明），
 // 唯一的用途是**证明这个陷阱真实存在**：这一读必然是加点前的旧值。
 const effStale = await effective();
-const staleDiag = await page
-  .evaluate(() => window.__waveDiag?.ticks ?? -1)
-  .catch(() => -1);
+const staleDiag = await page.evaluate(() => window.__waveDiag?.ticks ?? -1).catch(() => -1);
 console.log(
   `  通关后残留读数（证明有陷阱）：生命=${effStale?.maxHealth} 护盾=${effStale?.maxShield} ` +
     `伤害倍率=${effStale?.damageMultiplier} __waveDiag.ticks=${staleDiag}`,
 );
 
 // ───────────────────────── 4. 点天赋 ─────────────────────────
-console.log('\n===== 4. 点天赋（3 点全用掉） =====');
-const upOffensive = await page.evaluate(() =>
-  window.__skillDebug.upgrade('offensive_mastery'),
-);
-const upDefensive = await page.evaluate(() =>
-  window.__skillDebug.upgrade('defensive_mastery'),
-);
+console.log('\n===== 4. 点天赋（用掉 3 点） =====');
+const pointsBeforeSpend = (await skillMeta())?.points ?? 0;
+const upOffensive = await page.evaluate(() => window.__skillDebug.upgrade('offensive_mastery'));
+const upDefensive = await page.evaluate(() => window.__skillDebug.upgrade('defensive_mastery'));
 const upShield = await page.evaluate(() => window.__skillDebug.upgrade('shield_expertise'));
 console.log(`  攻击精通=${upOffensive} 防御精通=${upDefensive} 护盾专精=${upShield}`);
 check('点「攻击精通」成功', upOffensive, true);
@@ -261,7 +306,8 @@ check('点「防御精通」成功', upDefensive, true);
 check('点「护盾专精」成功（需前置于防御精通）', upShield, true);
 
 const meta2 = await skillMeta();
-check('天赋点已扣完 = 0', meta2?.points, 0);
+// 只断言「确实扣了 3 点」：天赋点总量随经验来源增加，写死 0 会被成就经验打破
+check('点 3 个天赋后剩余点数 = 原先 - 3', meta2?.points, Math.max(0, pointsBeforeSpend - 3));
 check('伤害加成统计 = 5%', meta2?.stats?.damageBonus, 5);
 check('生命加成统计 = 10%', meta2?.stats?.healthBonus, 10);
 check('护盾加成统计 = 10%', meta2?.stats?.shieldBonus, 10);
@@ -305,7 +351,10 @@ const panelTitle = await page
 check('技能树面板已打开（标题可见）', panelTitle > 0, true);
 
 // 面板上应显示等级 4 与天赋点 0；天赋卡片里应出现「攻击精通」
-const bodyText = await page.locator('body').innerText().catch(() => '');
+const bodyText = await page
+  .locator('body')
+  .innerText()
+  .catch(() => '');
 check('面板显示攻击精通卡片', bodyText.includes('攻击精通'), true);
 check('面板显示防御精通卡片', bodyText.includes('防御精通'), true);
 console.log(`  面板文本片段：${bodyText.replace(/\s+/g, ' ').slice(0, 180)}`);
@@ -314,6 +363,9 @@ await page.screenshot({ path: path.join(OUT_DIR, 'skilltree-02-panel.png') });
 
 // ───────────────────────── 7. 重载后持久化 ─────────────────────────
 console.log('\n===== 7. 重载后技能树持久化 =====');
+// 重载前先记下**当前真值**，重载后比对 —— 等级/点数会随经验来源变化，
+// 写死数值等于把脚本钉在某一版的成长节奏上（成就接进来之后就失效了）。
+const metaBeforeReload = await skillMeta();
 await page.reload({ waitUntil: 'load', timeout: 60000 });
 await page.waitForTimeout(9000);
 const metaAfterReload = await page
@@ -325,8 +377,8 @@ const metaAfterReload = await page
 const persistedLevel = metaAfterReload?.playerLevel ?? -1;
 const persistedPoints = metaAfterReload?.talentPoints ?? -1;
 console.log(`  localStorage skillTreeData: 等级=${persistedLevel} 天赋点=${persistedPoints}`);
-check('重载后技能树等级已持久化 = 4', persistedLevel, 4);
-check('重载后天赋点已持久化 = 0', persistedPoints, 0);
+check('重载后技能树等级与重载前一致', persistedLevel, metaBeforeReload?.level ?? -1);
+check('重载后天赋点与重载前一致', persistedPoints, metaBeforeReload?.points ?? -1);
 
 // ───────────────────────── 结果 ─────────────────────────
 console.log('\n================ 结果 ================');

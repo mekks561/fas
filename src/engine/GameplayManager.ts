@@ -272,6 +272,10 @@ export class GameplayManager {
       enemiesKilledByType: {
         [isBoss ? 'boss' : isElite ? 'elite' : enemyType]: 1,
       },
+      // Boss 额外按**具体敌机类型**记一笔。`enemiesKilledByType` 里的 `boss` 是
+      // 折叠键（语义 = 累计杀了几个 Boss），而成就里要区分哨兵型/霸主型，
+      // 折叠后就分不出来了 —— 两件事两个字段。
+      ...(isBoss ? { bossKillsByType: { [enemyType]: 1 } } : {}),
       highestScore: this.currentScore,
     });
 

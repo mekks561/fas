@@ -388,6 +388,13 @@ export class OverdriveSkill extends Skill {
 export class SkillSystem {
   private skills: Map<SkillType, Skill> = new Map();
   private activeSkills: Set<SkillType> = new Set();
+  /**
+   * 技能真正被激活时的回调（由 GameScene 接到成就系统）。
+   *
+   * 用回调而不是让引擎模块直接 import 成就系统：`SkillSystem` 保持无存储依赖，
+   * 与 `StoryMissionManager.subscribe` 同一套做法。
+   */
+  private onSkillActivated: ((type: SkillType) => void) | null = null;
 
   constructor(player: PlayerShip, engine: PlayCanvasGameEngine) {
     this.registerSkill(new MissileStrikeSkill(player, engine));
@@ -411,11 +418,26 @@ export class SkillSystem {
     });
   }
 
+  /**
+   * 注册「技能已激活」回调；传 `null` 注销。
+   *
+   * 存在的原因：`AchievementStats.skillsUsed` 此前**没有任何供给方** ——
+   * 「技能大师 / 导弹专家 / 护盾大师」三条成就因此永远点不亮。这里是它们的上游。
+   */
+  public setOnSkillActivated(cb: ((type: SkillType) => void) | null): void {
+    this.onSkillActivated = cb;
+  }
+
   public activateSkill(type: SkillType): boolean {
     const skill = this.skills.get(type);
     if (!skill) return false;
 
-    return skill.activate();
+    const activated = skill.activate();
+    // 只在**真的激活成功**时计数（冷却中返回 false 不算用过）
+    if (activated && this.onSkillActivated) {
+      this.onSkillActivated(type);
+    }
+    return activated;
   }
 
   public upgradeSkill(type: SkillType): boolean {

@@ -49,6 +49,16 @@ export class WeaponSystem {
   private playerLevel: number = 1;
   private learnedSkills: string[] = [];
 
+  /**
+   * 命中率统计（供成就系统消费）。
+   *
+   * 此前 `AchievementStats.shotsFired / shotsHit` **没有任何供给方** ——
+   * 结果是「完美主义者（单局命中率 100%）」这条成就永远不可能解锁，
+   * 而结算界面显示的命中率也恒为 0%。这两个计数器就是那个缺失的上游。
+   */
+  private shotsFired: number = 0;
+  private shotsHit: number = 0;
+
   // Build 系统修饰符（由 BuildSystem 每帧推送）
   private buildMods: WeaponModifiers = {
     damageMultiplier: 1,
@@ -119,6 +129,14 @@ export class WeaponSystem {
 
   public setBuildModifiers(mods: WeaponModifiers): void {
     this.buildMods = mods;
+  }
+
+  /**
+   * 命中率统计真值（原始计数，不在这里换算百分比）。
+   * 单局口径：`WeaponSystem` 每局由 GameScene 重新构造，计数天然从 0 起。
+   */
+  public getAccuracyStats(): { shotsFired: number; shotsHit: number } {
+    return { shotsFired: this.shotsFired, shotsHit: this.shotsHit };
   }
 
   public setLuaSkillBridge(bridge: LuaSkillBridge): void {
@@ -422,6 +440,9 @@ export class WeaponSystem {
 
   private createProjectileEntity(color: pc.Color): pc.Entity {
     const projectile = new pc.Entity('projectile');
+    // 命中率统计的「发射数」：所有弹丸（普通/散射/激光/导弹/分裂）都从这一个口
+    // 创建，所以计数放在这里是全的。命中数在同一处（checkCollisions 的命中分支）。
+    this.shotsFired++;
 
     const material = new pc.StandardMaterial();
     material.diffuse.copy(color);
@@ -487,6 +508,8 @@ export class WeaponSystem {
           enemy.takeDamage(damage);
           proj.hitEnemyIds.add(enemy);
           hits++;
+          // 命中率统计的「命中数」（与 createProjectileEntity 里的发射数配对）
+          this.shotsHit++;
 
           // 应用 Build 修饰符：吸血
           if (this.player.getLifestealRatio() > 0) {

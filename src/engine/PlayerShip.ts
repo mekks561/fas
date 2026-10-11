@@ -77,6 +77,12 @@ export class PlayerShip {
   private invulnerabilityDuration: number = 1000;
   private invulnerabilityEndTime: number = 0;
 
+  /**
+   * 本局累计受到的伤害（护盾 + 生命实际被扣掉的量）。
+   * 供成就「不死之身（无伤通关）」在关卡结算时判定 —— 见 `takeDamage`。
+   */
+  private damageTaken: number = 0;
+
   // Build 系统修饰符（由 BuildSystem 每帧推送，默认值不改变原始行为）
   private buildMods: PlayerModifiers = {
     maxSpeedMultiplier: 1,
@@ -351,6 +357,11 @@ export class PlayerShip {
     // 应用 Build 修饰符：伤害减免
     let remainingDamage = amount * this.buildMods.damageTakenMultiplier;
 
+    // 成就「不死之身（无伤通关）」的真值来源。
+    // 这是全项目**唯一**的受伤入口（`Enemy` 撞击 / `AsteroidSystem` 碰撞 / 敌弹都走这里），
+    // 且只统计真正被扣掉的量 —— 无敌帧与闪避在上面的提前返回里已经排除掉了。
+    this.damageTaken += remainingDamage;
+
     this.lastDamageTime = Date.now();
 
     if (this.shield > 0) {
@@ -420,6 +431,16 @@ export class PlayerShip {
 
   public getMaxShield(): number {
     return this.maxShield;
+  }
+
+  /** 本局累计受到的伤害（护盾 + 生命实际被扣掉的总量）。 */
+  public getDamageTaken(): number {
+    return this.damageTaken;
+  }
+
+  /** 清空受伤记录（关卡开始时调用，成就按「本关是否受击」判定）。 */
+  public resetDamageTaken(): void {
+    this.damageTaken = 0;
   }
 
   public getSpeed(): number {

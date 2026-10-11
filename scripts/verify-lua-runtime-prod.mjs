@@ -24,6 +24,9 @@
  *  P7. 战斗确实跑起来了（canvas 有内容 + HUD 出现波次/生命文案）
  *  P8. 元进度（商店已购物品 → 下一局属性）在生产构建下同样被折算
  *      —— 开局日志必须把预置的两件已购物品算成「生命 +200 / 伤害 +43%」
+ *  P9. 成就面板在生产构建下读运行时真源（32 条 + 进度条 + 无 404）
+ *      —— 本轮把面板从「fetch content JSON」改成「读说明表」，这类
+ *      「资源取源」改动最容易 dev 绿、prod 404
  *
  * 用法：
  *   npx vite build && NO_PROXY=localhost,127.0.0.1 \
@@ -100,8 +103,18 @@ await page.addInitScript(() => {
 
 const logs = [];
 const errors = [];
+/** 生产构建下的失败请求（404/500）—— 「dev 绿、prod 炸」的典型信号 */
+const notFound = [];
+/** 对已删除的 content 层成就 JSON 的请求（面板不再依赖它们） */
+const legacyAchRequests = [];
 page.on('console', (m) => logs.push(m.text()));
 page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
+page.on('response', (res) => {
+  if (res.status() >= 400) notFound.push(`${res.status()} ${res.url()}`);
+});
+page.on('request', (req) => {
+  if (req.url().includes('/assets/achievements/')) legacyAchRequests.push(req.url());
+});
 
 const hasLog = (needle) => logs.some((l) => l.includes(needle));
 
@@ -180,6 +193,42 @@ checkTrue(
   metaLog,
 );
 
+// —— P9：成就面板在生产构建下读的是运行时真源 ——
+// 本轮把面板从「fetch /assets/achievements/*.json（15 条硬编码）+ 读一个无人写入的
+// localStorage key」改成「读成就系统的定义表快照」，并删掉了那 15 个 JSON。
+// 这正是「dev 绿、prod 404」最典型的改动形状，所以单独守一条：
+// 面板能渲染出**完整条数**就说明取源在生产路径上成立（少一条都会立刻掉数字）。
+console.log('\n===== P9 成就面板（生产构建） =====');
+await page.goto(BASE, { waitUntil: 'load', timeout: 120000 });
+await page.waitForTimeout(7000);
+const achBtn = page.locator('button', { hasText: /成就/ }).first();
+const achOpened = (await achBtn.count()) > 0;
+checkTrue('P9 主菜单有「成就」入口', achOpened, achOpened);
+if (achOpened) {
+  await achBtn.click({ timeout: 15000 }).catch(() => {});
+  await page.waitForSelector('.achievement-card', { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(1200);
+}
+const cards = await page
+  .locator('.achievement-card')
+  .count()
+  .catch(() => 0);
+const bars = await page
+  .locator('.achievement-card-progress-text')
+  .count()
+  .catch(() => 0);
+checkTrue('P9b 面板渲染出完整定义表（32 条）', cards === 32, `实得 ${cards}`);
+checkTrue('P9c 每条成就都带真实进度条', bars === 32, `实得 ${bars}`);
+checkTrue(
+  'P9d 不再请求已删除的 content JSON',
+  legacyAchRequests.length === 0,
+  legacyAchRequests.slice(0, 3),
+);
+// 面板页自身的 404 单独看：全局 notFound 里可能有无关噪声，这里只看成就面板相关
+const achRelated404 = notFound.filter((u) => /achievement|icons\//i.test(u));
+checkTrue('P9e 面板无 404 资源（含图标）', achRelated404.length === 0, achRelated404.slice(0, 3));
+await page.screenshot({ path: path.resolve('docs/verify/ach-prod-panel.png') }).catch(() => {});
+
 // —— 产出截图（归档）——
 const shot = path.resolve('docs/verify/lua-runtime-prod.png');
 await page.screenshot({ path: shot });
@@ -192,5 +241,9 @@ for (const r of results) console.log('  ' + r);
 const passed = results.filter((r) => r.startsWith('✅')).length;
 console.log(`\n通过 ${passed}/${results.length}`);
 if (errors.length) console.log(`运行时错误: ${errors.length}`);
+if (notFound.length) {
+  console.log(`失败请求（4xx/5xx）: ${notFound.length}`);
+  notFound.slice(0, 8).forEach((u) => console.log('  ', u));
+}
 
 process.exit(failed ? 1 : 0);

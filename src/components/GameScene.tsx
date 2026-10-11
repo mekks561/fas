@@ -54,6 +54,7 @@ import {
 // 相机参数是「玩家可视范围」，与场地大小无关，故不在此列。
 import { BACKDROP } from '../engine/arena';
 import { getCredits, addCredits } from '../engine/CreditsStore';
+import { achievementSystem } from '../engine/AchievementSystem';
 import {
   applySkillBonusesToPlayer,
   applySkillBonusesToWeapon,
@@ -168,6 +169,8 @@ export const GameScene: React.FC<{
   });
   /** 关卡完成只允许触发一次，避免最后一波反复结算 */
   const levelCompleteFiredRef = useRef(false);
+  /** 本关开始时间戳（毫秒）。关卡结算时算用时，供成就「速度狂魔」判定。 */
+  const levelStartTimeRef = useRef(0);
   /**
    * 末波是否「已真正打完」的权威标记（由 onWaveComplete(waveNumber >= totalWaves) 置位）。
    * 不能用 currentWave >= totalWaves 代替：末波刚 startWave 的那一帧波号就已经等于上限，
@@ -601,6 +604,11 @@ export const GameScene: React.FC<{
       playerRef.current = player;
       console.log('[GameScene] Player created at position (0, 0, 0)');
 
+      // 成就「不死之身」按**本关**是否受击判定：开局清零受伤累计。
+      // 计时同理，用于「速度狂魔（5 分钟内通关）」。两者都在关卡结算时读取。
+      player.resetDamageTaken();
+      levelStartTimeRef.current = Date.now();
+
       // 技能树加成基线：天赋里的生命/护盾加成是**百分比**，而 PlayerShip
       // 的 maxHealth/maxShield 是绝对值，需要基线换算。基线 = 玩家刚创建时
       // 的实际上限（来自 store.player.health / shield），比写死常量更准。
@@ -653,6 +661,11 @@ export const GameScene: React.FC<{
 
       const skillSystem = new SkillSystem(player, engine);
       skillSystemRef.current = skillSystem;
+      // 技能使用统计 → 成就系统。`SkillSystem` 只回调、不依赖任何存储；
+      // 成就是那个回调的消费方（`skillsUsed` 此前无供给方 → 三条技能成就点不亮）。
+      skillSystem.setOnSkillActivated((type) => {
+        achievementSystem.updateStats({ skillsUsed: { [type]: 1 } });
+      });
       console.log('[GameScene] Skill system created');
 
       const storyMgr = new StoryMissionManager();
@@ -1083,6 +1096,9 @@ export const GameScene: React.FC<{
           /** 元进度：等级（唯一真源是 store）+ 天赋点 + 聚合加成 */
           getMeta: () => ({
             level: useGameStore.getState().player.level,
+            /** 累计经验。暴露它是为了让验证脚本断言**不变式**（等级 = 经验查表），
+             *  而不是写死「清 3 波后等级 = 4」这种会被其它经验来源（成就奖励）打破的绝对值。 */
+            experience: useGameStore.getState().player.experience,
             points: skillTreeManager.getTalentPoints(),
             stats: skillTreeManager.getStats(),
           }),
@@ -1118,6 +1134,28 @@ export const GameScene: React.FC<{
           upgrade: (nodeId: string) => skillTreeManager.upgradeTalent(nodeId),
           /** 清空技能树与其 localStorage，保证验证可重复 */
           resetTree: () => skillTreeManager.reset(),
+        };
+
+        // 成就接线调试钩子。与 __waveDebug / __skillDebug 同理：只**观测**生产路径上的
+        // 真实状态（成就系统的真源快照 + 本局实际计数），不替它算任何东西。
+        (window as unknown as Record<string, unknown>)['__achieveDebug'] = {
+          /** 完整快照：面板看到的就是它（entries 里每条带真实 current/requirement） */
+          getSnapshot: () => achievementSystem.getSnapshot(),
+          /** 原始统计（判定这些数字是不是真从战斗事件来的） */
+          getStats: () => achievementSystem.getStats(),
+          /** 按 id 查一条的进度 */
+          getOne: (id: string) => {
+            const entry = achievementSystem.getAllAchievements().find((a) => a.id === id);
+            return entry ? { ...entry.progress, requirement: entry.requirement } : null;
+          },
+          /** 本局命中率真值（来自 WeaponSystem 的两个计数器） */
+          getAccuracy: () => weaponSystemRef.current?.getAccuracyStats() ?? null,
+          /** 本关受伤累计（无伤通关成就的判定输入） */
+          getDamageTaken: () => playerRef.current?.getDamageTaken() ?? -1,
+          /** 只清解锁状态、保留统计（验证可重复，不必重开浏览器） */
+          resetUnlocks: () => achievementSystem.resetUnlocks(),
+          /** 连统计一起清（完全重置） */
+          resetAll: () => achievementSystem.resetProgress(),
         };
 
         // 元进度（商店 → 下一局生效）调试钩子：同样只**观测**生产对象。
@@ -1610,6 +1648,33 @@ export const GameScene: React.FC<{
             useGameStore.getState().setFps(currentFps);
             frameCount = 0;
             lastFpsUpdate = now;
+
+            // 成就的低频统计同步（1 Hz，与 FPS 刷新同频，不额外增加逐帧开销）。
+            // 这三类统计的共同点是「连续量」，没有离散事件可挂：命中数、任务完成数、
+            // 生存模式存活时长。离散事件（击杀 / 道具 / 技能 / Boss）都在各自的
+            // 事件点即时上报，不在这里。
+            const accuracy = weaponSystemRef.current?.getAccuracyStats();
+            if (accuracy) {
+              achievementSystem.setStats({
+                shotsFired: accuracy.shotsFired,
+                shotsHit: accuracy.shotsHit,
+              });
+            }
+
+            const story = storyManagerRef.current;
+            if (story) {
+              achievementSystem.setStats({
+                missionsCompleted: story.getProgressStats().completed,
+              });
+            }
+
+            if (isSurvival) {
+              // 只升不降：`survivalTime` 每局从 0 起，直接 set 会把上一局的最佳拍回去
+              const survivalTime = survivalModeManager.getStats().survivalTime;
+              if (survivalTime > achievementSystem.getStats().survivalBestTime) {
+                achievementSystem.setStats({ survivalBestTime: survivalTime });
+              }
+            }
           }
 
           if (playerRef.current.getHealth() <= 0) {
@@ -1636,6 +1701,19 @@ export const GameScene: React.FC<{
             if (finalWaveCleared && noMoreWaves && enemies.length === 0) {
               levelCompleteFiredRef.current = true;
               console.log('[GameScene] Level complete: final wave cleared');
+              // 成就口径的关卡结算：以**本关真实记录**为准，而不是「结算这一帧看起来没掉血」。
+              // - 无伤：`PlayerShip.getDamageTaken()`（唯一受伤入口的累计，开局清零）
+              // - 用时：关卡起始时间戳 → 秒
+              // 注意两者语义不同：无伤是**累加**（多关无伤就多条），用时是**取最快**。
+              const damageTaken = playerRef.current?.getDamageTaken() ?? 0;
+              const elapsedSeconds =
+                levelStartTimeRef.current > 0 ? (Date.now() - levelStartTimeRef.current) / 1000 : 0;
+              achievementSystem.updateStats({ noDamageClears: damageTaken === 0 ? 1 : 0 });
+              achievementSystem.setStats({ fastestClearSeconds: elapsedSeconds });
+              console.log(
+                `[Achievement] 关卡结算：受伤 ${damageTaken.toFixed(1)}、用时 ${elapsedSeconds.toFixed(1)}s` +
+                  `（无伤 ${damageTaken === 0 ? '是' : '否'}）`,
+              );
               // 关卡奖励结算（src/levels 的 rewards）：信用点走 CreditsStore，
               // 经验走 useGameStore.addExperience（等级由经验推导）。
               // 两者现在都有下游消费方 —— 不再是「记个日志假装发了」。

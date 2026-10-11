@@ -154,6 +154,33 @@
   color: rgba(200, 210, 220, 0.7);
   margin: 0 0 6px 0;
 }
+
+/* 单条成就的进度条 —— 数值来自成就系统的条件求值，面板只负责画 */
+.achievement-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.achievement-card-progress-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.achievement-card-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.25s ease;
+}
+.achievement-card-progress-text {
+  font-size: 11px;
+  color: rgba(200, 210, 220, 0.75);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .achievement-card-rewards {
   display: flex;
   gap: 10px;
