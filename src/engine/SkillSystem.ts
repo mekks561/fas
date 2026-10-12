@@ -494,6 +494,7 @@ export class SkillSystem {
   public getSlotSnapshot(): Array<{
     index: number;
     type: SkillType;
+    name: string;
     registered: boolean;
     isActive: boolean;
     cooldownRemaining: number;
@@ -508,6 +509,9 @@ export class SkillSystem {
       return {
         index,
         type,
+        // 技能名（真源）。带着它是为了让 e2e 能断言"HUD 上显示的名字 === 真源名字"，
+        // 而不是在脚本里再抄一份中文名 —— 抄一份就多一个会漂移的地方。
+        name: skill?.getConfig().name ?? '',
         registered: !!skill,
         isActive: state?.isActive ?? false,
         cooldownRemaining: state ? Number(state.cooldownRemaining.toFixed(3)) : -1,

@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { DifficultySnapshot } from '../engine/DifficultyManager';
 import type { UpgradeChoice } from '../engine/BuildSystem';
 import { expForLevel, levelForExp } from '../engine/Experience';
-import { SKILL_SLOT_COOLDOWNS } from '../engine/skillSlots';
+import { SKILL_SLOT_COOLDOWNS, type SkillSlotKey } from '../engine/skillSlots';
 
 interface ActiveBuildUpgrade {
   id: string;
@@ -44,6 +44,14 @@ interface SkillsState {
     skill3: number;
     skill4: number;
   };
+  /**
+   * 各槽位是否处于**持续期**（技能正在生效）。
+   *
+   * 真源是 `SkillSystem.activeSkills`，由 GameScene 每帧同步过来 ——
+   * 此前 HUD 的 `isActive` 是写死的 `false`，于是「激活中」那套黄框高亮代码
+   * 永远不会触发：界面上有一块状态、代码里有一块样式，中间那根线从来没人接。
+   */
+  active: Record<SkillSlotKey, boolean>;
 }
 
 interface TouchHandlers {
@@ -158,6 +166,7 @@ interface GameActions {
   setProjectileCount: (count: number) => void;
   setFps: (fps: number) => void;
   setSkillCooldown: (skillId: string, cooldown: number) => void;
+  setSkillActive: (slotKey: SkillSlotKey, active: boolean) => void;
   updateSkillCooldowns: (dt: number) => void;
   setTouchHandlers: (handlers: TouchHandlers) => void;
   addKill: () => void;
@@ -265,6 +274,7 @@ export const defaultSkillsState: SkillsState = {
    * `skills` 不进 `partialize`，所以无需为老存档做迁移。
    */
   maxCooldowns: { ...SKILL_SLOT_COOLDOWNS },
+  active: { skill1: false, skill2: false, skill3: false, skill4: false },
 };
 
 const defaultState: GameState = {
@@ -413,6 +423,23 @@ export const useGameStore = create<GameState & GameActions>()(
             },
           },
         })),
+
+      /**
+       * 同步单个槽位的「激活中」状态（真源是 SkillSystem）。
+       * 值没变时返回原 state 对象 —— zustand 用 Object.is 比对，会整帧跳过通知，
+       * 所以 GameScene 每帧无脑调用也不会造成无谓渲染。
+       */
+      setSkillActive: (slotKey, active) =>
+        set((state) =>
+          state.skills.active[slotKey] === active
+            ? state
+            : {
+                skills: {
+                  ...state.skills,
+                  active: { ...state.skills.active, [slotKey]: active },
+                },
+              },
+        ),
 
       updateSkillCooldowns: (dt) =>
         set((state) => ({

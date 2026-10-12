@@ -276,6 +276,8 @@ export const GameScene: React.FC<{
 
   const skillCooldowns = useGameStore((state) => state.skills.cooldowns);
   const skillMaxCooldowns = useGameStore((state) => state.skills.maxCooldowns);
+  /** 各槽位是否正在生效（真源是 SkillSystem，上面每帧同步进来）。 */
+  const skillActive = useGameStore((state) => state.skills.active);
 
   const controlsRef = useRef<PlayerControls>({
     left: false,
@@ -1580,6 +1582,16 @@ export const GameScene: React.FC<{
 
           if (skillSystemRef.current) {
             skillSystemRef.current.update(dt);
+
+            // 把「哪个槽位正在生效」从引擎侧真源同步到 store —— HUD 的激活高亮读它。
+            // 此前这条线根本不存在：HUD 里 `isActive` 写死 false，黄框高亮代码是死的。
+            // 值没变时 store 侧会用 Object.is 整帧跳过，所以逐帧调用没有额外渲染代价。
+            const activeTypes = skillSystemRef.current.getActiveSkills();
+            SKILL_SLOT_ORDER.forEach((type, index) => {
+              useGameStore
+                .getState()
+                .setSkillActive(SKILL_SLOT_KEYS[index], activeTypes.includes(type));
+            });
           }
 
           if (weaponSystemRef.current && enemySystemRef.current) {
@@ -2042,10 +2054,11 @@ export const GameScene: React.FC<{
           cooldown: skillCooldowns[slotKey],
           maxCooldown: skillMaxCooldowns[slotKey],
           keyBinding: config.keyBinding,
-          isActive: false,
+          isActive: skillActive[slotKey],
+          description: config.description,
         };
       }),
-    [skillCooldowns, skillMaxCooldowns],
+    [skillCooldowns, skillMaxCooldowns, skillActive],
   );
 
   const handleSkillActivate = useCallback(

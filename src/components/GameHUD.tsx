@@ -69,6 +69,8 @@ interface SkillInfo {
   maxCooldown: number;
   keyBinding: string;
   isActive: boolean;
+  /** 悬浮说明（技能描述）。可选：调用方没给就不显示 title。 */
+  description?: string;
 }
 
 const BossHealthBar: React.FC<{
@@ -164,43 +166,61 @@ const SkillBar: React.FC<{ skills: SkillInfo[]; onActivate?: (index: number) => 
   return (
     <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-3" data-testid="skill-bar">
       <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Skills</div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         {skills.map((skill, index) => {
           const cooldownPercent =
             skill.cooldown > 0 ? (skill.cooldown / skill.maxCooldown) * 100 : 0;
           const isReady = skill.cooldown <= 0 && !skill.isActive;
 
           return (
-            <button
+            <div
               key={skill.name}
-              data-testid={`skill-slot-${index}`}
-              className={`relative w-14 h-14 rounded-xl font-bold text-sm transition-all ${
-                skill.isActive
-                  ? 'bg-yellow-500/30 border-2 border-yellow-400'
-                  : isReady
-                    ? 'bg-purple-500/30 border-2 border-purple-400 hover:bg-purple-500/50'
-                    : 'bg-slate-700/50 border-2 border-slate-600 opacity-60'
-              }`}
-              onClick={() => onActivate?.(index)}
-              disabled={!isReady}
+              className="flex flex-col items-center gap-1"
+              title={skill.description ? `${skill.name} — ${skill.description}` : skill.name}
             >
+              <button
+                data-testid={`skill-slot-${index}`}
+                className={`relative w-14 h-14 rounded-xl font-bold text-sm transition-all ${
+                  skill.isActive
+                    ? 'bg-yellow-500/30 border-2 border-yellow-400'
+                    : isReady
+                      ? 'bg-purple-500/30 border-2 border-purple-400 hover:bg-purple-500/50'
+                      : 'bg-slate-700/50 border-2 border-slate-600 opacity-60'
+                }`}
+                onClick={() => onActivate?.(index)}
+                disabled={!isReady}
+              >
+                <span
+                  className={`absolute bottom-1 left-1/2 -translate-x-1/2 text-xs ${
+                    isReady ? 'text-white' : 'text-slate-500'
+                  }`}
+                >
+                  {skill.keyBinding}
+                </span>
+                {skill.cooldown > 0 && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-slate-900/80 rounded-b-xl transition-all duration-100"
+                    style={{ height: `${cooldownPercent}%` }}
+                  />
+                )}
+                {skill.isActive && (
+                  <div className="absolute inset-0 bg-yellow-400/20 rounded-xl animate-pulse" />
+                )}
+              </button>
+              {/*
+                技能名标签。此前槽位里只有图标 + 键位字母，四个按钮长得一模一样，
+                玩家看不出哪个是哪个（尤其冷却中都变灰时）。名称取自 skillSlots 真源，
+                这里不写死任何字符串。
+              */}
               <span
-                className={`absolute bottom-1 left-1/2 -translate-x-1/2 text-xs ${
-                  isReady ? 'text-white' : 'text-slate-500'
+                data-testid={`skill-name-${index}`}
+                className={`text-[10px] leading-none whitespace-nowrap ${
+                  skill.isActive ? 'text-yellow-300' : isReady ? 'text-slate-200' : 'text-slate-500'
                 }`}
               >
-                {skill.keyBinding}
+                {skill.name}
               </span>
-              {skill.cooldown > 0 && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 bg-slate-900/80 rounded-b-xl transition-all duration-100"
-                  style={{ height: `${cooldownPercent}%` }}
-                />
-              )}
-              {skill.isActive && (
-                <div className="absolute inset-0 bg-yellow-400/20 rounded-xl animate-pulse" />
-              )}
-            </button>
+            </div>
           );
         })}
       </div>

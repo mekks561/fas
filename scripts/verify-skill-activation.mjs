@@ -13,7 +13,9 @@
 //   0. 清档
 //   1. 主菜单 → 第 1 关战斗
 //   2. 槽位真源快照：4 槽已注册 / 槽位键对齐 / 冷却真值 15,20,30,25 / HUD 分母与真值一致
-//   3. **HUD 点击路径**：逐个点 4 个技能按钮 → 技能真的进入冷却与激活态（原先 3 个失效）
+//   2b. 技能条名称标注：HUD 显示的名字 === 真源名字（槽位原本只有图标，四个长得一样）
+//   3. **HUD 点击路径**：逐个点 4 个技能按钮 → 冷却 + 激活态 + store.active 同步 + 按钮高亮
+//      （「激活中」这条线此前是断的：HUD 的 isActive 写死 false，黄框高亮代码永远不会跑）
 //   4. 重进第 1 关（拿一套全新的 SkillSystem，冷却归零）
 //   5. **键盘路径**：按 Q E T G → 对应槽位真的开
 //   6. 冷却中的重复按键不得重置冷却（证明确实是"只在真激活时写冷却"）
@@ -109,6 +111,17 @@ const waitActivated = async (index, timeout = 2500) => {
   return { snap: last, sawActive: false };
 };
 
+/** 轮询到 store 里该槽位被标记为「激活中」（HUD 高亮读的就是这个字段）。 */
+const waitStoreActive = async (slotKey, timeout = 2000) => {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const h = await hudSkills();
+    if (h?.active?.[slotKey] === true) return true;
+    await page.waitForTimeout(50);
+  }
+  return false;
+};
+
 /** 关掉可能挡住菜单的「三选一强化」弹窗。 */
 const closeUpgradeIfAny = async () => {
   const card = page.locator('.upgrade-card').first();
@@ -187,6 +200,19 @@ for (let i = 0; i < 4; i++) {
   check(`HUD 冷却分母[${EXPECTED_SLOTS[i]}] === 技能真值`, hud?.maxCooldowns?.[EXPECTED_SLOTS[i]], EXPECTED_COOLDOWNS[i]);
 }
 
+// ───────────────────────── 2b. 技能条必须标出技能名 ─────────────────────────
+// 槽位里原本只有图标 + 键位字母，四个按钮长得一模一样（冷却中一起变灰时更分不出），
+// 玩家没法知道哪个槽位是哪个技能。这里断言 HUD 上的名字与 SkillSystem 真源逐字一致 ——
+// 不硬编码中文名，避免"脚本里抄一份"变成第三个会漂移的地方。
+console.log('\n===== 2b. 技能条名称标注 =====');
+for (let i = 0; i < 4; i++) {
+  const el = page.locator(`[data-testid="skill-name-${i}"]`).first();
+  const shown = (await el.count()) > 0 ? (await el.innerText()).trim() : '(标签缺失)';
+  checkTrue(`槽位 ${i} 标出了技能名（非空）`, shown.length > 0 && shown !== '(标签缺失)');
+  check(`槽位 ${i} 的 HUD 技能名 === 真源名字`, shown, snap?.[i]?.name);
+}
+console.log(`  HUD 技能名：${(snap ?? []).map((s) => s.name).join(' / ')}`);
+
 // ───────────────────────── 3. HUD 点击路径（原先 3/4 失效） ─────────────────────────
 console.log('\n===== 3. HUD 技能条点击（原缺陷路径：4 个里 3 个静默失效） =====');
 const hudStats = [];
@@ -198,11 +224,17 @@ for (let i = 0; i < 4; i++) {
     continue;
   }
   await btn.click({ timeout: 8000 }).catch(() => {});
+  // 先等 store 的 active 同步（HUD 高亮就吃这个字段），再等引擎侧真值。
+  const storeActive = await waitStoreActive(EXPECTED_SLOTS[i]);
+  const cls = ((await btn.getAttribute('class')) || '').trim();
   const { snap: after, sawActive } = await waitActivated(i);
   const s = after?.[i];
-  hudStats.push({ i, cooldownRemaining: s?.cooldownRemaining, isActive: sawActive });
+  hudStats.push({ i, cooldownRemaining: s?.cooldownRemaining, isActive: sawActive, storeActive });
   checkTrue(`点击槽位 ${i} 后技能真的进入冷却`, typeof s?.cooldownRemaining === 'number' && s.cooldownRemaining > 0);
   checkTrue(`点击槽位 ${i} 后技能进入激活态`, sawActive);
+  // 「激活中」这条线此前是断的：HUD 的 isActive 写死 false，黄框高亮代码永远不会跑。
+  checkTrue(`点击槽位 ${i} 后 store.active 同步为真`, storeActive);
+  checkTrue(`点击槽位 ${i} 后 HUD 按钮进入高亮态`, cls.includes('border-yellow-400'));
   const h = await hudSkills();
   checkTrue(`点击槽位 ${i} 后 store 冷却被写入`, typeof h?.cooldowns?.[EXPECTED_SLOTS[i]] === 'number' && h.cooldowns[EXPECTED_SLOTS[i]] > 0);
   checkTrue(`点击槽位 ${i} 后 HUD 按钮变为不可点`, (await btn.isDisabled()) === true);

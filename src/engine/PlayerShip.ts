@@ -61,12 +61,37 @@ export class PlayerShip {
   private boostEnergyConsumptionRate: number = 30;
   private boostEnergyRechargeRate: number = 15;
 
-  private rotationSpeed: number = 3; // 偏航角速度
-  private rollSpeed: number = 5; // 滚转角速度
-  private pitchSpeed: number = 2.0; // 俯仰角速度
+  private rotationSpeed: number = 3; // 偏航角速度（度/秒 = ×180）
+  private rollSpeed: number = 5; // 滚转角速度（度/秒 = ×180）
+  private pitchSpeed: number = 2.0; // 俯仰角速度（度/秒 = ×180）
   private autoBankAngle: number = 30; // 自动倾斜角度（偏航时视觉滚转）
   private selfLevelRate: number = 2.0; // 自平衡速率（无输入时回正）
   private pitchSoftLimit: number = 0.85; // 软俯仰限制（forward.y，约 ±58°）
+
+  /**
+   * 角速度惯性 —— **操作手感的核心参数，调手感只动这两个数**。
+   *
+   * 为什么需要它：原先三个轴都是 `输入 × 角速度 × dt` 直接交给 `rotateLocal`，
+   * 也就是"按下瞬间满速、松手瞬间归零"的开关式旋转。键盘本身是 0/1 输入，
+   * 于是飞船像被鼠标拖着的方块：起步是一个硬拐点、松手立刻停死、想微调几乎不可能。
+   * 中间加一层一阶惯性（指数逼近）后，按键有很短的爬升、松键有很短的滑行，
+   * 而**稳态角速度不变** —— 所以空气动力学没变、物理平衡没变，改的只是过渡曲线。
+   *
+   * `rise`：按键时角速度逼近目标值的速率（1/s）。越大越"跟手"，越小越"沉"。
+   * `fall`：松键时角速度回落的速率（1/s）。越小松开后滑行越远、越"飘"。
+   * 参考：rise=24 时约 3 帧到六成、130ms 基本到位（60fps），属于"几乎察觉不到延迟但有重量"。
+   */
+  private readonly angularSmoothing = { rise: 24, fall: 13 };
+
+  /** 三轴当前角速度（度/秒）。由 `angularSmoothing` 逼近目标值，取代原先的直接赋值。 */
+  private angularVelocity = { yaw: 0, pitch: 0, roll: 0 };
+
+  /**
+   * boost 过渡（0→1）。原先 `canBoost` 一为真速度立刻 ×2.5，是个硬台阶，
+   * 起步那一下会把画面"顶"一下。这里只把**倍数**做成渐变：
+   * 最大速度、能量消耗速率、`canBoost` 的判定条件全部不变，只是倍率不再瞬跳。
+   */
+  private boostBlend: number = 0;
 
   // 引擎尾焰粒子系统
   private engineTrail: pc.Entity | null = null;
@@ -194,8 +219,11 @@ export class PlayerShip {
   }
 
   /**
-   * 六自由度旋转控制：俯仰、偏航、滚转，使用 rotateLocal 叠加角速度
-   * 包含软俯仰限制（防止翻转）、自动倾斜（偏航时视觉滚转）、自平衡（无输入时回正）
+   * 六自由度旋转控制：俯仰、偏航、滚转。
+   *
+   * 输入 → **目标角速度** → 一阶惯性 → `rotateLocal(角速度 × dt)`。
+   * 中间那一层惯性是手感的关键：它让键盘的开关式输入变成有爬升/滑行的模拟量，
+   * 稳态角速度与加惯性之前完全一致（见 `angularSmoothing` 的说明）。
    */
   private updateRotation(controls: PlayerControls, dt: number): void {
     const yawInput = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
@@ -203,27 +231,80 @@ export class PlayerShip {
     const rollInput = (controls.rollRight ? 1 : 0) - (controls.rollLeft ? 1 : 0);
 
     const effRot = this.rotationSpeed * this.buildMods.rotationSpeedMultiplier;
-    let yawDeg = yawInput * effRot * 180 * dt;
-    let pitchDeg = pitchInput * this.pitchSpeed * effRot * 180 * dt;
-    let rollDeg = rollInput * this.rollSpeed * 180 * dt;
 
-    // 软俯仰限制：检测 forward.y，超过 ±pitchSoftLimit 时停止同向 pitch（防止翻转）
+    // 目标角速度（度/秒）。
+    // 俯仰这里**只乘一次**倍率：旧代码写的是 `pitchSpeed * effRot`，而 effRot 里已经含
+    // 了 rotationSpeed(3)，等于俯仰被额外放大 3 倍 —— 实际 1080°/秒，是偏航(540°/秒)的
+    // 两倍，与字段注释「俯仰角速度 2.0 < 偏航 3」的意图正好相反，按一下方向键机体就翻过去了。
+    // 现在三个轴同一口径：基准角速度 × rotationSpeedMultiplier。
+    let targetYaw = yawInput * effRot * 180;
+    let targetPitch = pitchInput * this.pitchSpeed * 180 * this.buildMods.rotationSpeedMultiplier;
+    let targetRoll = rollInput * this.rollSpeed * 180;
+
+    // 软俯仰限制：检测 forward.y，超过 ±pitchSoftLimit 时不再向同侧加速。
+    // 注意这里改的是**目标值**而不是角速度本身 —— 实际角速度由惯性自然衰减，
+    // 所以限位不再是"撞到一堵硬墙"，而是先减速再贴住。
     const fwd = this.entity.forward;
-    if (pitchInput > 0 && fwd.y > this.pitchSoftLimit) pitchDeg = 0;
-    if (pitchInput < 0 && fwd.y < -this.pitchSoftLimit) pitchDeg = 0;
+    if (pitchInput > 0 && fwd.y > this.pitchSoftLimit) targetPitch = 0;
+    if (pitchInput < 0 && fwd.y < -this.pitchSoftLimit) targetPitch = 0;
 
     // 自动倾斜：根据偏航输入产生视觉滚转（banking turn）
-    rollDeg += yawInput * this.autoBankAngle * dt;
+    targetRoll += yawInput * this.autoBankAngle;
 
     // 自平衡：无偏航/滚转输入且速度 > 1 时，滚转回水平
     if (yawInput === 0 && rollInput === 0 && this.speed > 1) {
       const right = new pc.Vec3(1, 0, 0);
       this.entity.getRotation().transformVector(right);
       const rollSin = right.y; // 测量当前滚转程度
-      rollDeg -= rollSin * this.selfLevelRate * 180 * dt;
+      targetRoll += -rollSin * this.selfLevelRate * 180;
     }
 
-    this.entity.rotateLocal(pitchDeg, yawDeg, rollDeg);
+    // 一阶惯性逼近：有输入走 rise、松手走 fall。
+    // 用指数形式而不是 `vel += delta * k`，是为了对帧率抖动鲁棒 ——
+    // 掉帧时后者会阶跃甚至过冲，前者永远落在 [0,1) 的插值里。
+    const step = (target: number, current: number, rising: boolean, h: number): number => {
+      const rate = rising ? this.angularSmoothing.rise : this.angularSmoothing.fall;
+      return current + (target - current) * (1 - Math.exp(-rate * h));
+    };
+
+    /*
+     * **固定子步进**：把本帧切成不超过 1/60 秒的小片，逐片逼近再逐片旋转。
+     *
+     * 不做这一步的话，惯性是**帧率相关**的：dt 一大（掉帧、低端机、后台标签页回来），
+     * `1 - exp(-24 × 0.1) ≈ 0.91`，一帧就逼近到位 —— 于是"顺滑"恰好在你最需要它的
+     * 机器上先消失，又变回开关式硬转。切子步之后手感与帧率解耦：60fps 和 10fps 下
+     * 都是"约 90ms 爬升、约 230ms 滑行"这同一条曲线。
+     *
+     * 单帧总推进量钳到 100ms（最多 6 个子步）：切标签页回来时 dt 可能是好几秒，
+     * 不钳会让这一帧空转几十次、并且把机体一次甩过大角度。
+     */
+    const MAX_SUB_STEP = 1 / 60;
+    let remaining = Math.min(dt, 0.1);
+    while (remaining > 1e-6) {
+      const h = Math.min(remaining, MAX_SUB_STEP);
+      remaining -= h;
+
+      this.angularVelocity.yaw = step(targetYaw, this.angularVelocity.yaw, yawInput !== 0, h);
+      this.angularVelocity.pitch = step(
+        targetPitch,
+        this.angularVelocity.pitch,
+        pitchInput !== 0,
+        h,
+      );
+      // 滚转的"输入"来源有两个：滚转键与偏航自动倾斜，任一存在都算按键中。
+      this.angularVelocity.roll = step(
+        targetRoll,
+        this.angularVelocity.roll,
+        rollInput !== 0 || yawInput !== 0,
+        h,
+      );
+
+      this.entity.rotateLocal(
+        this.angularVelocity.pitch * h,
+        this.angularVelocity.yaw * h,
+        this.angularVelocity.roll * h,
+      );
+    }
   }
 
   /**
@@ -306,7 +387,12 @@ export class PlayerShip {
       );
     }
 
-    const finalSpeed = canBoost ? this.speed * this.boostMultiplier : this.speed;
+    // boost 倍率渐入/渐出：原先 `canBoost` 一为真就整体 ×2.5，起步那一下会把画面顶一下。
+    // 这里只把**倍率**做成渐变（最大速度、能量消耗、canBoost 判定都不变）。
+    // 步长与旋转同样钳到 100ms，掉帧时不会一帧到位（否则这个渐变只在 60fps 下存在）。
+    const blendDt = Math.min(dt, 0.1);
+    this.boostBlend += ((canBoost ? 1 : 0) - this.boostBlend) * (1 - Math.exp(-8 * blendDt));
+    const finalSpeed = this.speed * (1 + (this.boostMultiplier - 1) * this.boostBlend);
 
     // 更新 boost 状态（供 GameScene 查询触发摄像机 FOV/抖动）
     this.isBoosting = canBoost;
@@ -333,13 +419,19 @@ export class PlayerShip {
     // 更新引擎尾焰粒子（随速度和 boost 状态动态调整）
     this.updateEngineTrail(finalSpeed, canBoost);
 
-    // 暴露玩家调试信息到全局变量
+    // 暴露玩家调试信息到全局变量。
+    // `angularVelocity` 是操手感的**可测真值**：验证脚本靠它断言旋转是渐变的
+    //（按下后首帧角速度必须显著小于稳态），否则"加了惯性"只是一句注释。
     const pos = this.entity.getPosition();
     const rot = this.entity.getEulerAngles();
     (window as any).__playerDebug = {
       position: { x: pos.x, y: pos.y, z: pos.z },
       rotation: { x: rot.x, y: rot.y, z: rot.z },
       speed: this.speed,
+      finalSpeed,
+      angularVelocity: { ...this.angularVelocity },
+      boostBlend: this.boostBlend,
+      isBoosting: canBoost,
       controls: { ...controls },
     };
   }
