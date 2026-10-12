@@ -747,6 +747,18 @@ export const GameScene: React.FC<{
       // 于是 `activateSkill` 必然返回 false —— 键盘按下去也不会有反应（冷却也不会走）。
       const skillSystem = new SkillSystem(player, engine, {
         grantedUnlockIds: unlockSnapshot.granted,
+        // 技能要真的打到敌人身上，就得有人告诉它「爆炸点附近有谁」。
+        // 这里注入一个**半径查询**口，而不是让技能模块去 import EnemySystem ——
+        // 否则「技能」与「刷怪/波次」两条链会互相缠住，单测也得多铺一层桩。
+        // 用 `enemySystemRef.current` 闭包读取（而非捕获当时的局部变量），
+        // 保证每次爆炸查到的都是此刻场上的敌人。
+        world: {
+          enemiesInRadius: (center, radius) =>
+            (enemySystemRef.current?.getEnemies() ?? []).filter(
+              (enemy) =>
+                enemy.isAlive() && center.clone().sub(enemy.getPosition()).length() <= radius,
+            ),
+        },
       });
       skillSystemRef.current = skillSystem;
       console.log(
@@ -1193,6 +1205,21 @@ export const GameScene: React.FC<{
             const enemies = enemySystemRef.current?.getEnemies() ?? [];
             if (enemies[index]) enemies[index].takeDamage(99999);
           },
+          /**
+           * 把第 `index` 个敌人搬到指定世界坐标。
+           *
+           * 只为一件事存在：e2e 要断言「导弹**真的造成了伤害**」，就得让敌人落在
+           * 爆炸半径里，而落点由「玩家位置 + 前方 50 + 横向 ±10」决定 ——
+           * 等敌人自己飞进来是不可复现的。这是全部调试钩子里**唯一会改世界状态**的，
+           * 所以它只搬位置，绝不碰血量或存活状态（掉血必须由技能自己造成）。
+           */
+          placeEnemy: (index: number, x: number, y: number, z: number) => {
+            const enemies = enemySystemRef.current?.getEnemies() ?? [];
+            const enemy = enemies[index];
+            if (!enemy) return false;
+            enemy.getEntity().setPosition(x, y, z);
+            return true;
+          },
         };
 
         // 技能树接线调试钩子。与 __waveDebug 同理：只**观测**生产路径上的真实
@@ -1250,6 +1277,18 @@ export const GameScene: React.FC<{
                   ...s,
                 }))
               : null,
+          /**
+           * 导弹打击的**效果层**真值：爆炸次数 / 命中目标数 / 发放伤害点数。
+           *
+           * 与 `skills()` 的区别：那个证明「技能放出来了」，这个证明「技能打到了人」。
+           * 此前的 e2e 全是状态层断言（冷却、store 同步、HUD 文案），于是
+           * 「4 个技能里 3 个对战斗毫无影响」能一路绿灯 —— 这个观测口是补上的效果层。
+           */
+          missile: () => {
+            const skill = skillSystemRef.current?.getSkill(SkillType.MISSILE_STRIKE) as
+              import('../engine/SkillSystem').MissileStrikeSkill | undefined;
+            return skill?.getDamageStats() ?? null;
+          },
           /** store 里 HUD 用的那份冷却（含分母 maxCooldowns），用于比对显示值与真值 */
           hudSkills: () => useGameStore.getState().skills,
           /**
