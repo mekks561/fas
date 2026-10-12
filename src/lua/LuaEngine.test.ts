@@ -11,6 +11,13 @@
  *  3. `host: true` 的模块脚本在任何模式下都**不执行**（迁移期行为等价的前提）
  *  4. 宿主模块在两种模式下都可取（getStubModule）—— 这是既有四个管理器的取数路径
  *  5. 运行时模式可观测，且 lua 模式必须报告真实版本号
+ *
+ * 追加（2026-10-12）：**wasm 必须随包发布，不许走 CDN**。
+ *   `LuaFactory` 不传 `customWasmUri` 时，wasmoon 在浏览器里硬编码去
+ *   `https://unpkg.com/wasmoon@1.16.0/dist/glue.wasm` 取 wasm。生产构建实测：
+ *   取不到就 `Failed to fetch` → **整个 Lua 运行时静默回落 stub**（只有一句 console 警告）。
+ *   内网 / 断网部署（NAS）必然命中。现在改为 `import glueWasmUrl from 'wasmoon/dist/glue.wasm?url'`
+ *   并显式传给工厂；下面这条断言防止有人把 `?url` 改回裸构造。
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,6 +28,18 @@ import {
   getLuaSourceRegistryErrors,
   listLuaModuleNames,
 } from './luaSources';
+import glueWasmUrl from 'wasmoon/dist/glue.wasm?url';
+
+describe('wasm 随包发布（不许在运行时依赖第三方 CDN）', () => {
+  it('glue.wasm 经 `?url` 拿到的是一条真实资源地址，而不是包名或空串', () => {
+    expect(typeof glueWasmUrl).toBe('string');
+    expect(glueWasmUrl.length).toBeGreaterThan(0);
+    // 允许 dev 下的 /@fs/… 与构建产物里的 /assets/glue-<hash>.wasm 两种形态
+    expect(glueWasmUrl).toMatch(/glue[-\w]*\.wasm/);
+    // 关键：绝不能是 unpkg 之类的外网地址
+    expect(glueWasmUrl).not.toMatch(/^https?:\/\/(?!localhost|127\.0\.0\.1)/);
+  });
+});
 
 describe('luaSources 源码注册表', () => {
   it('能按全路径名与不冲突短名取到 enemy-ai.lua', () => {

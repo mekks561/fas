@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { DifficultySnapshot } from '../engine/DifficultyManager';
 import type { UpgradeChoice } from '../engine/BuildSystem';
 import { expForLevel, levelForExp } from '../engine/Experience';
+import { SKILL_SLOT_COOLDOWNS } from '../engine/skillSlots';
 
 interface ActiveBuildUpgrade {
   id: string;
@@ -249,19 +250,21 @@ const defaultPlayerState: PlayerState = {
   maxBoostEnergy: 100,
 };
 
-const defaultSkillsState: SkillsState = {
+/** 导出是为了让 `skillSlots.test.ts` 能断言「冷却分母 === 技能真值」这条不变式。 */
+export const defaultSkillsState: SkillsState = {
   cooldowns: {
     skill1: 0,
     skill2: 0,
     skill3: 0,
     skill4: 0,
   },
-  maxCooldowns: {
-    skill1: 8,
-    skill2: 10,
-    skill3: 15,
-    skill4: 20,
-  },
+  /**
+   * HUD 冷却环的**分母**。由 `src/engine/skillSlots.ts` 的真源派生 ——
+   * 原先这里手写死 8/10/15/20，而技能真实冷却是 15/20/30/25，
+   * 二者不符会让冷却环提前转完（玩家以为可以按了，按下去没反应）。
+   * `skills` 不进 `partialize`，所以无需为老存档做迁移。
+   */
+  maxCooldowns: { ...SKILL_SLOT_COOLDOWNS },
 };
 
 const defaultState: GameState = {

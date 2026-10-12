@@ -29,7 +29,13 @@ type PlayerShip = import('../engine/PlayerShip').PlayerShip;
 type EnemySystem = import('../engine/EnemySystem').EnemySystem;
 type WeaponSystem = import('../engine/WeaponSystem').WeaponSystem;
 type SkillSystem = import('../engine/SkillSystem').SkillSystem;
-import { SkillType } from '../engine/SkillSystem';
+import {
+  SKILL_SLOT_CONFIGS,
+  SKILL_SLOT_KEYS,
+  SKILL_SLOT_ORDER,
+  SkillType,
+  type ImplementedSkillType,
+} from '../engine/skillSlots';
 type StoryMissionManager = import('../engine/StoryMissionManager').StoryMissionManager;
 type PowerupSpawner = import('../engine/PowerupSystem').PowerupSpawner;
 type BuildSystem = import('../engine/BuildSystem').BuildSystem;
@@ -75,6 +81,28 @@ import {
   IDENTITY_META_BONUSES,
   type MetaBonuses,
 } from '../engine/MetaBonuses';
+
+/**
+ * HUD 技能条图标。
+ *
+ * 这是 **UI 自己的图标词汇表**，与 `skillSlots` 里 `SkillConfig.icon` 不是一套
+ * （引擎写 `time` / `overdrive`，HUD 用 `clock` / `zap`），所以刻意留在这里。
+ * 名称、快捷键、顺序、冷却都从 `skillSlots` 真源取，只有图标是本文件负责。
+ */
+const SKILL_BAR_ICONS: Record<ImplementedSkillType, string> = {
+  [SkillType.MISSILE_STRIKE]: 'missile',
+  [SkillType.SHIELD_BURST]: 'shield',
+  [SkillType.TIME_SLOW]: 'clock',
+  [SkillType.OVERDRIVE]: 'zap',
+};
+
+/** 槽位激活音效。没有专门音效的槽位为 `null`。 */
+const SKILL_SLOT_CUES: Record<ImplementedSkillType, string | null> = {
+  [SkillType.MISSILE_STRIKE]: 'weaponUpgrade',
+  [SkillType.SHIELD_BURST]: 'shieldActivate',
+  [SkillType.TIME_SLOW]: null,
+  [SkillType.OVERDRIVE]: null,
+};
 
 const enginePowerupTypeToLua = (engineType: string): string | null => {
   const mapping: Record<string, string> = {
@@ -318,33 +346,52 @@ export const GameScene: React.FC<{
     }
   }, []);
 
-  const handleTouchSkill1 = useCallback(() => {
-    if (skillSystemRef.current) {
-      skillSystemRef.current.activateSkill('missile_strike' as SkillType);
-      useGameStore.getState().setSkillCooldown('skill1', 8);
-    }
+  /**
+   * 技能槽位激活的**唯一入口**：HUD 点击、触屏按钮、键盘 Q/E/T/G 三条路都走这里。
+   *
+   * 这一处堵住三个此前各自为政、叠在一起就成了"点了没反应"的坑：
+   *
+   *  ① **词表错位（真缺陷）**：旧代码在触屏/HUD 路径传的是 snake_case 字符串
+   *     （`'missile_strike'`）并用 `as SkillType` 强转绕过类型检查，而 `SkillType`
+   *     的枚举值是 camelCase（`missileStrike`）→ `skillSystem.activateSkill()` 里
+   *     `skills.get()` 恒 miss、静默返回 false。**4 个技能里有 3 个点了没反应**；
+   *     键盘路径写的是枚举，所以只有点按钮 / 触屏的人中招。
+   *     现在一律从 `SKILL_SLOT_ORDER` 取，TS 会替我们盯住。
+   *  ② **冷却无条件写入**：旧代码不管激活成功与否都 `setSkillCooldown()`，
+   *     于是"从未发生的技能"也会在 HUD 上走一遍冷却条。
+   *  ③ **冷却秒数与真值不符**：旧代码写死 8/10/15/20，技能真实冷却是 15/20/30/25，
+   *     冷却环提前转完，玩家以为可以按了。现在取技能自己的 `config.cooldown`。
+   *
+   * 返回是否真的激活成功，便于调用方决定要不要配音效。
+   */
+  const activateSkillSlot = useCallback((index: number): boolean => {
+    const system = skillSystemRef.current;
+    const slotKey = SKILL_SLOT_KEYS[index];
+    const type = SKILL_SLOT_ORDER[index];
+    if (!system || !slotKey || !type) return false;
+
+    if (!system.activateSkill(type)) return false;
+
+    // 分母（store 的 maxCooldowns）与这里的秒数同源于 skillSlots，永远不会错开
+    useGameStore.getState().setSkillCooldown(slotKey, SKILL_SLOT_CONFIGS[type].cooldown);
+    return true;
   }, []);
+
+  const handleTouchSkill1 = useCallback(() => {
+    activateSkillSlot(0);
+  }, [activateSkillSlot]);
 
   const handleTouchSkill2 = useCallback(() => {
-    if (skillSystemRef.current) {
-      skillSystemRef.current.activateSkill('shield_burst' as SkillType);
-      useGameStore.getState().setSkillCooldown('skill2', 10);
-    }
-  }, []);
+    activateSkillSlot(1);
+  }, [activateSkillSlot]);
 
   const handleTouchSkill3 = useCallback(() => {
-    if (skillSystemRef.current) {
-      skillSystemRef.current.activateSkill('time_slow' as SkillType);
-      useGameStore.getState().setSkillCooldown('skill3', 15);
-    }
-  }, []);
+    activateSkillSlot(2);
+  }, [activateSkillSlot]);
 
   const handleTouchSkill4 = useCallback(() => {
-    if (skillSystemRef.current) {
-      skillSystemRef.current.activateSkill('overdrive' as SkillType);
-      useGameStore.getState().setSkillCooldown('skill4', 20);
-    }
-  }, []);
+    activateSkillSlot(3);
+  }, [activateSkillSlot]);
 
   // Build 强化选择处理
   const handleUpgradeSelect = useCallback((upgradeId: string) => {
@@ -1143,6 +1190,22 @@ export const GameScene: React.FC<{
               critChanceBonus: w?.buildMods?.['critChanceBonus'] ?? -1,
             };
           },
+          /**
+           * 战斗技能（HUD 槽位 Q/E/T/G）的**真实**状态。
+           *
+           * 读的是 `SkillSystem` 内部的 Skill 对象，而不是 store 里那份「供 HUD 显示」的
+           * 冷却副本 —— 这两者曾经口径不一致（store 写死 8/10/15/20、真值 15/20/30/25），
+           * 验证脚本要断言「点了按钮技能真的开」，必须读这一份。
+           */
+          skills: () =>
+            skillSystemRef.current
+              ? skillSystemRef.current.getSlotSnapshot().map((s, i) => ({
+                  slot: SKILL_SLOT_KEYS[i],
+                  ...s,
+                }))
+              : null,
+          /** store 里 HUD 用的那份冷却（含分母 maxCooldowns），用于比对显示值与真值 */
+          hudSkills: () => useGameStore.getState().skills,
           /** 直接点天赋（绕过打波次升级），便于快速验证属性出口 */
           upgrade: (nodeId: string) => skillTreeManager.upgradeTalent(nodeId),
           /** 清空技能树与其 localStorage，保证验证可重复 */
@@ -1804,6 +1867,17 @@ export const GameScene: React.FC<{
           asteroidSystemRef.current = null;
         }
 
+        // 技能系统必须在**引擎销毁之前**收掉。
+        // 它手上挂着导弹移动的 setInterval 与爆炸的 setTimeout，这些回调会在
+        // 引擎已 `destroy()` 之后才到期；届时 `new pc.Entity(...)` 拿不到 application，
+        // `entity.addComponent()` 内部读 `this._app.systems` 会抛
+        // 「Cannot read properties of null (reading 'systems')」——
+        // 一次导弹打击（两轮共 10 枚）就是 10 条未捕获异常（实测）。
+        if (skillSystemRef.current) {
+          skillSystemRef.current.destroy();
+          skillSystemRef.current = null;
+        }
+
         if (engineRef.current) {
           engineRef.current.destroy();
           engineRef.current = null;
@@ -1888,32 +1962,20 @@ export const GameScene: React.FC<{
           controlsRef.current.fire = true;
           e.preventDefault();
           break;
-        case 'KeyQ':
-          if (skillSystemRef.current) {
-            skillSystemRef.current.activateSkill(SkillType.MISSILE_STRIKE);
-            useGameStore.getState().setSkillCooldown('skill1', 8);
-            audioManagerRef.current?.playSound('weaponUpgrade');
-          }
+        // 技能槽位 Q/E/T/G —— 键位字母取自真源（`SkillConfig.keyBinding`），
+        // 不再"HUD 写一遍 Q、键盘再写一遍 KeyQ"两处各写一次；两者漂移过一次，
+        // 结果是 HUD 教玩家按的键与真正监听的键对不上。
+        // 音效只在**真的激活成功**时播（冷却中按下静默，不再给出假反馈）。
+        default: {
+          const slotIndex = SKILL_SLOT_ORDER.findIndex(
+            (t) => `Key${SKILL_SLOT_CONFIGS[t].keyBinding}` === e.code,
+          );
+          if (slotIndex < 0) break;
+          if (!activateSkillSlot(slotIndex)) break;
+          const cue = SKILL_SLOT_CUES[SKILL_SLOT_ORDER[slotIndex]];
+          if (cue) audioManagerRef.current?.playSound(cue);
           break;
-        case 'KeyE':
-          if (skillSystemRef.current) {
-            skillSystemRef.current.activateSkill(SkillType.SHIELD_BURST);
-            useGameStore.getState().setSkillCooldown('skill2', 10);
-            audioManagerRef.current?.playSound('shieldActivate');
-          }
-          break;
-        case 'KeyT':
-          if (skillSystemRef.current) {
-            skillSystemRef.current.activateSkill(SkillType.TIME_SLOW);
-            useGameStore.getState().setSkillCooldown('skill3', 15);
-          }
-          break;
-        case 'KeyG':
-          if (skillSystemRef.current) {
-            skillSystemRef.current.activateSkill(SkillType.OVERDRIVE);
-            useGameStore.getState().setSkillCooldown('skill4', 20);
-          }
-          break;
+        }
       }
     };
 
@@ -1959,61 +2021,40 @@ export const GameScene: React.FC<{
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+    // activateSkillSlot 是 useCallback([])，恒稳定；列出来只是为了让依赖表诚实
+  }, [activateSkillSlot]);
 
+  /**
+   * HUD 技能条内容。**顺序 / 名称 / 快捷键 / 冷却**全部取自 `skillSlots` 真源，
+   * 这里只补 HUD 自己的图标词汇。
+   *
+   * 此前这四项是手抄的一份：顺序、名称、'Q'/'E'/'T'/'G'、以及 8/10/15/20 的冷却
+   * 都与真源各写各的 —— 列表一旦漂移，HUD 会显示错误的快捷键与错误长度的冷却条。
+   */
   const skills = useMemo(
-    () => [
-      {
-        name: '导弹打击',
-        icon: 'missile',
-        cooldown: skillCooldowns.skill1,
-        maxCooldown: skillMaxCooldowns.skill1,
-        keyBinding: 'Q',
-        isActive: false,
-      },
-      {
-        name: '护盾爆发',
-        icon: 'shield',
-        cooldown: skillCooldowns.skill2,
-        maxCooldown: skillMaxCooldowns.skill2,
-        keyBinding: 'E',
-        isActive: false,
-      },
-      {
-        name: '时间减缓',
-        icon: 'clock',
-        cooldown: skillCooldowns.skill3,
-        maxCooldown: skillMaxCooldowns.skill3,
-        keyBinding: 'T',
-        isActive: false,
-      },
-      {
-        name: '过载驱动',
-        icon: 'zap',
-        cooldown: skillCooldowns.skill4,
-        maxCooldown: skillMaxCooldowns.skill4,
-        keyBinding: 'G',
-        isActive: false,
-      },
-    ],
+    () =>
+      SKILL_SLOT_ORDER.map((type, index) => {
+        const config = SKILL_SLOT_CONFIGS[type];
+        const slotKey = SKILL_SLOT_KEYS[index];
+        return {
+          name: config.name,
+          icon: SKILL_BAR_ICONS[type],
+          cooldown: skillCooldowns[slotKey],
+          maxCooldown: skillMaxCooldowns[slotKey],
+          keyBinding: config.keyBinding,
+          isActive: false,
+        };
+      }),
     [skillCooldowns, skillMaxCooldowns],
   );
 
-  const handleSkillActivate = useCallback((index: number) => {
-    if (!skillSystemRef.current) return;
-
-    const skillTypes: SkillType[] = [
-      'missile_strike',
-      'shield_burst',
-      'time_slow',
-      'overdrive',
-    ] as SkillType[];
-    const skillKeys = ['skill1', 'skill2', 'skill3', 'skill4'];
-    const cooldowns = [8, 10, 15, 20];
-
-    skillSystemRef.current.activateSkill(skillTypes[index]);
-    useGameStore.getState().setSkillCooldown(skillKeys[index], cooldowns[index]);
-  }, []);
+  const handleSkillActivate = useCallback(
+    (index: number) => {
+      // 与键盘 Q/E/T/G 共用同一入口，杜绝两套槽位表再次错开
+      activateSkillSlot(index);
+    },
+    [activateSkillSlot],
+  );
 
   const hudProps = useMemo(
     () => ({

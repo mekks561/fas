@@ -162,7 +162,7 @@ const SkillBar: React.FC<{ skills: SkillInfo[]; onActivate?: (index: number) => 
   onActivate,
 }) => {
   return (
-    <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-3">
+    <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-3" data-testid="skill-bar">
       <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Skills</div>
       <div className="flex items-center gap-2">
         {skills.map((skill, index) => {
@@ -173,6 +173,7 @@ const SkillBar: React.FC<{ skills: SkillInfo[]; onActivate?: (index: number) => 
           return (
             <button
               key={skill.name}
+              data-testid={`skill-slot-${index}`}
               className={`relative w-14 h-14 rounded-xl font-bold text-sm transition-all ${
                 skill.isActive
                   ? 'bg-yellow-500/30 border-2 border-yellow-400'

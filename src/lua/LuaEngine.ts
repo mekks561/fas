@@ -1,4 +1,8 @@
 import * as wasmoon from 'wasmoon';
+// wasmoon 的 wasm 二进制（271KB）。**必须自己带在包里**，理由见 `resolveRuntimeFactory`。
+// `?url` 让 Vite 把它当资源产出并回传带 hash 的真实 URL —— dev 与生产构建都对得上，
+// 不需要任何手工拷贝步骤。
+import glueWasmUrl from 'wasmoon/dist/glue.wasm?url';
 import type { LuaEngineOptions, LuaRuntimeMode, LuaScriptModule } from './types';
 import { getLuaSourceMap, getLuaSourceRegistryErrors, listLuaModuleNames } from './luaSources';
 
@@ -191,6 +195,15 @@ export class LuaEngine {
    *  - 1.12 之前：`import { factory } from 'wasmoon'` 的单例（`factory.create()`）
    *
    * 旧代码只认 `wasmoon.factory`，在 1.16 上恒为 undefined → 静默落 stub。
+   *
+   * ── 为什么必须显式传 wasm URL（2026-10-12 新增）─────────────────────────────
+   * `LuaFactory` 不传 `customWasmUri` 时，wasmoon 在浏览器里会**硬编码去 CDN 取**：
+   *   `customWasmUri = 'https://unpkg.com/wasmoon@1.16.0/dist/glue.wasm'`
+   * 这带来两个后果，且都不报错、只留一句 console 警告：
+   *   ① 断网 / 内网部署（NAS 上就是）→ `Failed to fetch` → **整个 Lua 运行时静默回落 stub**；
+   *   ② 生产包体在运行时依赖第三方 CDN，还要看网络与代理脸色。
+   * 实测证据（生产构建 + 本地预览）：`[LuaEngine] 真实 Lua 运行时启动失败，回落宿主实现: Failed to fetch`。
+   * 所以这里把随包发布的 wasm URL 显式传进去，彻底断开 CDN 依赖。
    */
   private resolveRuntimeFactory(): (() => Promise<unknown>) | null {
     const ns = wasmoon as unknown as Record<string, unknown>;
@@ -218,8 +231,10 @@ export class LuaEngine {
     for (const layer of layers) {
       const candidate = safeGet(layer, 'LuaFactory');
       if (typeof candidate === 'function') {
-        const FactoryCtor = candidate as new () => { createEngine: () => Promise<unknown> };
-        return async () => new FactoryCtor().createEngine();
+        const FactoryCtor = candidate as new (customWasmUri?: string) => {
+          createEngine: () => Promise<unknown>;
+        };
+        return async () => new FactoryCtor(glueWasmUrl).createEngine();
       }
     }
 

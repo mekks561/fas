@@ -2,32 +2,22 @@ import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 
-export enum SkillType {
-  MISSILE_STRIKE = 'missileStrike',
-  SHIELD_BURST = 'shieldBurst',
-  TIME_SLOW = 'timeSlow',
-  EMP_BURST = 'empBurst',
-  REPAIR_DRONE = 'repairDrone',
-  OVERDRIVE = 'overdrive',
-}
+import {
+  SKILL_SLOT_CONFIGS,
+  SKILL_SLOT_ORDER,
+  SkillType,
+  type SkillConfig,
+  type SkillState,
+} from './skillSlots';
 
-export interface SkillConfig {
-  type: SkillType;
-  name: string;
-  description: string;
-  cooldown: number;
-  duration: number;
-  icon: string;
-  keyBinding: string;
-}
-
-export interface SkillState {
-  isActive: boolean;
-  cooldownRemaining: number;
-  durationRemaining: number;
-  level: number;
-  maxLevel: number;
-}
+/**
+ * 技能 id / 配置的形状与数值**不在这里定义** —— 唯一真源是 `./skillSlots`。
+ *
+ * 这里只做再导出，保证既有 `import { SkillType } from './SkillSystem'` 的调用点不动。
+ * 数值与槽位顺序的改动一律去 `skillSlots.ts`（连同 HUD 冷却环、store 冷却上限一起生效）。
+ */
+export { SkillType } from './skillSlots';
+export type { SkillConfig, SkillState } from './skillSlots';
 
 export class Skill {
   protected config: SkillConfig;
@@ -35,6 +25,12 @@ export class Skill {
   protected player: PlayerShip;
   protected engine: PlayCanvasGameEngine;
   protected effectEntity: pc.Entity | null = null;
+  /**
+   * 已销毁标记。销毁之后所有延迟回调（setTimeout / setInterval）一律不得再碰引擎对象 ——
+   * 引擎此时通常也已被销毁，`new pc.Entity()` 拿不到 application，
+   * `entity.addComponent()` 内部读 `this._app.systems` 会直接抛 TypeError。
+   */
+  protected disposed = false;
 
   constructor(player: PlayerShip, engine: PlayCanvasGameEngine, config: SkillConfig) {
     this.player = player;
@@ -68,6 +64,10 @@ export class Skill {
   protected executeSkillEffect(_dt: number): void {}
 
   public activate(): boolean {
+    if (this.disposed) {
+      return false;
+    }
+
     if (this.state.cooldownRemaining > 0) {
       return false;
     }
@@ -141,6 +141,7 @@ export class Skill {
   }
 
   public destroy(): void {
+    this.disposed = true;
     this.removeEffect();
   }
 }
@@ -148,20 +149,26 @@ export class Skill {
 export class MissileStrikeSkill extends Skill {
   private missiles: pc.Entity[] = [];
   private targetPositions: pc.Vec3[] = [];
+  /**
+   * 未到期的定时器 / 周期任务，销毁时必须一次性清空。
+   *
+   * 这是一次实测抓到的未捕获异常的真凶（e2e：`verify-skill-activation.mjs` 第 7 段）：
+   * 一次导弹打击会排出「1.5s 后逐枚爆炸」的 setTimeout，而这批导弹在 1.5s 全部爆完后，
+   * 技能还在持续期内 → `executeSkillEffect` 又补了一轮。第二轮的定时器要到 3s 才到期，
+   * 而那时玩家往往已经离开关卡、引擎已 `destroy()`：
+   * `explodeMissile` → `new pc.Entity('explosion')` → `addComponent('particlesystem')`
+   * → PlayCanvas 内部读 `this._app.systems` 时 `_app` 为 null →
+   * **每一枚导弹一条 `Cannot read properties of null (reading 'systems')`**（实测 10 条）。
+   */
+  private timers = new Set<ReturnType<typeof setTimeout>>();
+  private intervals = new Set<ReturnType<typeof setInterval>>();
 
   constructor(player: PlayerShip, engine: PlayCanvasGameEngine) {
-    super(player, engine, {
-      type: SkillType.MISSILE_STRIKE,
-      name: '导弹打击',
-      description: '发射多枚导弹攻击前方敌人',
-      cooldown: 15,
-      duration: 2,
-      icon: 'missile',
-      keyBinding: 'Q',
-    });
+    super(player, engine, SKILL_SLOT_CONFIGS[SkillType.MISSILE_STRIKE]);
   }
 
   protected override executeSkillEffect(_dt: number): void {
+    if (this.disposed) return;
     if (this.missiles.length > 0) return;
 
     const missileCount = 5 + this.state.level * 2;
@@ -170,10 +177,29 @@ export class MissileStrikeSkill extends Skill {
       const missile = this.createMissile(i, missileCount);
       this.missiles.push(missile);
 
-      setTimeout(() => {
-        this.explodeMissile(missile);
-      }, 1500);
+      this.schedule(() => this.explodeMissile(missile), 1500);
     }
+  }
+
+  /**
+   * 登记一个定时器，便于 `destroy()` 一次性清掉。
+   * 回调触发前再查一次 `disposed`：即使定时器已经被清过，也不会在半销毁状态下执行。
+   */
+  private schedule(fn: () => void, ms: number): void {
+    const id = setTimeout(() => {
+      this.timers.delete(id);
+      if (this.disposed) return;
+      fn();
+    }, ms);
+    this.timers.add(id);
+  }
+
+  /** 清空所有未到期的定时器与周期任务。 */
+  private clearAllTimers(): void {
+    this.timers.forEach((id) => clearTimeout(id));
+    this.timers.clear();
+    this.intervals.forEach((id) => clearInterval(id));
+    this.intervals.clear();
   }
 
   private createMissile(index: number, total: number): pc.Entity {
@@ -221,6 +247,7 @@ export class MissileStrikeSkill extends Skill {
     const moveInterval = setInterval(() => {
       if (!missile.parent) {
         clearInterval(moveInterval);
+        this.intervals.delete(moveInterval);
         return;
       }
 
@@ -228,13 +255,24 @@ export class MissileStrikeSkill extends Skill {
       const newPos = currentPos.clone().add(direction.clone().scale(30 * 0.016));
       missile.setPosition(newPos);
     }, 16);
+    this.intervals.add(moveInterval);
 
-    setTimeout(() => clearInterval(moveInterval), 1500);
+    this.schedule(() => {
+      clearInterval(moveInterval);
+      this.intervals.delete(moveInterval);
+    }, 1500);
 
     return missile;
   }
 
   private explodeMissile(missile: pc.Entity): void {
+    // 两道闸门，缺一不可：
+    //  ① `disposed` —— 技能/引擎已销毁，绝不能再 new 实体；
+    //  ② 导弹已不在 `this.missiles` 里 —— 说明它已被 `endSkill()` 或 `destroy()` 收走，
+    //     此时它的定时器只是"迟到的回声"，**必须丢弃**，否则就是上面注释里那串 TypeError。
+    if (this.disposed) return;
+    if (this.missiles.indexOf(missile) === -1) return;
+
     const explosion = new pc.Entity('explosion');
     explosion.setPosition(missile.getPosition());
 
@@ -261,7 +299,7 @@ export class MissileStrikeSkill extends Skill {
     this.engine.addToScene(explosion);
     explosion.particlesystem?.play();
 
-    setTimeout(() => explosion.destroy(), 500);
+    this.schedule(() => explosion.destroy(), 500);
 
     const missileIndex = this.missiles.indexOf(missile);
     if (missileIndex > -1) {
@@ -273,6 +311,18 @@ export class MissileStrikeSkill extends Skill {
 
   protected override endSkill(): void {
     super.endSkill();
+    // 必须先清定时器再收导弹：慢了的话，"迟到的爆炸回调"会看到导弹仍在名单里而继续
+    // 走 `new pc.Entity` 的老路（这正是上面那串 TypeError 的成因之一）。
+    this.clearAllTimers();
+    this.missiles.forEach((m) => m.destroy());
+    this.missiles = [];
+    this.targetPositions = [];
+  }
+
+  public override destroy(): void {
+    // 顺序有讲究：`super.destroy()` 先立起 disposed 闸门，再清定时器，最后收实体。
+    super.destroy();
+    this.clearAllTimers();
     this.missiles.forEach((m) => m.destroy());
     this.missiles = [];
     this.targetPositions = [];
@@ -283,18 +333,12 @@ export class ShieldBurstSkill extends Skill {
   private shieldPulse: pc.Entity | null = null;
 
   constructor(player: PlayerShip, engine: PlayCanvasGameEngine) {
-    super(player, engine, {
-      type: SkillType.SHIELD_BURST,
-      name: '护盾爆发',
-      description: '瞬间恢复护盾并释放冲击波',
-      cooldown: 20,
-      duration: 0.5,
-      icon: 'shield',
-      keyBinding: 'E',
-    });
+    super(player, engine, SKILL_SLOT_CONFIGS[SkillType.SHIELD_BURST]);
   }
 
   protected override executeSkillEffect(_dt: number): void {
+    if (this.disposed) return;
+
     if (!this.shieldPulse) {
       this.player.addShield(50 + this.state.level * 25);
       this.createShieldPulse();
@@ -332,15 +376,7 @@ export class ShieldBurstSkill extends Skill {
 
 export class TimeSlowSkill extends Skill {
   constructor(player: PlayerShip, engine: PlayCanvasGameEngine) {
-    super(player, engine, {
-      type: SkillType.TIME_SLOW,
-      name: '时间减缓',
-      description: '减缓所有敌人的移动和攻击速度',
-      cooldown: 30,
-      duration: 5,
-      icon: 'time',
-      keyBinding: 'T',
-    });
+    super(player, engine, SKILL_SLOT_CONFIGS[SkillType.TIME_SLOW]);
   }
 
   protected override executeSkillEffect(_dt: number): void {
@@ -355,15 +391,7 @@ export class TimeSlowSkill extends Skill {
 
 export class OverdriveSkill extends Skill {
   constructor(player: PlayerShip, engine: PlayCanvasGameEngine) {
-    super(player, engine, {
-      type: SkillType.OVERDRIVE,
-      name: '过载驱动',
-      description: '大幅提升移动速度和武器射速',
-      cooldown: 25,
-      duration: 4,
-      icon: 'overdrive',
-      keyBinding: 'G',
-    });
+    super(player, engine, SKILL_SLOT_CONFIGS[SkillType.OVERDRIVE]);
   }
 
   protected override executeSkillEffect(_dt: number): void {
@@ -388,6 +416,8 @@ export class OverdriveSkill extends Skill {
 export class SkillSystem {
   private skills: Map<SkillType, Skill> = new Map();
   private activeSkills: Set<SkillType> = new Set();
+  /** 已销毁。销毁后 `skills` 表会被清空，此时再查表 miss 不是"词表错位"，不应刷告警。 */
+  private destroyed = false;
   /**
    * 技能真正被激活时的回调（由 GameScene 接到成就系统）。
    *
@@ -430,7 +460,21 @@ export class SkillSystem {
 
   public activateSkill(type: SkillType): boolean {
     const skill = this.skills.get(type);
-    if (!skill) return false;
+    if (!skill) {
+      // 这里**必须吵**。曾经的不吵版本掩盖了一个真缺陷：调用方在触屏/HUD 路径传的是
+      // snake_case 字符串（`'missile_strike'`）并用 `as SkillType` 绕过类型检查，
+      // 于是查表恒 miss、静默返回 false —— 4 个技能里 3 个点了没反应，而控制台一片安静。
+      // 现在未知 id 会打出已知 id 列表，下次同类错误在第一次点击时就暴露。
+      // （已销毁时 `skills` 表已被清空，那次 miss 属正常，不刷告警。）
+      if (!this.destroyed) {
+        console.warn(
+          `[SkillSystem] 未知技能 id "${type}"，忽略激活。` +
+            `已知 id：${Array.from(this.skills.keys()).join(' / ')}。` +
+            `调用方应使用 skillSlots 的 SKILL_SLOT_ORDER / SkillType 枚举，不要写字符串字面量。`,
+        );
+      }
+      return false;
+    }
 
     const activated = skill.activate();
     // 只在**真的激活成功**时计数（冷却中返回 false 不算用过）
@@ -438,6 +482,41 @@ export class SkillSystem {
       this.onSkillActivated(type);
     }
     return activated;
+  }
+
+  /**
+   * 4 个槽位（Q/E/T/G）的当前状态快照。
+   *
+   * 供 `__skillDebug.skills()` 观测 —— 读的是 `SkillSystem` 内部的 `Skill` 对象，
+   * 而不是 store 里那份「供 HUD 显示」的冷却副本。这两者曾经口径不一致
+   * （store 写死 8/10/15/20、技能真实冷却 15/20/30/25），必须能分辨谁是真值。
+   */
+  public getSlotSnapshot(): Array<{
+    index: number;
+    type: SkillType;
+    registered: boolean;
+    isActive: boolean;
+    cooldownRemaining: number;
+    cooldownTotal: number;
+    durationRemaining: number;
+    ready: boolean;
+    level: number;
+  }> {
+    return SKILL_SLOT_ORDER.map((type, index) => {
+      const skill = this.skills.get(type);
+      const state = skill?.getState();
+      return {
+        index,
+        type,
+        registered: !!skill,
+        isActive: state?.isActive ?? false,
+        cooldownRemaining: state ? Number(state.cooldownRemaining.toFixed(3)) : -1,
+        cooldownTotal: skill?.getConfig().cooldown ?? -1,
+        durationRemaining: state ? Number(state.durationRemaining.toFixed(3)) : -1,
+        ready: skill?.isReady() ?? false,
+        level: state?.level ?? -1,
+      };
+    });
   }
 
   public upgradeSkill(type: SkillType): boolean {
@@ -488,6 +567,7 @@ export class SkillSystem {
   }
 
   public destroy(): void {
+    this.destroyed = true;
     this.skills.forEach((skill) => skill.destroy());
     this.skills.clear();
     this.activeSkills.clear();
