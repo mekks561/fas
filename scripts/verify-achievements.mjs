@@ -20,6 +20,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { applyProgressSeed } from './lib/unlock-seed.mjs';
 
 const URL = process.env.VERIFY_URL || 'http://localhost:5177/';
 const EXE =
@@ -224,6 +225,9 @@ await page.evaluate(() => {
     JSON.stringify(['achievement-01', 'achievement-08']),
   );
 });
+// 技能按通关进度解锁后，C 段「按 Q 放导弹技能 → skillsUsed 上报」需要它先解锁。
+// 本脚本关心的是成就统计链路，不是解锁门控（那是 verify-unlocks 的职责）。
+await applyProgressSeed(page, 10);
 legacyJsonRequests.length = 0;
 await page.reload({ waitUntil: 'load', timeout: 120000 });
 await page.waitForTimeout(9000);

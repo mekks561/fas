@@ -27,6 +27,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { applyProgressSeed } from './lib/unlock-seed.mjs';
 
 const URL = process.env.VERIFY_URL || 'http://localhost:5177/';
 const EXE =
@@ -169,6 +170,15 @@ console.log('\n===== 0. 清档（保证可重复） =====');
 // 首次访问要等 Vite 预打包整个模块图，60s 不够（实测超时）。给到 180s。
 await page.goto(URL, { waitUntil: 'load', timeout: 180000 });
 await page.evaluate(() => localStorage.clear());
+/**
+ * 预置「十关全通关」。
+ *
+ * 技能现在是**按通关进度解锁**的（`rewards.unlocks` 接了真链，见 UnlockRegistry）：
+ * 全新存档里 4 个技能全锁、`SkillSystem` 连 Skill 对象都不注册。
+ * 本脚本要验证的是「技能能开」，不是「技能何时解锁」—— 后者归 `verify-unlocks.mjs`。
+ * 所以这里把前置条件一次性铺平；不铺的话本脚本会整体失效（4 个槽位全锁）。
+ */
+await applyProgressSeed(page, 10);
 await page.reload({ waitUntil: 'load', timeout: 180000 });
 await page.waitForTimeout(9000);
 

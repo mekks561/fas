@@ -39,6 +39,9 @@ const AchievementPanel = lazy(() =>
 const ShopPanel = lazy(() =>
   import('./components/ShopPanel').then((m) => ({ default: m.ShopPanel })),
 );
+const HangarPanel = lazy(() =>
+  import('./components/HangarPanel').then((m) => ({ default: m.HangarPanel })),
+);
 const SkillTreeUI = lazy(() =>
   import('./components/SkillTreeUI').then((m) => ({ default: m.SkillTreeUI })),
 );
@@ -184,6 +187,11 @@ function App() {
   // 打开商店
   const handleShop = useCallback(() => {
     setGameState(GameState.SHOP);
+  }, []);
+
+  // 打开机库（出厂舰体选择）
+  const handleHangar = useCallback(() => {
+    setGameState(GameState.HANGAR);
   }, []);
 
   // 打开技能树
@@ -393,6 +401,7 @@ function App() {
             onSettings={handleSettings}
             onAchievements={handleAchievements}
             onShop={handleShop}
+            onHangar={handleHangar}
             onSkillTree={handleSkillTree}
             onSurvival={handleSurvival}
             onLeaderboard={handleLeaderboard}
@@ -432,6 +441,13 @@ function App() {
         {gameState === GameState.SHOP && (
           <Suspense fallback={<PageLoader />}>
             <ShopPanel onBack={handleBackToMenu} />
+          </Suspense>
+        )}
+
+        {/* 机库面板（出厂舰体选择） */}
+        {gameState === GameState.HANGAR && (
+          <Suspense fallback={<PageLoader />}>
+            <HangarPanel onBack={handleBackToMenu} />
           </Suspense>
         )}
 

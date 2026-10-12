@@ -25,6 +25,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { applyProgressSeed } from './lib/unlock-seed.mjs';
 
 const URL = process.env.VERIFY_URL || 'http://localhost:5177/';
 const EXE =
@@ -182,6 +183,21 @@ const ownedItems = () =>
 console.log('\n===== 0. 清档（信用点/已购物品都会持久化） =====');
 await page.goto(URL, { waitUntil: 'load', timeout: 60000 });
 await page.evaluate(() => localStorage.clear());
+/**
+ * 商品门槛现在是**真的**了，所以要先铺平前置条件：
+ *   · 「伤害强化模块」写着 `level: 5` —— 此前只是渲染这行字、不判定，
+ *     现在真去比 `player.level`；等级由累计经验推导，升到 5 级 = 500 点。
+ *   · 「重型巡洋舰」是舰船，门槛改成通关解锁（`ship-cruiser` = 第 5 关）。
+ * 本脚本验证的是**元进度折算链路**，不是门槛本身（那是 verify-unlocks.mjs 的职责），
+ * 所以这里把进度与等级一次性预置好。
+ */
+await applyProgressSeed(page, 5);
+await page.evaluate(() => {
+  localStorage.setItem(
+    'fighter-game-save',
+    JSON.stringify({ state: { player: { score: 0, level: 5, experience: 500 } }, version: 1 }),
+  );
+});
 await page.reload({ waitUntil: 'load', timeout: 60000 });
 await page.waitForTimeout(9000);
 

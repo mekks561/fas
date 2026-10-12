@@ -43,6 +43,11 @@ coverage/
 .cache/
 .temp/
 
+# 部署临时归档（scripts/deploy-nas.mjs 生成；正常结束时自动删除，
+# 中途失败会残留 231MB —— 千万别提交）
+.deploy-dist-*.tar.gz
+.tmp-probe-*.mjs
+
 # 3D / texture binaries (keep the rule broad so node_modules, dist and
 # ad-hoc exporter dumps never sneak in)
 *.glb

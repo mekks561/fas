@@ -71,6 +71,10 @@ interface SkillInfo {
   isActive: boolean;
   /** 悬浮说明（技能描述）。可选：调用方没给就不显示 title。 */
   description?: string;
+  /** 本局尚未解锁（通关进度不够）。锁定槽位显示锁形占位与解锁提示。 */
+  locked?: boolean;
+  /** 锁定时的提示文案，如「通关第 2 关解锁」。 */
+  unlockHint?: string;
 }
 
 const BossHealthBar: React.FC<{
@@ -170,56 +174,89 @@ const SkillBar: React.FC<{ skills: SkillInfo[]; onActivate?: (index: number) => 
         {skills.map((skill, index) => {
           const cooldownPercent =
             skill.cooldown > 0 ? (skill.cooldown / skill.maxCooldown) * 100 : 0;
-          const isReady = skill.cooldown <= 0 && !skill.isActive;
+          const isReady = !skill.locked && skill.cooldown <= 0 && !skill.isActive;
 
           return (
             <div
               key={skill.name}
               className="flex flex-col items-center gap-1"
-              title={skill.description ? `${skill.name} — ${skill.description}` : skill.name}
+              title={
+                skill.locked
+                  ? `${skill.name} — ${skill.unlockHint ?? '尚未解锁'}`
+                  : skill.description
+                    ? `${skill.name} — ${skill.description}`
+                    : skill.name
+              }
             >
               <button
                 data-testid={`skill-slot-${index}`}
+                data-locked={skill.locked ? 'true' : 'false'}
                 className={`relative w-14 h-14 rounded-xl font-bold text-sm transition-all ${
-                  skill.isActive
-                    ? 'bg-yellow-500/30 border-2 border-yellow-400'
-                    : isReady
-                      ? 'bg-purple-500/30 border-2 border-purple-400 hover:bg-purple-500/50'
-                      : 'bg-slate-700/50 border-2 border-slate-600 opacity-60'
+                  skill.locked
+                    ? 'bg-slate-800/60 border-2 border-slate-700 border-dashed'
+                    : skill.isActive
+                      ? 'bg-yellow-500/30 border-2 border-yellow-400'
+                      : isReady
+                        ? 'bg-purple-500/30 border-2 border-purple-400 hover:bg-purple-500/50'
+                        : 'bg-slate-700/50 border-2 border-slate-600 opacity-60'
                 }`}
                 onClick={() => onActivate?.(index)}
                 disabled={!isReady}
               >
-                <span
-                  className={`absolute bottom-1 left-1/2 -translate-x-1/2 text-xs ${
-                    isReady ? 'text-white' : 'text-slate-500'
-                  }`}
-                >
-                  {skill.keyBinding}
-                </span>
-                {skill.cooldown > 0 && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 bg-slate-900/80 rounded-b-xl transition-all duration-100"
-                    style={{ height: `${cooldownPercent}%` }}
-                  />
-                )}
-                {skill.isActive && (
-                  <div className="absolute inset-0 bg-yellow-400/20 rounded-xl animate-pulse" />
+                {skill.locked ? (
+                  // 锁定槽位：不显示键位字母（按了也不会生效），改显示锁形；
+                  // 图标保留但压暗，让玩家仍能看出这个位置将来是什么。
+                  <span className="text-slate-500 text-lg leading-none">🔒</span>
+                ) : (
+                  <>
+                    <span
+                      className={`absolute bottom-1 left-1/2 -translate-x-1/2 text-xs ${
+                        isReady ? 'text-white' : 'text-slate-500'
+                      }`}
+                    >
+                      {skill.keyBinding}
+                    </span>
+                    {skill.cooldown > 0 && (
+                      <div
+                        className="absolute bottom-0 left-0 right-0 bg-slate-900/80 rounded-b-xl transition-all duration-100"
+                        style={{ height: `${cooldownPercent}%` }}
+                      />
+                    )}
+                    {skill.isActive && (
+                      <div className="absolute inset-0 bg-yellow-400/20 rounded-xl animate-pulse" />
+                    )}
+                  </>
                 )}
               </button>
               {/*
                 技能名标签。此前槽位里只有图标 + 键位字母，四个按钮长得一模一样，
                 玩家看不出哪个是哪个（尤其冷却中都变灰时）。名称取自 skillSlots 真源，
                 这里不写死任何字符串。
+                未解锁时额外挂一行「第 N 关解锁」—— 否则玩家只会看到四个锁，
+                不知道要做什么才能打开。
               */}
               <span
                 data-testid={`skill-name-${index}`}
                 className={`text-[10px] leading-none whitespace-nowrap ${
-                  skill.isActive ? 'text-yellow-300' : isReady ? 'text-slate-200' : 'text-slate-500'
+                  skill.locked
+                    ? 'text-slate-600'
+                    : skill.isActive
+                      ? 'text-yellow-300'
+                      : isReady
+                        ? 'text-slate-200'
+                        : 'text-slate-500'
                 }`}
               >
                 {skill.name}
               </span>
+              {skill.locked && skill.unlockHint && (
+                <span
+                  data-testid={`skill-unlock-${index}`}
+                  className="text-[9px] leading-none whitespace-nowrap text-slate-600"
+                >
+                  {skill.unlockHint}
+                </span>
+              )}
             </div>
           );
         })}

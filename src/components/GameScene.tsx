@@ -36,6 +36,16 @@ import {
   SkillType,
   type ImplementedSkillType,
 } from '../engine/skillSlots';
+import {
+  HULL_DEFS,
+  getUnlockLevel,
+  getUnlockName,
+  getUnlockSnapshot,
+  hullUnlockId,
+  skillUnlockId,
+  type UnlockSnapshot,
+} from '../engine/UnlockRegistry';
+import { getSelectedHull } from '../engine/SelectedHull';
 type StoryMissionManager = import('../engine/StoryMissionManager').StoryMissionManager;
 type PowerupSpawner = import('../engine/PowerupSystem').PowerupSpawner;
 type BuildSystem = import('../engine/BuildSystem').BuildSystem;
@@ -349,6 +359,20 @@ export const GameScene: React.FC<{
   }, []);
 
   /**
+   * 本局开局时的解锁快照（技能 + 舰体 + 待解锁清单）。
+   *
+   * 每个 GameScene 生命周期只读一次：解锁的唯一来源是**通关记录**，而通关会让
+   * GameScene 卸载（App 切到 GAME_OVER），下次进关时重新挂载、重新读取。所以局内
+   * 这份快照不会过期，也不会每帧去读 localStorage。
+   *
+   * 这一份同时喂三处，保证口径绝不漂移：
+   *   ① `SkillSystem` 的技能门控（未解锁 → 连 Skill 对象都不创建）
+   *   ② HUD 技能条的锁定态与「通关第 N 关解锁」提示
+   *   ③ `PlayerShip` 的舰体（见下方 shipModel 传参）
+   */
+  const unlockSnapshot: UnlockSnapshot = useMemo(() => getUnlockSnapshot(), []);
+
+  /**
    * 技能槽位激活的**唯一入口**：HUD 点击、触屏按钮、键盘 Q/E/T/G 三条路都走这里。
    *
    * 这一处堵住三个此前各自为政、叠在一起就成了"点了没反应"的坑：
@@ -643,15 +667,26 @@ export const GameScene: React.FC<{
 
       // 玩家初始生命/护盾以关卡配置为准（player.health / player.shield）；
       // store 里的值是上一局残留或默认值，仅在配置缺失时回落。
+      //
+      // `shipModel` 取自机库选择（`SelectedHull`）。这个字段此前**全仓零调用方**，
+      // 于是无论玩家在机库里选了什么，永远都是 `'fighter'` —— 6 个舰体 GLB 白躺着。
+      // 传的是 `getSelectedHull(unlockSnapshot.granted)`：同一个已授予集合，
+      // 所以「机库显示可选」与「真的能开」永远一致；已授予但存档写了个不可用舰体时
+      // 也会回落到初始舰体。
+      const selectedHull = getSelectedHull(unlockSnapshot.granted);
       const player = new PlayerShip({
         engine,
         initialPosition: new pc.Vec3(0, 0, 0),
         health: levelConfig?.player.health ?? gameState.player.health,
         shield: levelConfig?.player.shield ?? gameState.player.shield,
+        shipModel: selectedHull,
         tint: hullTint ?? undefined,
       });
       playerRef.current = player;
-      console.log('[GameScene] Player created at position (0, 0, 0)');
+      console.log(
+        `[GameScene] Player created at position (0, 0, 0)，舰体 ${HULL_DEFS[selectedHull].name}` +
+          `（${selectedHull}）`,
+      );
 
       // 成就「不死之身」按**本关**是否受击判定：开局清零受伤累计。
       // 计时同理，用于「速度狂魔（5 分钟内通关）」。两者都在关卡结算时读取。
@@ -708,8 +743,17 @@ export const GameScene: React.FC<{
       powerupSpawnerRef.current = powerupSpawner;
       console.log('[GameScene] Powerup spawner created');
 
-      const skillSystem = new SkillSystem(player, engine);
+      // 技能按通关进度解锁：注入上面那份快照，未解锁的技能**连对象都不创建**，
+      // 于是 `activateSkill` 必然返回 false —— 键盘按下去也不会有反应（冷却也不会走）。
+      const skillSystem = new SkillSystem(player, engine, {
+        grantedUnlockIds: unlockSnapshot.granted,
+      });
       skillSystemRef.current = skillSystem;
+      console.log(
+        `[GameScene] 技能解锁 ${unlockSnapshot.skills.length}/${SKILL_SLOT_ORDER.length}：` +
+          `${unlockSnapshot.skills.map((t) => SKILL_SLOT_CONFIGS[t].name).join('/') || '无'}` +
+          `（解锁内容来自关卡通关记录，未解锁的技能不会注册）`,
+      );
       // 技能使用统计 → 成就系统。`SkillSystem` 只回调、不依赖任何存储；
       // 成就是那个回调的消费方（`skillsUsed` 此前无供给方 → 三条技能成就点不亮）。
       skillSystem.setOnSkillActivated((type) => {
@@ -1208,6 +1252,27 @@ export const GameScene: React.FC<{
               : null,
           /** store 里 HUD 用的那份冷却（含分母 maxCooldowns），用于比对显示值与真值 */
           hudSkills: () => useGameStore.getState().skills,
+          /**
+           * 本局的解锁快照（技能 / 舰体 / 待解锁清单）。
+           * 用于让验证脚本断言「通关第 N 关之后，技能门控与舰体选择同时变了」，
+           * 而不是只看 HUD 上那几行字。
+           */
+          unlocks: () => ({
+            granted: Array.from(unlockSnapshot.granted).sort(),
+            skills: unlockSnapshot.skills.map((t) => ({
+              type: t,
+              name: SKILL_SLOT_CONFIGS[t].name,
+              slot: skillUnlockId(t),
+            })),
+            hulls: unlockSnapshot.hulls.map((h) => ({
+              id: h,
+              name: HULL_DEFS[h].name,
+              slot: hullUnlockId(h),
+            })),
+            pending: unlockSnapshot.pending,
+          }),
+          /** 当前实际使用的舰体（`PlayerShip` 侧，不是 UI 选择的值） */
+          hull: () => playerRef.current?.getShipModelType() ?? null,
           /** 直接点天赋（绕过打波次升级），便于快速验证属性出口 */
           upgrade: (nodeId: string) => skillTreeManager.upgradeTalent(nodeId),
           /** 清空技能树与其 localStorage，保证验证可重复 */
@@ -1814,8 +1879,18 @@ export const GameScene: React.FC<{
                 const storeAfter = useGameStore.getState();
                 console.log(
                   `[GameScene] 关卡奖励：信用点 +${levelConfig.rewards.credits}（${before} → ${after}）；` +
-                    `经验 +${levelConfig.rewards.experience}（${expBefore} → ${storeAfter.player.experience}，等级 ${storeAfter.player.level}）；` +
-                    `解锁 ${levelConfig.rewards.unlocks.join('/') || '无'}`,
+                    `经验 +${levelConfig.rewards.experience}（${expBefore} → ${storeAfter.player.experience}，等级 ${storeAfter.player.level}）`,
+                );
+                // 解锁：这里是**唯一**会被写进存档的东西是 App 侧的 markLevelCleared，
+                // 本模块不改任何存储 —— 解锁集合由通关记录现算（见 UnlockRegistry），
+                // 所以顺序无所谓，也不会出现「日志说解锁了、实际没写」。
+                const unlocked = levelConfig.rewards.unlocks;
+                console.log(
+                  unlocked.length > 0
+                    ? `[GameScene] 解锁内容（落库后可立即使用）：${unlocked
+                        .map((id) => `${getUnlockName(id)}[${id}]`)
+                        .join(' / ')}`
+                    : '[GameScene] 本关没有解锁内容',
                 );
               }
               // 同上：关卡完成会立刻卸载 GameScene，音刺必须走 globalAudio 才听得见；
@@ -2048,6 +2123,10 @@ export const GameScene: React.FC<{
       SKILL_SLOT_ORDER.map((type, index) => {
         const config = SKILL_SLOT_CONFIGS[type];
         const slotKey = SKILL_SLOT_KEYS[index];
+        // 锁定判定与 `SkillSystem` 的注册判定同源（同一份 granted 集合、同一个
+        // `skillUnlockId`），所以 HUD 显示「已解锁」时技能一定真的能放。
+        const unlockId = skillUnlockId(type);
+        const locked = !unlockSnapshot.granted.has(unlockId);
         return {
           name: config.name,
           icon: SKILL_BAR_ICONS[type],
@@ -2056,9 +2135,11 @@ export const GameScene: React.FC<{
           keyBinding: config.keyBinding,
           isActive: skillActive[slotKey],
           description: config.description,
+          locked,
+          unlockHint: locked ? `通关第 ${getUnlockLevel(unlockId)} 关解锁` : undefined,
         };
       }),
-    [skillCooldowns, skillMaxCooldowns, skillActive],
+    [skillCooldowns, skillMaxCooldowns, skillActive, unlockSnapshot],
   );
 
   const handleSkillActivate = useCallback(

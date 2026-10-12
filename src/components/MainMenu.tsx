@@ -11,6 +11,7 @@ import {
   Medal,
   ShoppingBag,
   Award,
+  Rocket,
   Users,
   Calendar,
   GitBranch,
@@ -27,6 +28,7 @@ interface MainMenuProps {
   onCredits?: () => void;
   onAchievements?: () => void;
   onShop?: () => void;
+  onHangar?: () => void;
   onSkillTree?: () => void;
   onSurvival?: () => void;
   onLeaderboard?: () => void;
@@ -42,6 +44,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onCredits,
   onAchievements,
   onShop,
+  onHangar,
   onSkillTree,
   onSurvival,
   onLeaderboard,
@@ -80,6 +83,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           ]
         : []),
       ...(onShop ? [{ id: 'shop', label: '商店', icon: ShoppingBag, action: onShop }] : []),
+      // 机库：`rewards.unlocks` 里 6 条 ship-* 的落地出口（选出厂舰体 = 换模型）。
+      ...(onHangar ? [{ id: 'hangar', label: '机库', icon: Rocket, action: onHangar }] : []),
       ...(onSkillTree
         ? [{ id: 'skill_tree', label: '技能树', icon: GitBranch, action: onSkillTree }]
         : []),

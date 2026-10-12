@@ -15,6 +15,8 @@ export enum GameState {
   CREDITS = 'credits',
   ACHIEVEMENTS = 'achievements',
   SHOP = 'shop',
+  /** 机库：选择出厂舰体（`rewards.unlocks` 里 6 条 ship-* 的落地出口）。 */
+  HANGAR = 'hangar',
   SKILL_TREE = 'skill_tree',
   SURVIVAL = 'survival',
   LEADERBOARD = 'leaderboard',
@@ -45,6 +47,7 @@ export class GameStateMachine {
       GameState.CREDITS,
       GameState.ACHIEVEMENTS,
       GameState.SHOP,
+      GameState.HANGAR,
       GameState.SKILL_TREE,
       GameState.SURVIVAL,
       GameState.LEADERBOARD,

@@ -14,6 +14,16 @@ import {
   IDENTITY_META_BONUSES,
   type MetaBonuses,
 } from '../engine/MetaBonuses';
+import {
+  HULL_BY_SHOP_SUBTYPE,
+  HULL_ORDER,
+  getUnlockLevel,
+  getUnlockSnapshot,
+  hullUnlockId,
+  type HullId,
+  type UnlockSnapshot,
+} from '../engine/UnlockRegistry';
+import { useGameStore } from '../store/useGameStore';
 import './ShopPanel.css';
 
 interface ShopItem {
@@ -38,6 +48,50 @@ interface ShopItem {
  * （`MetaBonuses.itemToMetaBonuses` 同样跳过 `consumable`，两处口径一致。）
  */
 const NOT_PURCHASABLE_TYPES = new Set<string>(['consumable']);
+
+/**
+ * 商品的购买门槛。
+ *
+ * 此前商店只有一条「门槛」——卡片上那行 `要求等级: {item.level}` ——
+ * 而 `handlePurchase` 里**没有任何校验**：等级 1 的玩家照样能买下写着「要求等级: 20」
+ * 的无畏舰。界面在骗人，而且骗的是最容易被发现的那种。
+ *
+ * 现在两类门槛都走这里，判定与其它系统同源：
+ * - **舰船**（`type: 'ship'`）：门槛是通关解锁（`rewards.unlocks` 里的 `ship-*`），
+ *   与机库面板读同一份 `getUnlockSnapshot()`。数据里的 `level` 对舰船不再生效
+ *   ——它和「第几关解锁」是两套时间轴，同时摆出来只会自相矛盾。
+ * - **其余商品**：门槛是玩家等级 `player.level`（跨局累积的元进度），
+ *   真去比 `item.level`，不再只是显示。
+ */
+interface ItemGate {
+  locked: boolean;
+  /** 锁定原因（直接显示给玩家）；未锁定时为 null。 */
+  reason: string | null;
+}
+
+function evaluateItemGate(item: ShopItem, snapshot: UnlockSnapshot, playerLevel: number): ItemGate {
+  if (NOT_PURCHASABLE_TYPES.has(item.type)) {
+    return { locked: true, reason: '消耗品需背包系统，本版暂不开放购买' };
+  }
+
+  if (item.type === 'ship' && item.subtype) {
+    const hull: HullId | undefined = HULL_BY_SHOP_SUBTYPE[item.subtype];
+    if (hull) {
+      const unlockId = hullUnlockId(hull);
+      if (!snapshot.granted.has(unlockId)) {
+        return { locked: true, reason: `通关第 ${getUnlockLevel(unlockId)} 关解锁` };
+      }
+      return { locked: false, reason: null };
+    }
+  }
+
+  // 等级门槛：`level: 1` 与缺省视为无门槛（绝大多数基础商品）
+  if (typeof item.level === 'number' && item.level > 1 && playerLevel < item.level) {
+    return { locked: true, reason: `需要等级 ${item.level}（当前 ${playerLevel}）` };
+  }
+
+  return { locked: false, reason: null };
+}
 
 const asOwnedType = (type: string): OwnedItemType => {
   switch (type) {
@@ -142,6 +196,15 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
   const [bonuses, setBonuses] = useState<MetaBonuses>(IDENTITY_META_BONUSES);
   const [hullTintLabel, setHullTintLabel] = useState<string | null>(null);
 
+  /**
+   * 解锁快照（舰船门槛的来源）与玩家等级（其余商品门槛的来源）。
+   *
+   * 快照只读一次：商店是主菜单面板，解锁进度在关卡结算时变化，而那时玩家必然
+   * 不在商店里；下次打开会重新挂载、重新读。这样也省去每张卡片读一遍 localStorage。
+   */
+  const unlockSnapshot = useMemo(() => getUnlockSnapshot(), []);
+  const playerLevel = useGameStore((state) => state.player.level);
+
   const refreshOwned = () => {
     // 已购物品的唯一真源是 OwnedItems（旧 purchasedItems 会在首次读取时迁移）
     const owned = getOwnedItems();
@@ -182,8 +245,12 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
 
   const handlePurchase = (item: ShopItem) => {
     if (purchasedIds.has(item.id)) return;
-    if (NOT_PURCHASABLE_TYPES.has(item.type)) {
-      showToast('该商品尚未开放（需要背包系统）');
+
+    // 门槛校验走与卡片显示**同一个**函数：显示「锁定」就一定买不成，
+    // 显示可买就一定进得来 —— 两边不会再各判一套。
+    const gate = evaluateItemGate(item, unlockSnapshot, playerLevel);
+    if (gate.locked) {
+      showToast(gate.reason ?? '该商品尚未开放');
       return;
     }
     if (credits < item.price) {
@@ -255,6 +322,13 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
           <span className="shop-bonus-empty">暂无永久加成 —— 购买后自动带入下一局</span>
         )}
         {hullTintLabel && <span className="shop-bonus-chip">涂装 {hullTintLabel}</span>}
+        {/*
+          把「商店 ↔ 机库」的关系写出来：买了舰船也解锁同款出厂外观，
+          否则玩家买完隐形战机、回战斗里还开着初始机，会以为买了个假货。
+        */}
+        <span className="shop-bonus-chip" data-testid="shop-hangar-hint">
+          可飞出厂舰体 {unlockSnapshot.hulls.length}/{HULL_ORDER.length} · 到「机库」更换
+        </span>
       </div>
 
       <div className="shop-filters">
@@ -278,12 +352,15 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
       <div className="shop-grid">
         {filteredItems.map((item) => {
           const isPurchased = purchasedIds.has(item.id);
-          const notOpen = NOT_PURCHASABLE_TYPES.has(item.type);
-          const canAfford = credits >= item.price && !notOpen;
+          const gate = evaluateItemGate(item, unlockSnapshot, playerLevel);
+          // 未解锁时按钮不可点：此前只比信用点，等级 1 也能买下写着「要求等级: 20」的舰
+          const canAfford = credits >= item.price && !gate.locked;
           const rarity = rarityConfig[item.rarity] || rarityConfig['common'];
           return (
             <div
               key={item.id}
+              data-testid={`shop-card-${item.id}`}
+              data-locked={gate.locked ? 'true' : 'false'}
               className={`shop-card ${isPurchased ? 'purchased' : ''}`}
               style={{ borderColor: rarity.color }}
             >
@@ -314,16 +391,24 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
                       ))}
                   </div>
                 )}
-                {item.level && <div className="shop-card-level">要求等级: {item.level}</div>}
-                {notOpen && (
-                  <div className="shop-card-level">消耗品需背包系统，本版暂不开放购买</div>
+                {/*
+                  门槛文案由 evaluateItemGate 给出，且与 handlePurchase 用的是同一个函数。
+                  此前这里渲染的是 `item.level`，而购买逻辑从不校验它 —— 界面写「要求等级: 20」，
+                  等级 1 的玩家点下去照样扣款发货。
+                */}
+                {gate.reason && (
+                  <div className="shop-card-level" data-testid={`shop-req-${item.id}`}>
+                    {gate.reason}
+                  </div>
                 )}
               </div>
               <div className="shop-card-action">
                 {isPurchased ? (
                   <span className="shop-purchased-label">已购买 ✓</span>
-                ) : notOpen ? (
-                  <span className="shop-purchased-label">即将开放</span>
+                ) : gate.locked ? (
+                  <span className="shop-purchased-label">
+                    {NOT_PURCHASABLE_TYPES.has(item.type) ? '即将开放' : '🔒 未解锁'}
+                  </span>
                 ) : (
                   <button
                     className={`shop-buy-btn ${!canAfford ? 'disabled' : ''}`}

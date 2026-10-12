@@ -6,9 +6,16 @@ import {
   SKILL_SLOT_CONFIGS,
   SKILL_SLOT_ORDER,
   SkillType,
+  type ImplementedSkillType,
   type SkillConfig,
   type SkillState,
 } from './skillSlots';
+import {
+  getGrantedUnlockIds,
+  getUnlockLevel,
+  isSkillUnlocked,
+  skillUnlockId,
+} from './UnlockRegistry';
 
 /**
  * 技能 id / 配置的形状与数值**不在这里定义** —— 唯一真源是 `./skillSlots`。
@@ -413,6 +420,17 @@ export class OverdriveSkill extends Skill {
   }
 }
 
+export interface SkillSystemOptions {
+  /**
+   * 已授予的解锁 id 集合。缺省读 `UnlockRegistry`（即按通关记录现算）。
+   *
+   * 注入这个参数的两个理由：① 单测可以造出「只解锁了导弹」这类中间态，
+   * 不必真的去写 localStorage；② `GameScene` 已经为 HUD 读过一次快照，
+   * 复用同一份可以保证「HUD 显示已解锁」与「技能真的能放」永远是同一个判断。
+   */
+  grantedUnlockIds?: ReadonlySet<string>;
+}
+
 export class SkillSystem {
   private skills: Map<SkillType, Skill> = new Map();
   private activeSkills: Set<SkillType> = new Set();
@@ -425,12 +443,34 @@ export class SkillSystem {
    * 与 `StoryMissionManager.subscribe` 同一套做法。
    */
   private onSkillActivated: ((type: SkillType) => void) | null = null;
+  /** 本局已解锁的技能 id。未解锁的槽位连 `Skill` 对象都不创建。 */
+  private granted: ReadonlySet<string>;
 
-  constructor(player: PlayerShip, engine: PlayCanvasGameEngine) {
-    this.registerSkill(new MissileStrikeSkill(player, engine));
-    this.registerSkill(new ShieldBurstSkill(player, engine));
-    this.registerSkill(new TimeSlowSkill(player, engine));
-    this.registerSkill(new OverdriveSkill(player, engine));
+  /**
+   * 技能按**通关进度**解锁：只有已解锁的技能才会被注册。
+   *
+   * 接线前这里是四行无条件 `registerSkill`，于是 `rewards.unlocks` 里的
+   * `skill-missile-strike` / `skill-shield-burst` / `skill-time-slow` / `skill-overdrive`
+   * 四条完全没有下游 —— 玩家从第一关起就握着全部 4 个技能，
+   * 「通关第 2 关解锁导弹打击」只是一句日志。
+   *
+   * 代价要说清楚：**全新存档在第 1 关没有技能**（第 1 关的奖励是初始舰体）。
+   * 这是「十关交替给舰体/技能」这条序列的必然结果，而不是疏漏。
+   */
+  constructor(player: PlayerShip, engine: PlayCanvasGameEngine, options: SkillSystemOptions = {}) {
+    this.granted = options.grantedUnlockIds ?? getGrantedUnlockIds();
+
+    const factories: Record<ImplementedSkillType, () => Skill> = {
+      [SkillType.MISSILE_STRIKE]: () => new MissileStrikeSkill(player, engine),
+      [SkillType.SHIELD_BURST]: () => new ShieldBurstSkill(player, engine),
+      [SkillType.TIME_SLOW]: () => new TimeSlowSkill(player, engine),
+      [SkillType.OVERDRIVE]: () => new OverdriveSkill(player, engine),
+    };
+
+    for (const type of SKILL_SLOT_ORDER) {
+      if (!isSkillUnlocked(type, this.granted)) continue;
+      this.registerSkill(factories[type]());
+    }
   }
 
   private registerSkill(skill: Skill): void {
@@ -461,15 +501,21 @@ export class SkillSystem {
   public activateSkill(type: SkillType): boolean {
     const skill = this.skills.get(type);
     if (!skill) {
-      // 这里**必须吵**。曾经的不吵版本掩盖了一个真缺陷：调用方在触屏/HUD 路径传的是
-      // snake_case 字符串（`'missile_strike'`）并用 `as SkillType` 绕过类型检查，
-      // 于是查表恒 miss、静默返回 false —— 4 个技能里 3 个点了没反应，而控制台一片安静。
-      // 现在未知 id 会打出已知 id 列表，下次同类错误在第一次点击时就暴露。
-      // （已销毁时 `skills` 表已被清空，那次 miss 属正常，不刷告警。）
+      // 两种情况都会 miss，但**只有一种该吵**：
+      //
+      // ① 本次会话尚未解锁（`rewards.unlocks` 没给）—— 正常的门控失效，静默返回 false。
+      //    键盘 Q/E/T/G 会走到这里，HUD 的锁定槽位也会（按钮已 disabled，但键盘仍可触发）。
+      //    这里不该刷告警，否则「没解锁」会被误报成「词表错位」。
+      // ② 真的传了不存在的 id —— 必须吵。曾经的不吵版本掩盖了一个真缺陷：调用方在
+      //    触屏/HUD 路径传 snake_case 字符串（`'missile_strike'`）并用 `as SkillType`
+      //    绕过类型检查，于是查表恒 miss、静默返回 false —— 4 个技能里 3 个点了没反应。
+      //    （已销毁时 `skills` 表已被清空，那次 miss 属正常，同样不刷告警。）
+      const implemented = (SKILL_SLOT_ORDER as readonly SkillType[]).includes(type);
+      if (implemented) return false;
       if (!this.destroyed) {
         console.warn(
           `[SkillSystem] 未知技能 id "${type}"，忽略激活。` +
-            `已知 id：${Array.from(this.skills.keys()).join(' / ')}。` +
+            `已知 id：${SKILL_SLOT_ORDER.join(' / ')}。` +
             `调用方应使用 skillSlots 的 SKILL_SLOT_ORDER / SkillType 枚举，不要写字符串字面量。`,
         );
       }
@@ -496,6 +542,10 @@ export class SkillSystem {
     type: SkillType;
     name: string;
     registered: boolean;
+    /** 本局是否已解锁（未解锁 = 本关还没拿到它）。 */
+    unlocked: boolean;
+    /** 授予它的关卡（1 基；0 = 没有关卡授予，属数据问题）。 */
+    unlockLevel: number;
     isActive: boolean;
     cooldownRemaining: number;
     cooldownTotal: number;
@@ -506,13 +556,18 @@ export class SkillSystem {
     return SKILL_SLOT_ORDER.map((type, index) => {
       const skill = this.skills.get(type);
       const state = skill?.getState();
+      const unlocked = isSkillUnlocked(type, this.granted);
       return {
         index,
         type,
         // 技能名（真源）。带着它是为了让 e2e 能断言"HUD 上显示的名字 === 真源名字"，
         // 而不是在脚本里再抄一份中文名 —— 抄一份就多一个会漂移的地方。
-        name: skill?.getConfig().name ?? '',
+        // 未注册时也要给出名字：HUD 的锁定槽位同样要显示它叫什么。
+        name:
+          skill?.getConfig().name ?? SKILL_SLOT_CONFIGS[type as ImplementedSkillType]?.name ?? '',
         registered: !!skill,
+        unlocked,
+        unlockLevel: getUnlockLevel(skillUnlockId(type)),
         isActive: state?.isActive ?? false,
         cooldownRemaining: state ? Number(state.cooldownRemaining.toFixed(3)) : -1,
         cooldownTotal: skill?.getConfig().cooldown ?? -1,

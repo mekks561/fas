@@ -148,6 +148,17 @@ export class PlayerShip {
     return [this.hullTint[0], this.hullTint[1], this.hullTint[2]];
   }
 
+  /**
+   * 实际使用的舰体类型（**渲染侧真值**，不是 UI 里选中的那个值）。
+   *
+   * 存在的意义：`config.shipModel` 长期无人传入、永远回落 `'fighter'`，
+   * 而「机库选了 bomber」到「模型真的换了」之间隔着一次 GLB 异步替换。
+   * 验证脚本要断言后者，就必须能读到这一份 —— 读 UI 的选中值证明不了任何事。
+   */
+  public getShipModelType(): ShipModelType {
+    return this.shipModelType;
+  }
+
   private createPlayerShip(position: pc.Vec3): pc.Entity {
     const player = new pc.Entity('player');
     player.setPosition(position);
