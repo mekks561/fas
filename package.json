@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "deploy:nas": "node scripts/deploy-nas.mjs",
     "audit:assets": "node scripts/audit-asset-usage.mjs",
     "audit:dead-code": "node scripts/audit-dead-code.mjs",
     "test": "vitest",
