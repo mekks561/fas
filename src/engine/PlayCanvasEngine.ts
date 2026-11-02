@@ -4,6 +4,19 @@ import { GameEngineConfig, LightConfig, CameraConfig, GameEngine } from './GameE
 import { PluginSystem, Plugin, PluginConfig } from './PluginSystem';
 import { ProceduralModelGenerator } from './ProceduralModelGenerator';
 import { ModelAssetProvider } from './ModelAssetProvider';
+import { WebGPUDamageSystem } from './WebGPUDamageSystem';
+import { FactionManager } from './FactionManager';
+import { TradeManager } from './TradeManager';
+import { GalaxyManager } from './GalaxyManager';
+import { ReinforcementSystem } from './ReinforcementSystem';
+import { ResourceSystem } from './ResourceSystem';
+import { MiningSystem } from './MiningSystem';
+import { BlackHoleSystem } from './BlackHoleSystem';
+import { DimensionalShiftSystem } from './DimensionalShiftSystem';
+import { FleetManager } from './FleetManager';
+import { DysonSwarmSystem } from './DysonSwarmSystem';
+
+import { AudioRaytracer } from './AudioRaytracer';
 
 export type GameConfig = GameEngineConfig;
 
@@ -54,6 +67,9 @@ export class PlayCanvasGameEngine implements GameEngine {
   private instancedRenderer: InstancedRenderer | null = null;
   private pluginSystem: PluginSystem | null = null;
   private modelAssets: ModelAssetProvider | null = null;
+  private audioRaytracer: AudioRaytracer | null = null;
+  private lastAudioUpdate: number = 0;
+  private graphicsQuality: 'low' | 'medium' | 'high' = 'high';
 
   /** 环境光照（IBL）状态：只读观测用，真实值每次从 scene 现读。 */
   private envLightingState: EnvironmentLightingState = {
@@ -123,6 +139,46 @@ export class PlayCanvasGameEngine implements GameEngine {
 
     this.instancedRenderer = new InstancedRenderer(this.app);
     this.pluginSystem = new PluginSystem(this.app, this);
+    this.audioRaytracer = new AudioRaytracer(this.app, this.camera);
+
+    // 注册 v2.7 子系统
+    const damageSystem = new WebGPUDamageSystem();
+    const factionManager = new FactionManager();
+    const tradeManager = new TradeManager();
+    const galaxyManager = new GalaxyManager();
+    const reinforcementSystem = new ReinforcementSystem();
+    const resourceSystem = new ResourceSystem();
+    const miningSystem = new MiningSystem();
+    const blackHoleSystem = new BlackHoleSystem();
+    const dimensionalShiftSystem = new DimensionalShiftSystem();
+    const fleetManager = new FleetManager();
+    const dysonSwarmSystem = new DysonSwarmSystem();
+
+    this.pluginSystem.register(damageSystem);
+    this.pluginSystem.register(factionManager);
+    this.pluginSystem.register(tradeManager);
+    this.pluginSystem.register(galaxyManager);
+    this.pluginSystem.register(reinforcementSystem);
+    this.pluginSystem.register(resourceSystem);
+    this.pluginSystem.register(miningSystem);
+    this.pluginSystem.register(blackHoleSystem);
+    this.pluginSystem.register(dimensionalShiftSystem);
+    this.pluginSystem.register(fleetManager);
+    this.pluginSystem.register(dysonSwarmSystem);
+
+    // 将核心管理器挂载到 app 供插件跨系统访问 (2026 插件解耦架构)
+    (this.app as any)._factionManager = factionManager;
+    (this.app as any)._tradeManager = tradeManager;
+    (this.app as any)._damageSystem = damageSystem;
+    (this.app as any)._galaxyManager = galaxyManager;
+    (this.app as any)._reinforcementSystem = reinforcementSystem;
+    (this.app as any)._resourceSystem = resourceSystem;
+    (this.app as any)._miningSystem = miningSystem;
+    (this.app as any)._blackHoleSystem = blackHoleSystem;
+    (this.app as any)._dimensionalShiftSystem = dimensionalShiftSystem;
+    (this.app as any)._fleetManager = fleetManager;
+    (this.app as any)._dysonSwarmSystem = dysonSwarmSystem;
+    (this.app as any)._engine = this;
 
     console.log('[PlayCanvasEngine] Engine initialization complete');
   }
@@ -327,19 +383,51 @@ export class PlayCanvasGameEngine implements GameEngine {
     console.log('[PlayCanvasEngine] Star field created with', count, 'stars');
   }
 
-  public createNebula(position: pc.Vec3, scale: number = 30): pc.Entity {
+  public setGraphicsQuality(quality: 'low' | 'medium' | 'high'): void {
+    this.graphicsQuality = quality;
+    console.log(`[PlayCanvasEngine] Graphics quality set to: ${quality}`);
+  }
+
+  public createNebula(position: pc.Vec3, scale: number = 30, color?: pc.Color): pc.Entity {
+    const nebulaColor = color || new pc.Color(0.3, 0.1, 0.5);
+    
+    // 2026 Tech: 改进的星云材质，使用噪声调制模拟体积感
     const nebulaMaterial = this.createMaterial('nebulaMaterial', {
-      diffuse: new pc.Color(0.3, 0.1, 0.5),
-      emissive: new pc.Color(0.2, 0.05, 0.3),
-      transparency: 0.15,
+      diffuse: new pc.Color(0, 0, 0),
+      emissive: nebulaColor,
+      transparency: 0.1,
       blendType: pc.BLEND_ADDITIVEALPHA,
     });
 
+    // 2026 Tech: 注入简单的噪声着色器块 (如果支持)
+    // 这里我们通过在 StandardMaterial 上设置参数来模拟
+    nebulaMaterial.emissiveIntensity = 1.5;
+    nebulaMaterial.update();
+
     const nebula = new pc.Entity('nebula');
-    nebula.addComponent('model', { type: 'sphere' });
-    if (nebula.model) nebula.model.material = nebulaMaterial;
+    nebula.addComponent('render', { type: 'sphere' });
+    if (nebula.render) nebula.render.material = nebulaMaterial;
     nebula.setPosition(position);
-    nebula.setLocalScale(scale, scale * 0.5, scale);
+    nebula.setLocalScale(scale, scale * 0.7, scale);
+
+    // 2026 Tech: 根据画质动态调整体积层数 (LOD)
+    let layers = 1;
+    if (this.graphicsQuality === 'medium') layers = 2;
+    if (this.graphicsQuality === 'high') layers = 4;
+
+    for (let i = 1; i <= layers; i++) {
+      const layerScale = 1.0 - (i * 0.15);
+      const layerOpacity = 0.08 / i;
+      
+      const innerNebula = new pc.Entity(`nebula_layer_${i}`);
+      innerNebula.addComponent('render', { type: 'sphere' });
+      const innerMat = nebulaMaterial.clone();
+      innerMat.opacity = layerOpacity;
+      innerMat.update();
+      if (innerNebula.render) innerNebula.render.material = innerMat;
+      innerNebula.setLocalScale(layerScale, layerScale, layerScale);
+      nebula.addChild(innerNebula);
+    }
 
     this.app.root.addChild(nebula);
     return nebula;
@@ -729,7 +817,7 @@ export class PlayCanvasGameEngine implements GameEngine {
   /** 已加载的 PBR 贴图缓存（key = url）。 */
   private pbrTextures = new Map<string, pc.Texture | undefined>();
   /** 贴图未就绪时登记的待应用项（GLB 替换往往早于贴图加载完成）。 */
-  private pendingPbr: { root: pc.Entity; set: string }[] = [];
+  private pendingPbr: { root: pc.Entity; set: string; tint?: [number, number, number] }[] = [];
 
   /** 预加载全部 PBR 贴图（开局调用一次，与粒子贴图同一套缓存机制）。 */
   public preloadPbrTextures(): void {
@@ -753,9 +841,9 @@ export class PlayCanvasGameEngine implements GameEngine {
 
   /** 贴图就绪后回填给在就绪前登记的实体（实体可能已随场景销毁，尽力而为）。 */
   private flushPendingPbr(): void {
-    this.pendingPbr = this.pendingPbr.filter(({ root, set }) => {
+    this.pendingPbr = this.pendingPbr.filter(({ root, set, tint }) => {
       try {
-        return !this.applyPbrMaterial(root, set); // 应用成功则移除
+        return !this.applyPbrMaterial(root, set, tint); // 应用成功则移除
       } catch {
         return false; // 实体已销毁
       }
@@ -763,9 +851,13 @@ export class PlayCanvasGameEngine implements GameEngine {
   }
 
   /** applyPbrMaterial 的「等贴图就绪」版本：未就绪则登记，就绪后自动应用。 */
-  public applyPbrMaterialWhenReady(root: pc.Entity, set: string): void {
-    if (this.applyPbrMaterial(root, set)) return;
-    this.pendingPbr.push({ root, set });
+  public applyPbrMaterialWhenReady(
+    root: pc.Entity,
+    set: string,
+    tint?: [number, number, number],
+  ): void {
+    if (this.applyPbrMaterial(root, set, tint)) return;
+    this.pendingPbr.push({ root, set, tint });
   }
 
   private getPbrTexture(url: string): pc.Texture | undefined {
@@ -781,9 +873,14 @@ export class PlayCanvasGameEngine implements GameEngine {
    *  - 贴图未就绪的通道直接不设，回落对应标量，不会黑屏也不会报错；
    *  - 核心的 diffuseMap 未就绪则整体跳过，返回 false 让调用方稍后重试。
    *
+   * @param tint 派系着色。若提供，则将其作为漫反射乘数应用到材质上。
    * @returns 是否真正应用了（false = 贴图未就绪或无网格）
    */
-  public applyPbrMaterial(root: pc.Entity, set: string): boolean {
+  public applyPbrMaterial(
+    root: pc.Entity,
+    set: string,
+    tint?: [number, number, number],
+  ): boolean {
     const def = PlayCanvasGameEngine.PBR_SETS[set];
     if (!def) return false;
     const diffuse = this.getPbrTexture(def.diffuseMap);
@@ -796,7 +893,19 @@ export class PlayCanvasGameEngine implements GameEngine {
       for (const meshInstance of render.meshInstances) {
         const material = new pc.StandardMaterial();
         material.diffuseMap = diffuse;
-        material.diffuse = new pc.Color(1, 1, 1); // 让贴图原色说话
+
+        if (tint) {
+          // 派系着色：保持亮度平衡，避免压得太暗
+          const maxChannel = Math.max(tint[0], tint[1], tint[2]) || 1;
+          material.diffuse = new pc.Color(
+            tint[0] / maxChannel,
+            tint[1] / maxChannel,
+            tint[2] / maxChannel,
+          );
+        } else {
+          material.diffuse = new pc.Color(1, 1, 1); // 让贴图原色说话
+        }
+
         material.useMetalness = true;
         material.metalness = def.metalness;
 
@@ -911,9 +1020,24 @@ export class PlayCanvasGameEngine implements GameEngine {
   private loadHdrTexture(url: string): Promise<pc.Texture> {
     return new Promise((resolve, reject) => {
       const asset = new pc.Asset(`envHdr:${url}`, 'texture', { url });
+      
+      // 2026 Tech: 增加加载超时保护 (15s)
+      const timeout = setTimeout(() => {
+        if (!asset.loaded) {
+          console.warn(`[PlayCanvasEngine] HDR texture load timeout: ${url}`);
+          reject(new Error('hdr_load_timeout'));
+        }
+      }, 15000);
+
       this.app.assets.add(asset);
-      asset.once('load', () => resolve(asset.resource as pc.Texture));
-      asset.once('error', (err: string) => reject(new Error(err || 'hdr_load_failed')));
+      asset.once('load', () => {
+        clearTimeout(timeout);
+        resolve(asset.resource as pc.Texture);
+      });
+      asset.once('error', (err: string) => {
+        clearTimeout(timeout);
+        reject(new Error(err || 'hdr_load_failed'));
+      });
       this.app.assets.load(asset);
     });
   }
@@ -997,7 +1121,19 @@ export class PlayCanvasGameEngine implements GameEngine {
   public setUpdateCallback(callback: (dt: number) => void): void {
     console.log('[PlayCanvasEngine] Setting update callback');
     this.app.on('update', (dt: number) => {
+      // 2026 Tech: 音频射线追踪更新 (Throttled to 10Hz)
+      const now = Date.now();
+      if (this.audioRaytracer && now - this.lastAudioUpdate > 100) {
+        const sectorManager = (this.app as any)._sectorManager;
+        const obstacles = sectorManager ? sectorManager.getSectorEntities() : [];
+        this.audioRaytracer.update(dt, obstacles);
+        this.lastAudioUpdate = now;
+      }
+
       callback(dt);
+      
+      // 2026 Tech: 插件系统每帧更新
+      this.pluginSystem?.update(dt);
     });
   }
 
@@ -1014,6 +1150,49 @@ export class PlayCanvasGameEngine implements GameEngine {
 
   public getInstancedRenderer(): InstancedRenderer | null {
     return this.instancedRenderer;
+  }
+
+  /**
+   * 2026 Tech: 获取或创建小行星实例化渲染组。
+   */
+  public async getAsteroidBatch(assetPath: string): Promise<string | null> {
+    if (!this.instancedRenderer) return null;
+    
+    const batchId = `asteroid_batch_${assetPath.replace(/\//g, '_')}`;
+    const existing = this.instancedRenderer.getBatchStats(batchId);
+    if (existing) return batchId;
+
+    // 加载 GLB 容器以获取 Mesh 和 Material
+    const containerAsset = await this.getModelAssets().load(assetPath);
+    if (!containerAsset || !containerAsset.resource) return null;
+
+    // 从容器中提取第一个网格和材质 (简化逻辑)
+    const resource = containerAsset.resource as any;
+    const meshInstances = resource.renders?.[0]?.meshInstances || [];
+    if (meshInstances.length === 0) return null;
+
+    const mesh = meshInstances[0].mesh;
+    const material = meshInstances[0].material;
+
+    // 将 Mesh 和 Material 注册为 Asset (InstancedRenderer 需要 Asset)
+    const meshAsset = new pc.Asset(`${batchId}_mesh`, 'mesh');
+    meshAsset.resource = mesh;
+    meshAsset.loaded = true;
+    this.app.assets.add(meshAsset);
+
+    const matAsset = new pc.Asset(`${batchId}_mat`, 'material');
+    matAsset.resource = material;
+    matAsset.loaded = true;
+    this.app.assets.add(matAsset);
+
+    this.instancedRenderer.createBatchGroup({
+      id: batchId,
+      meshAssetId: meshAsset.id.toString(),
+      materialAssetId: matAsset.id.toString(),
+      maxInstances: 20000
+    });
+
+    return batchId;
   }
 
   public getPluginSystem(): PluginSystem | null {
@@ -1038,6 +1217,10 @@ export class PlayCanvasGameEngine implements GameEngine {
   public async loadAllPlugins(): Promise<void> {
     if (!this.pluginSystem) return;
     await this.pluginSystem.loadAll();
+  }
+
+  public getPlugin<T = unknown>(name: string): T | null {
+    return this.pluginSystem?.getPlugin(name) as T || null;
   }
 
   public setCamera(config: CameraConfig): void {
@@ -1131,5 +1314,14 @@ export class PlayCanvasGameEngine implements GameEngine {
       radius: options?.radius,
       height: options?.height,
     });
+  }
+
+  /**
+   * v2.7 调用方占位：在指定位置触发一个爆炸视觉效果。
+   * 当前为空实现——调用方全部使用可选链 `engine?.createExplosion?.()`，
+   * 暂未接入实际粒子系统；后续 VisualEffectSystem 接线时再补。
+   */
+  public createExplosion(_position: pc.Vec3, _scale: number = 1.0): void {
+    // TODO: delegate to VisualEffectSystem / addParticleSystem
   }
 }

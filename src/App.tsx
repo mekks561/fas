@@ -6,6 +6,7 @@
 import { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MainMenu } from './components/MainMenu';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useGameStore } from './store/useGameStore';
 import { GameState } from './game/GameStateMachine';
 import { getAllLevels } from './levels';
@@ -28,6 +29,7 @@ const GameScene = lazy(() =>
 const LevelSelect = lazy(() =>
   import('./components/LevelSelect').then((m) => ({ default: m.LevelSelect })),
 );
+import StarMap from './components/StarMap';
 const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })));
 const PauseMenu = lazy(() =>
   import('./components/PauseMenu').then((m) => ({ default: m.PauseMenu })),
@@ -95,6 +97,11 @@ function App() {
   const setSceneReady = useGameStore((state) => state.setSceneReady);
   const setVictory = useGameStore((state) => state.setVictory);
   const resetGame = useGameStore((state) => state.resetGame);
+  const isStarMapVisible = useGameStore((state) => state.isStarMapVisible);
+  useEffect(() => {
+    console.log('[App] isStarMapVisible changed:', isStarMapVisible);
+  }, [isStarMapVisible]);
+  const setStarMapVisible = useGameStore((state) => state.setStarMapVisible);
 
   const playerScore = useGameStore((state) => state.player.score);
   const playerLevel = useGameStore((state) => state.player.level);
@@ -115,6 +122,9 @@ function App() {
   // 键盘事件监听（暂停）
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (import.meta.env.DEV) {
+        console.log('[App] Global KeyDown:', e.code, e.key);
+      }
       if (e.code === 'Escape' && gameState === GameState.PLAYING) {
         setIsPaused((prev) => !prev);
       }
@@ -151,10 +161,11 @@ function App() {
     skillTreeManager.setPlayerLevel(playerLevel);
   }, [playerLevel]);
 
-  // 开始新游戏 - 打开关卡选择
+  // 开始新游戏 - 打开银河星图 (v3.0 战略模式)
   const handleStartGame = useCallback(() => {
-    setGameState(GameState.LEVEL_SELECT);
-  }, []);
+    setGameState(GameState.PLAYING);
+    setStarMapVisible(true);
+  }, [setStarMapVisible]);
 
   // 选择关卡后开始游戏
   const handleSelectLevel = useCallback(
@@ -391,8 +402,9 @@ function App() {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="app-container">
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <div className="app-container">
         {/* 主菜单 */}
         {gameState === GameState.MENU && (
           <MainMenu
@@ -536,8 +548,10 @@ function App() {
             />
           </Suspense>
         )}
-      </div>
-    </QueryClientProvider>
+        </div>
+        <StarMap />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

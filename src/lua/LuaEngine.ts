@@ -20,12 +20,7 @@ interface LuaState {
 }
 
 /** 宿主 JS 提供的模块名（迁移期遗留实现，见 LuaScriptModule.host） */
-const HOST_MODULE_NAMES = [
-  'wave_manager_module',
-  'powerup_system_module',
-  'combat_stats_module',
-  'skill_system_module',
-] as const;
+const HOST_MODULE_NAMES = [] as const;
 
 /**
  * Lua 侧模块装载器。

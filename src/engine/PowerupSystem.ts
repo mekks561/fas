@@ -14,6 +14,21 @@ export enum PowerupType {
   LASER = 'laser',
 }
 
+/** 道具类型 -> Kenney 3D 模型路径（绝对路径） */
+const POWERUP_MODELS: Record<PowerupType, string> = {
+  [PowerupType.HEALTH]: '/assets/kenney/3d/platformer/heart.glb',
+  [PowerupType.SHIELD]: '/assets/kenney/3d/mini-dungeon/shield-round.glb',
+  [PowerupType.WEAPON_UPGRADE]: '/assets/kenney/3d/blaster/blaster-a.glb',
+  [PowerupType.SPEED_BOOST]: '/assets/kenney/3d/platformer/spring.glb',
+  [PowerupType.SCORE_BONUS]: '/assets/kenney/3d/platformer/coin-gold.glb',
+  [PowerupType.INVINCIBILITY]: '/assets/kenney/3d/platformer/star.glb',
+  [PowerupType.MISSILE]: '/assets/kenney/3d/blaster/grenade-a.glb',
+  [PowerupType.LASER]: '/assets/kenney/3d/blaster/blaster-g.glb',
+};
+
+/** 道具基础缩放 */
+const POWERUP_BASE_SCALE = 1.2;
+
 export interface PowerupConfig {
   type: PowerupType;
   position: pc.Vec3;
@@ -51,8 +66,10 @@ export class Powerup {
     entity.setPosition(position);
 
     const material = this.createMaterial();
-    entity.addComponent('model', { type: 'sphere' });
-    if (entity.model) entity.model.material = material;
+    const placeholder = new pc.Entity('placeholder');
+    placeholder.addComponent('model', { type: 'sphere' });
+    if (placeholder.model) placeholder.model.material = material;
+    entity.addChild(placeholder);
 
     const outerGlow = new pc.Entity('outerGlow');
     outerGlow.addComponent('model', { type: 'sphere' });
@@ -67,6 +84,15 @@ export class Powerup {
     ring.setLocalScale(2, 2, 0.2);
     ring.setLocalEulerAngles(90, 0, 0);
     entity.addChild(ring);
+
+    // 异步替换为真实的 Kenney 3D 模型
+    const modelPath = POWERUP_MODELS[this.type];
+    if (modelPath) {
+      this.engine.getModelAssets().upgrade(entity, placeholder, modelPath, {
+        scaleMultiplier: POWERUP_BASE_SCALE,
+        // 为道具添加一个旋转动画：由 update 驱动 entity，模型作为子节点会自动跟随
+      });
+    }
 
     this.engine.addToScene(entity);
 
@@ -167,12 +193,14 @@ export class Powerup {
       return;
     }
 
-    const rotation = this.entity.getEulerAngles();
-    this.entity.setEulerAngles(rotation.x, rotation.y + 60 * dt, rotation.z);
+    // 旋转效果
+    this.entity.rotate(0, 90 * dt, 0);
 
-    const scale = this.entity.getLocalScale();
-    const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.1;
-    this.entity.setLocalScale(scale.x * pulse * 0.1 + scale.x * (1 - 0.1), scale.y, scale.z);
+    // 漂浮脉冲效果（稍微平滑一点）
+    const time = Date.now() * 0.003;
+    const pulse = 1 + Math.sin(time) * 0.1;
+    const baseScale = POWERUP_BASE_SCALE;
+    this.entity.setLocalScale(baseScale * pulse, baseScale * pulse, baseScale * pulse);
   }
 
   public checkCollection(player: PlayerShip): boolean {

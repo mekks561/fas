@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v2.7 跃迁式星区架构预览</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+        .map-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            border: 2px border: 2px solid #334155;
+            border-radius: 12px;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            overflow: hidden;
+        }
+        .sector {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .sector:hover {
+            transform: scale(1.1);
+            background: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+        .gate {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transform-origin: left center;
+            opacity: 0.6;
+        }
+        .gate::after {
+            content: '⚡';
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            font-size: 12px;
+        }
+        .legend {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .ai-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            border: 1px solid #475569;
+        }
+    </style>
+</head>
+<body>
+    <h1>v2.7 "深空觉醒" - 跃迁式星区架构</h1>
+    <div class="map-container">
+        <!-- AI 状态指示 -->
+        <div class="ai-overlay">
+            <strong>派系神经生态 (实时)</strong><br>
+            • 拾荒者: 正在扩张 (星区 02)<br>
+            • 贸易联盟: 航线受阻 (星区 03)<br>
+            • 帝国巡逻: 高强度 (跳跃点 Alpha)
+        </div>
+
+        <!-- 星区 -->
+        <div class="sector" style="top: 200px; left: 50px;">
+            <strong>初始星区</strong><br>低风险
+        </div>
+        
+        <div class="sector" style="top: 100px; left: 300px; border-color: #ef4444; background: rgba(239, 68, 68, 0.1);">
+            <strong>冲突地带</strong><br>中风险
+        </div>
+
+        <div class="sector" style="top: 300px; left: 300px; border-color: #10b981; background: rgba(16, 185, 129, 0.1);">
+            <strong>贸易中心</strong><br>安全
+        </div>
+
+        <div class="sector" style="top: 200px; left: 550px; border-color: #f59e0b; background: rgba(245, 158, 11, 0.1);">
+            <strong>未知空域</strong><br>极高风险
+        </div>
+
+        <!-- 跳跃线 (手动模拟连接) -->
+        <div class="gate" style="top: 250px; left: 150px; width: 150px; transform: rotate(-33deg);"></div>
+        <div class="gate" style="top: 250px; left: 150px; width: 150px; transform: rotate(33deg);"></div>
+        <div class="gate" style="top: 150px; left: 400px; width: 170px; transform: rotate(18deg);"></div>
+        <div class="gate" style="top: 350px; left: 400px; width: 170px; transform: rotate(-18deg);"></div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="dot" style="background: #3b82f6;"></div> 普通星区</div>
+        <div class="legend-item"><div class="dot" style="background: #ef4444;"></div> 冲突星区</div>
+        <div class="legend-item"><div class="dot" style="background: #10b981;"></div> 贸易星区</div>
+        <div class="legend-item"><div class="dot" style="background: #f59e0b;"></div> 未知/资源星区</div>
+    </div>
+
+    <div style="max-width: 600px; margin-top: 30px; line-height: 1.6;">
+        <h3>架构说明：</h3>
+        <ul>
+            <li><strong>60% 探索与生态</strong>：每个圆圈是一个独立生成的“星区”，由派系 AI 实时驱动资源流向。</li>
+            <li><strong>40% 硬核战斗</strong>：在星区内部或跳跃点附近触发模块化损毁战斗。</li>
+            <li><strong>先进技术</strong>：WebGPU 渲染星云环境，神经网络决定 NPC 派系的战略选择。</li>
+        </ul>
+    </div>
+</body>
+</html>

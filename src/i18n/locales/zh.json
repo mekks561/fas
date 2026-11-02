@@ -248,5 +248,12 @@
     "submit": "提交",
     "playAgain": "再来一局",
     "backToMenu": "返回菜单"
+  },
+  "factions": {
+    "trade_union": "贸易联盟",
+    "scavengers": "拾荒者",
+    "imperial_guard": "帝国卫队",
+    "void_cult": "虚空教派",
+    "neutral": "中立势力"
   }
 }

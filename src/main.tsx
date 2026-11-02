@@ -1,7 +1,11 @@
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { useGameStore } from './store/useGameStore';
 import './i18n';
 import './index.css';
+
+// 暴露 Store 供非 React 引擎层访问 (2026 Tech: UI-Engine Bridge)
+(window as any).useGameStore = useGameStore;
 
 // 注销旧的Service Worker，避免缓存旧页面
 if ('serviceWorker' in navigator) {

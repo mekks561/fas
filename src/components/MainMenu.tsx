@@ -1,31 +1,28 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from './ui/shadcn';
-import { Card, CardContent, CardFooter } from './ui/shadcn';
-import { Badge } from './ui/shadcn';
+import { Card, CardContent } from './ui/shadcn';
 import {
-  Play,
-  ArrowRight,
-  Settings,
-  Star,
-  Trophy,
-  Medal,
-  ShoppingBag,
-  Award,
-  Rocket,
-  Users,
-  Calendar,
-  GitBranch,
-  Infinity as InfinityIcon,
+  LucideLayoutDashboard,
+  LucideGlobe,
+  LucideBox,
+  LucideZap,
+  LucideSettings,
+  LucideShield,
+  LucideActivity,
+  LucideTrendingUp,
+  LucideTrophy,
+  LucideUsers,
+  LucideInfo
 } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { globalAudio } from '../engine/GlobalAudio';
 import { useTranslation } from 'react-i18next';
+import './MainMenu.css';
 
 interface MainMenuProps {
   onStartGame: () => void;
   onContinueGame?: () => void;
   onSettings: () => void;
-  onCredits?: () => void;
   onAchievements?: () => void;
   onShop?: () => void;
   onHangar?: () => void;
@@ -41,7 +38,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onStartGame,
   onContinueGame,
   onSettings,
-  onCredits,
   onAchievements,
   onShop,
   onHangar,
@@ -49,214 +45,214 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onSurvival,
   onLeaderboard,
   onFriends,
-  onDailyChallenge,
-  hasSavedGame = false,
 }) => {
-  const [selectedOption, setSelectedOption] = useState(0);
   const [showAnimation, setShowAnimation] = useState(false);
-
+  const { t } = useTranslation();
+  
   const playerScore = useGameStore((state) => state.player.score);
   const playerLevel = useGameStore((state) => state.player.level);
-  const { t } = useTranslation();
-
-  const menuOptions = useMemo(
-    () => [
-      { id: 'start', label: t('menu.startGame'), icon: Play, action: onStartGame, primary: true },
-      ...(hasSavedGame
-        ? [
-            {
-              id: 'continue',
-              label: t('menu.continueGame'),
-              icon: ArrowRight,
-              action: onContinueGame,
-            },
-          ]
-        : []),
-      ...(onSurvival
-        ? [
-            {
-              id: 'survival',
-              label: t('survival.modeTitle'),
-              icon: InfinityIcon,
-              action: onSurvival,
-            },
-          ]
-        : []),
-      ...(onShop ? [{ id: 'shop', label: '商店', icon: ShoppingBag, action: onShop }] : []),
-      // 机库：`rewards.unlocks` 里 6 条 ship-* 的落地出口（选出厂舰体 = 换模型）。
-      ...(onHangar ? [{ id: 'hangar', label: '机库', icon: Rocket, action: onHangar }] : []),
-      ...(onSkillTree
-        ? [{ id: 'skill_tree', label: '技能树', icon: GitBranch, action: onSkillTree }]
-        : []),
-      ...(onLeaderboard
-        ? [{ id: 'leaderboard', label: '排行榜', icon: Trophy, action: onLeaderboard }]
-        : []),
-      ...(onFriends ? [{ id: 'friends', label: '好友', icon: Users, action: onFriends }] : []),
-      ...(onDailyChallenge
-        ? [{ id: 'daily_challenge', label: '每日挑战', icon: Calendar, action: onDailyChallenge }]
-        : []),
-      ...(onAchievements
-        ? [{ id: 'achievements', label: '成就', icon: Award, action: onAchievements }]
-        : []),
-      { id: 'settings', label: t('menu.settings'), icon: Settings, action: onSettings },
-      ...(onCredits
-        ? [{ id: 'credits', label: t('menu.credits'), icon: Star, action: onCredits }]
-        : []),
-    ],
-    [
-      hasSavedGame,
-      onStartGame,
-      onContinueGame,
-      onSettings,
-      onCredits,
-      onAchievements,
-      onShop,
-      onSkillTree,
-      onSurvival,
-      onLeaderboard,
-      onFriends,
-      onDailyChallenge,
-      t,
-    ],
-  );
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.code) {
-        case 'ArrowUp':
-        case 'KeyW':
-          setSelectedOption((prev) => Math.max(0, prev - 1));
-          break;
-        case 'ArrowDown':
-        case 'KeyS':
-          setSelectedOption((prev) => Math.min(menuOptions.length - 1, prev + 1));
-          break;
-        case 'Enter':
-        case 'Space':
-          e.preventDefault();
-          menuOptions[selectedOption]?.action?.();
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [menuOptions, selectedOption]);
+  const galacticStatus = useGameStore((state) => state.galacticStatus);
+  const setStarMapVisible = useGameStore((state) => state.setStarMapVisible);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowAnimation(true), 0);
     return () => clearTimeout(timer);
   }, []);
 
-  const handleClick = useCallback((index: number, action?: () => void) => {
-    setSelectedOption(index);
+  const handleAction = (action?: () => void) => {
     globalAudio.playCue('uiClick');
-    if (action) {
-      setTimeout(action, 100);
-    }
-  }, []);
+    if (action) action();
+  };
 
-  const renderStars = useMemo(() => {
-    const stars = [];
-    for (let i = 0; i < 50; i++) {
-      const style = {
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animationDelay: `${Math.random() * 3}s`,
-        animationDuration: `${2 + Math.random() * 3}s`,
-      };
-      stars.push(
-        <div
-          key={i}
-          className="absolute w-1 h-1 bg-white rounded-full opacity-60 animate-pulse"
-          style={style}
-        />,
-      );
-    }
-    return stars;
-  }, []);
+  const handleStartStrategic = () => {
+    globalAudio.playCue('uiClick');
+    onStartGame();
+  };
+
+  const getFactionName = (id: string) => {
+    const names: Record<string, string> = {
+      trade_union: '贸易联盟',
+      scavengers: '拾荒者',
+      imperial_guard: '帝国卫队',
+      void_cult: '虚空教派',
+      neutral: '中立势力'
+    };
+    return names[id] || id;
+  };
+
+  const getFactionColor = (id: string) => {
+    const colors: Record<string, string> = {
+      trade_union: 'blue',
+      scavengers: 'orange',
+      imperial_guard: 'red',
+      void_cult: 'purple',
+      neutral: 'gray'
+    };
+    return colors[id] || 'blue';
+  };
 
   return (
-    <div
-      className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-purple-950 to-slate-900 relative overflow-hidden transition-opacity duration-1000 ${showAnimation ? 'opacity-100' : 'opacity-0'}`}
-    >
-      <div className="absolute inset-0 overflow-hidden">{renderStars}</div>
+    <div className={`command-center-root ${showAnimation ? 'active' : ''}`}>
+      {/* 动态背景：扫描线与粒子 */}
+      <div className="command-bg">
+        <div className="scanline"></div>
+        <div className="grid-overlay"></div>
+      </div>
 
-      <Card className="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border-purple-500/30 shadow-2xl shadow-purple-500/20 relative z-10">
-        <CardContent className="p-8 space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent drop-shadow-lg">
-              SPACE FIGHTER
-            </h1>
-            <p className="text-slate-400 text-sm md:text-base">3A Quality Space Combat Game</p>
-
-            {hasSavedGame && (
-              <div className="mt-4 flex items-center justify-center gap-2">
-                <Badge variant="outline" className="border-purple-500 text-purple-300">
-                  {t('menu.currentProgress')}: Level {playerLevel}
-                </Badge>
-                <Badge variant="outline" className="border-yellow-500 text-yellow-300">
-                  {t('menu.score')}: {playerScore.toLocaleString()}
-                </Badge>
-              </div>
-            )}
+      {/* 顶部状态栏 */}
+      <header className="command-header">
+        <div className="header-left">
+          <LucideActivity className="w-5 h-5 text-blue-400 animate-pulse" />
+          <span className="text-xs tracking-[0.3em] font-bold text-blue-300">SYSTEM STATUS: OPTIMAL</span>
+        </div>
+        <div className="header-center">
+          <h1 className="game-title-v3">GALACTIC COMMAND</h1>
+        </div>
+        <div className="header-right">
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-[10px] text-white/40 uppercase">Pilot Level</div>
+              <div className="text-sm font-bold text-blue-400">LVL {playerLevel}</div>
+            </div>
+            <div className="w-px h-6 bg-white/10"></div>
+            <div className="text-right">
+              <div className="text-[10px] text-white/40 uppercase">Total Credits</div>
+              <div className="text-sm font-bold text-yellow-400">{playerScore.toLocaleString()}</div>
+            </div>
           </div>
+        </div>
+      </header>
 
-          <div className="space-y-3">
-            {menuOptions.map((option, index) => {
-              const IconComponent = option.icon;
-              return (
-                <div
-                  key={option.id}
-                  className={`relative ${selectedOption === index ? 'scale-[1.02]' : ''} transition-transform duration-200`}
-                  onClick={() => handleClick(index, option.action)}
-                  onMouseEnter={() => {
-                    setSelectedOption(index);
-                    globalAudio.playCue('uiSelect');
-                  }}
-                >
-                  <Button
-                    variant={option.primary ? 'default' : 'outline'}
-                    size="lg"
-                    className={`w-full h-14 text-base font-semibold transition-all duration-200 ${
-                      selectedOption === index
-                        ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-slate-900'
-                        : ''
-                    } ${option.primary ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500' : ''}`}
-                    onClick={() => option.action?.()}
-                  >
-                    <IconComponent className="w-5 h-5" />
-                    {option.label}
-                  </Button>
-
-                  {selectedOption === index && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2">
-                      <ArrowRight className="w-5 h-5 text-yellow-400" />
+      {/* 主控制台布局 */}
+      <main className="command-main">
+        {/* 左侧：战略情报面板 */}
+        <section className="command-sidebar-left">
+          <Card className="glass-panel h-full border-none">
+            <CardContent className="p-6 space-y-8">
+              <div>
+                <h3 className="panel-title"><LucideTrendingUp className="w-4 h-4" /> 银河动态指标</h3>
+                <div className="mt-4 space-y-4">
+                  <div className="stat-item">
+                    <div className="flex justify-between text-[10px] mb-1">
+                      <span>冲突指数</span>
+                      <span className={galacticStatus.conflictIndex > 0.7 ? 'text-red-400' : 'text-yellow-400'}>
+                        {galacticStatus.conflictIndex > 0.7 ? 'HIGH' : 'STABLE'}
+                      </span>
                     </div>
-                  )}
+                    <div className="progress-bar-v3">
+                      <div 
+                        className={`fill ${galacticStatus.conflictIndex > 0.7 ? 'bg-red-500' : 'bg-yellow-500'}`} 
+                        style={{ width: `${galacticStatus.conflictIndex * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div className="stat-item">
+                    <div className="flex justify-between text-[10px] mb-1">
+                      <span>贸易活跃度</span>
+                      <span className="text-blue-400">{galacticStatus.tradeActivity > 0.6 ? 'BOOMING' : 'NORMAL'}</span>
+                    </div>
+                    <div className="progress-bar-v3">
+                      <div className="fill bg-blue-500" style={{ width: `${galacticStatus.tradeActivity * 100}%` }}></div>
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
+              </div>
 
-        <CardFooter className="flex flex-col items-center gap-4 pt-0">
-          <p className="text-slate-500 text-xs">{t('menu.navigateHint')}</p>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 text-yellow-400">
-              <Trophy className="w-4 h-4" />
-              <span className="text-xs font-medium">
-                {t('menu.best')}: {playerScore.toLocaleString()}
-              </span>
+              <div>
+                <h3 className="panel-title"><LucideUsers className="w-4 h-4" /> 派系影响力</h3>
+                <div className="mt-4 space-y-2">
+                  {Object.entries(galacticStatus.factionInfluence).map(([faction, value]) => (
+                    <div key={faction} className="faction-dot-item">
+                      <div className={`dot bg-${getFactionColor(faction)}-500`}></div>
+                      <span className="text-xs">{getFactionName(faction)}</span>
+                      <span className="ml-auto text-xs text-white/50">{value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* 中间：核心操作区 */}
+        <section className="command-center-hub">
+          <div className="hub-content">
+            <div className="tactical-display">
+              <div className="circle-scanner"></div>
+              <div className="ship-wireframe"></div>
             </div>
-            <div className="flex items-center gap-2 text-purple-400">
-              <Medal className="w-4 h-4" />
-              <span className="text-xs font-medium">Level: {playerLevel}</span>
+            
+            <div className="primary-actions">
+              <button className="btn-v3-primary" onClick={handleStartStrategic}>
+                <LucideGlobe className="w-6 h-6" />
+                <div className="text-left">
+                  <div className="text-lg font-bold">银河战略指挥</div>
+                  <div className="text-[10px] opacity-60">ENTER STAR MAP & SECTORS</div>
+                </div>
+              </button>
+              
+              <div className="secondary-grid">
+                <button className="btn-v3-secondary" onClick={() => handleAction(onHangar)}>
+                  <LucideBox className="w-5 h-5" />
+                  <span>机库整备</span>
+                </button>
+                <button className="btn-v3-secondary" onClick={() => handleAction(onSkillTree)}>
+                  <LucideZap className="w-5 h-5" />
+                  <span>科技矩阵</span>
+                </button>
+                <button className="btn-v3-secondary" onClick={() => handleAction(onSurvival)}>
+                  <LucideShield className="w-5 h-5" />
+                  <span>模拟训练</span>
+                </button>
+              </div>
             </div>
           </div>
-          <p className="text-slate-600 text-xs mt-2">{t('common.version')} | PlayCanvas Engine</p>
-        </CardFooter>
-      </Card>
+        </section>
+
+        {/* 右侧：情报与配置 */}
+        <section className="command-sidebar-right">
+          <div className="space-y-4">
+            <button className="btn-v3-icon-label" onClick={() => handleAction(onLeaderboard)}>
+              <LucideTrophy className="w-5 h-5" />
+              <span>荣誉榜</span>
+            </button>
+            <button className="btn-v3-icon-label" onClick={() => handleAction(onAchievements)}>
+              <LucideTrophy className="w-5 h-5" />
+              <span>成就记录</span>
+            </button>
+            <button className="btn-v3-icon-label" onClick={() => handleAction(onShop)}>
+              <LucideTrendingUp className="w-5 h-5" />
+              <span>黑市终端</span>
+            </button>
+            <button className="btn-v3-icon-label" onClick={() => handleAction(onSettings)}>
+              <LucideSettings className="w-5 h-5" />
+              <span>系统配置</span>
+            </button>
+          </div>
+          
+          <div className="mt-auto p-4 glass-panel rounded-lg">
+            <div className="flex items-center gap-2 mb-2 text-white/40">
+              <LucideInfo className="w-4 h-4" />
+              <span className="text-[10px] uppercase font-bold">Intelligence Feed</span>
+            </div>
+            <div className="space-y-1">
+              {galacticStatus.intelligenceFeed.map((feed, index) => (
+                <p key={index} className="text-[10px] leading-relaxed text-blue-200/60 border-l border-blue-500/30 pl-2">
+                  {feed}
+                </p>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* 底部装饰条 */}
+      <footer className="command-footer">
+        <div className="footer-line"></div>
+        <div className="text-[10px] text-white/20 tracking-widest mt-2 uppercase">
+          Version 3.0.0 | Engine: PlayCanvas WebGPU | Node Status: Connected
+        </div>
+      </footer>
     </div>
   );
 };

@@ -87,17 +87,61 @@ export class StoryMissionManager {
   private currentChapterId: string | null = null;
   private activeMissionIds: Set<string> = new Set();
   private completedMissionIds: Set<string> = new Set();
+  private completedChapterIds: Set<string> = new Set();
   private listeners: Set<() => void> = new Set();
 
   /** 加载所有剧情资源 */
   async loadAll(): Promise<void> {
     await Promise.all([this.loadChapters(), this.loadMissions(), this.loadDialogues()]);
+    this.loadProgress(); // 从本地存储恢复进度
     this.updateMissionAvailability();
     console.log('[StoryMissionManager] Loaded:', {
       chapters: this.chapters.size,
       missions: this.missions.size,
       dialogues: this.dialogues.size,
+      completedMissions: this.completedMissionIds.size,
+      completedChapters: this.completedChapterIds.size,
     });
+  }
+
+  private loadProgress(): void {
+    try {
+      const saved = localStorage.getItem('story_mission_progress');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (Array.isArray(data.completedMissions)) {
+          this.completedMissionIds = new Set(data.completedMissions);
+        }
+        if (Array.isArray(data.completedChapters)) {
+          this.completedChapterIds = new Set(data.completedChapters);
+        }
+        this.currentChapterId = data.currentChapterId || null;
+
+        // 同步 missionStates 的状态
+        this.completedMissionIds.forEach((id) => {
+          const state = this.missionStates.get(id);
+          if (state) {
+            state.status = 'completed';
+            state.objectives.forEach((o) => (o.completed = true));
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('[StoryMissionManager] Failed to load progress', e);
+    }
+  }
+
+  private saveProgress(): void {
+    try {
+      const data = {
+        completedMissions: Array.from(this.completedMissionIds),
+        completedChapters: Array.from(this.completedChapterIds),
+        currentChapterId: this.currentChapterId,
+      };
+      localStorage.setItem('story_mission_progress', JSON.stringify(data));
+    } catch (e) {
+      console.warn('[StoryMissionManager] Failed to save progress', e);
+    }
   }
 
   private async loadChapters(): Promise<void> {
@@ -162,11 +206,27 @@ export class StoryMissionManager {
 
   setCurrentChapter(chapterId: string): void {
     this.currentChapterId = chapterId;
+    this.saveProgress();
     this.notify();
   }
 
   getCurrentChapter(): StoryChapter | null {
     return this.currentChapterId ? this.chapters.get(this.currentChapterId) || null : null;
+  }
+
+  completeChapter(chapterId: string): boolean {
+    const chapter = this.chapters.get(chapterId);
+    if (!chapter || this.completedChapterIds.has(chapterId)) return false;
+
+    this.completedChapterIds.add(chapterId);
+    this.saveProgress();
+    this.notify();
+    console.log(`[StoryMissionManager] Chapter completed: ${chapterId}`);
+    return true;
+  }
+
+  isChapterCompleted(chapterId: string): boolean {
+    return this.completedChapterIds.has(chapterId);
   }
 
   // ============ 任务管理 ============
@@ -254,6 +314,7 @@ export class StoryMissionManager {
       state.status = 'completed';
       this.activeMissionIds.delete(missionId);
       this.completedMissionIds.add(missionId);
+      this.saveProgress();
       this.updateMissionAvailability();
       console.log(`[StoryMissionManager] Mission completed: ${missionId}`);
     }
@@ -297,6 +358,21 @@ export class StoryMissionManager {
 
   getAllDialogues(): Dialogue[] {
     return Array.from(this.dialogues.values());
+  }
+
+  /** 2026 Tech: 动态注入程序化任务 */
+  addProceduralMission(mission: Mission): void {
+    if (this.missions.has(mission.id)) return;
+
+    this.missions.set(mission.id, mission);
+    this.missionStates.set(mission.id, {
+      mission,
+      status: 'available',
+      objectives: mission.objectives.map((o) => ({ ...o, completed: false })),
+    });
+    
+    this.notify();
+    console.log(`[StoryMissionManager] Dynamic mission added: ${mission.name}`);
   }
 
   // ============ 事件订阅 ============

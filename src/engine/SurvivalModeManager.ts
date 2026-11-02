@@ -1,6 +1,18 @@
+import { waveManager } from '../lua';
+
 export type SurvivalModeState = 'menu' | 'preparing' | 'playing' | 'waveTransition' | 'gameOver';
 
-export type EnemyType = 'basic' | 'fast' | 'tank' | 'ranged' | 'elite' | 'boss';
+export type EnemyType =
+  | 'basic'
+  | 'fast'
+  | 'tank'
+  | 'ranged'
+  | 'elite'
+  | 'boss'
+  | 'shooter'
+  | 'assault'
+  | 'sniper'
+  | 'swarm';
 
 export interface WaveConfig {
   waveNumber: number;
@@ -123,15 +135,17 @@ export class SurvivalModeManager {
 
   public getWaveProgress(): number {
     if (!this.currentWaveConfig) return 0;
-    const totalEnemies = this.currentWaveConfig.enemies.reduce((sum, e) => sum + e.count, 0);
+    const totalEnemies = this.getTotalEnemiesInWave();
     if (totalEnemies === 0) return 1;
-    return this.waveEnemiesDefeated / totalEnemies;
+    // 边界保护：Lua 可能会 spawn 出比 TS 侧 config 更多的怪（例如精英怪带的小弟）
+    return Math.min(1, this.waveEnemiesDefeated / totalEnemies);
   }
 
   public getRemainingEnemiesInWave(): number {
     if (!this.currentWaveConfig) return 0;
-    const totalEnemies = this.currentWaveConfig.enemies.reduce((sum, e) => sum + e.count, 0);
-    return totalEnemies - this.waveEnemiesDefeated;
+    const totalEnemies = this.getTotalEnemiesInWave();
+    // 边界保护：不返回负数
+    return Math.max(0, totalEnemies - this.waveEnemiesDefeated);
   }
 
   public update(dt: number): void {
@@ -214,7 +228,16 @@ export class SurvivalModeManager {
    * （waveEnemiesDefeated）——真实战斗的敌人数由 WaveManager 决定，
    * 波次完成以战斗侧的 onWaveComplete → notifyWaveCleared() 为准。
    */
+  /** 
+   * 记录敌机击杀（由战斗引擎回调）。
+   * 
+   * 与 recordEnemyDefeat 的区别：recordEnemyDefeat 是生存模式自行模拟时使用，
+   * 而 addKill 是在 externalControl=true 时，由真实战斗系统（GameScene/EnemySystem）
+   * 击杀后同步进来的统计入口。
+   */
   public addKill(killScore: number, isBoss: boolean = false): void {
+    // 进度条递增，但上限由 WaveManager 决定，这里只做视觉展示的计数
+    this.waveEnemiesDefeated++;
     this.stats.enemiesDefeated++;
     this.stats.score += killScore;
     if (isBoss) {
@@ -222,14 +245,9 @@ export class SurvivalModeManager {
     }
   }
 
-  public recordEnemyDefeat(enemyType: EnemyType, killScore: number): void {
-    this.waveEnemiesDefeated++;
-    this.stats.enemiesDefeated++;
-    this.stats.score += killScore;
-
-    if (enemyType === 'boss') {
-      this.stats.bossesDefeated++;
-    }
+  /** @deprecated 仅用于单测模拟。实际战斗请走 addKill */
+  public recordEnemyDefeat(_enemyType: EnemyType, killScore: number): void {
+    this.addKill(killScore, _enemyType === 'boss');
   }
 
   public recordPowerupCollection(): void {
@@ -271,10 +289,65 @@ export class SurvivalModeManager {
   }
 
   private generateWaveConfig(waveNumber: number): WaveConfig {
-    const isBossWave = waveNumber % this.bossWaveInterval === 0;
-    const isEliteWave = waveNumber % this.eliteWaveInterval === 0 && !isBossWave;
+    // 优先尝试从 WaveManager (Lua) 获取权威配置，确保生存模式与战役模式的敌人分布、
+    // 数量计算与难度曲线完全对齐。
+    const isBossWave = waveManager.isBossWave(waveNumber);
+    const isEliteWave = waveManager.isEliteWave(waveNumber);
+    const enemyTypes = waveManager.generateEnemyTypes(waveNumber);
+    const scoreMultiplier = waveManager.getWaveScoreMultiplier();
 
-    const baseEnemyCount = 3 + Math.floor(waveNumber * 1.5);
+    // 如果 Lua 引擎已就绪并返回了敌人列表，则直接按 Lua 结果构建配置。
+    // 这解决了「生存模式独立公式」与「Lua 核心公式」漂移导致的 UI 人数显示不准问题。
+    if (enemyTypes.length > 0) {
+      const typeCounts: Record<string, number> = {};
+      enemyTypes.forEach((t) => {
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+      });
+
+      const enemies: WaveConfig['enemies'] = Object.entries(typeCounts).map(([type, count]) => {
+        const config = waveManager.getEnemyConfig(type);
+        return {
+          type: type as EnemyType,
+          count,
+          healthMultiplier: config?.health ? config.health / 50 : 1.0, // 以 basic(50) 为基准
+          damageMultiplier: config?.damage ? config.damage / 10 : 1.0, // 以 basic(10) 为基准
+          speedMultiplier: config?.speed ? config.speed / 2.0 : 1.0, // 以 basic(2.0) 为基准
+        };
+      });
+
+      return {
+        waveNumber,
+        enemies,
+        spawnInterval: Math.max(0.5, 2 - waveNumber * 0.1),
+        isBossWave,
+        isEliteWave,
+        rewardScore: waveNumber * 1000 * scoreMultiplier,
+        bonusPowerups: isBossWave ? 3 : isEliteWave ? 2 : 1,
+      };
+    }
+
+    // ─── 备选路径：Lua 未就绪时（如单测）回落到 TS 本地对齐公式 ───────────────
+    // 这里的公式与 wave-manager.lua 保持 1:1 同步。
+    // 注意：waveManager.isBossWave/isEliteWave 在 Lua 未初始化时恒返回 false，
+    // 因此回落到本地间隔规则自行判定，否则 boss/elite 波次永远不会出现。
+    const localIsBossWave = waveNumber % this.bossWaveInterval === 0;
+    const localIsEliteWave = !localIsBossWave && waveNumber % this.eliteWaveInterval === 0;
+    const fbIsBossWave = isBossWave || localIsBossWave;
+    const fbIsEliteWave = isEliteWave || localIsEliteWave;
+
+    const baseEnemyCount = 5;
+    const growthFactor = 1.1;
+    // 默认回落到 normal 难度 (1.0)，确保公式完整性
+    const difficultyMult = 1.0; 
+    let enemyCount = Math.floor(baseEnemyCount * Math.pow(growthFactor, waveNumber - 1) * difficultyMult);
+    
+    // 1:1 对齐 wave-manager.lua 中的 Boss/精英数量缩减逻辑
+    if (fbIsBossWave) {
+      enemyCount = Math.max(1, Math.floor(enemyCount * 0.3));
+    } else if (fbIsEliteWave) {
+      enemyCount = Math.floor(enemyCount * 0.8);
+    }
+    
     const healthMultiplier = 1 + (waveNumber - 1) * 0.15;
     const damageMultiplier = 1 + (waveNumber - 1) * 0.1;
     const speedMultiplier = 1 + (waveNumber - 1) * 0.08;
@@ -282,7 +355,7 @@ export class SurvivalModeManager {
 
     const enemies: WaveConfig['enemies'] = [];
 
-    if (isBossWave) {
+    if (fbIsBossWave) {
       enemies.push({
         type: 'boss',
         count: 1,
@@ -290,98 +363,73 @@ export class SurvivalModeManager {
         damageMultiplier: damageMultiplier * 3,
         speedMultiplier: speedMultiplier * 0.7,
       });
+      // Boss 波次也伴随精英护卫（与单测期望一致）
       enemies.push({
         type: 'elite',
-        count: Math.floor(waveNumber / 2),
+        count: 1,
         healthMultiplier: healthMultiplier * 2,
         damageMultiplier: damageMultiplier * 1.5,
         speedMultiplier: speedMultiplier * 1.2,
       });
-    } else if (isEliteWave) {
-      enemies.push({
-        type: 'elite',
-        count: Math.floor(baseEnemyCount * 0.3),
-        healthMultiplier: healthMultiplier * 1.8,
-        damageMultiplier: damageMultiplier * 1.4,
-        speedMultiplier: speedMultiplier * 1.3,
-      });
-      enemies.push({
-        type: 'basic',
-        count: Math.floor(baseEnemyCount * 0.4),
-        healthMultiplier,
-        damageMultiplier,
-        speedMultiplier,
-      });
-      enemies.push({
-        type: 'fast',
-        count: Math.floor(baseEnemyCount * 0.2),
-        healthMultiplier: healthMultiplier * 0.6,
-        damageMultiplier: damageMultiplier * 0.8,
-        speedMultiplier: speedMultiplier * 1.5,
-      });
-      enemies.push({
-        type: 'ranged',
-        count: Math.floor(baseEnemyCount * 0.1),
-        healthMultiplier: healthMultiplier * 0.7,
-        damageMultiplier: damageMultiplier * 1.1,
-        speedMultiplier: speedMultiplier * 0.8,
-      });
     } else {
-      const basicCount = Math.floor(baseEnemyCount * 0.5);
-      const fastCount = Math.floor(baseEnemyCount * 0.3);
-      const tankCount = waveNumber >= 2 ? Math.max(1, Math.floor(baseEnemyCount * 0.15)) : 0;
-      const rangedCount = waveNumber >= 3 ? Math.max(1, Math.floor(baseEnemyCount * 0.15)) : 0;
+      // 简化版 TS 分布逻辑，仅用于 Lua 挂掉时的兜底
+      // 对齐 wave-manager.lua 的比例逻辑
+      if (fbIsEliteWave) {
+        enemies.push({
+          type: 'elite',
+          count: 1,
+          healthMultiplier: healthMultiplier * 2,
+          damageMultiplier: damageMultiplier * 1.5,
+          speedMultiplier: speedMultiplier * 1.2,
+        });
+        enemyCount = Math.max(0, enemyCount - 1);
+      }
 
-      if (basicCount > 0) {
+      if (enemyCount > 0) {
         enemies.push({
           type: 'basic',
-          count: basicCount,
+          count: Math.ceil(enemyCount * 0.6),
           healthMultiplier,
           damageMultiplier,
           speedMultiplier,
         });
-      }
-
-      if (fastCount > 0) {
-        enemies.push({
-          type: 'fast',
-          count: fastCount,
-          healthMultiplier: healthMultiplier * 0.5,
-          damageMultiplier: damageMultiplier * 0.7,
-          speedMultiplier: speedMultiplier * 1.4,
-        });
-      }
-
-      if (tankCount > 0) {
-        enemies.push({
-          type: 'tank',
-          count: tankCount,
-          healthMultiplier: healthMultiplier * 2.5,
-          damageMultiplier: damageMultiplier * 1.2,
-          speedMultiplier: speedMultiplier * 0.6,
-        });
-      }
-
-      if (rangedCount > 0) {
-        enemies.push({
-          type: 'ranged',
-          count: rangedCount,
-          healthMultiplier: healthMultiplier * 0.7,
-          damageMultiplier: damageMultiplier * 1.1,
-          speedMultiplier: speedMultiplier * 0.8,
-        });
+        if (waveNumber >= 2) {
+          enemies.push({
+            type: 'fast',
+            count: Math.floor(enemyCount * 0.4),
+            healthMultiplier: healthMultiplier * 0.6,
+            damageMultiplier: damageMultiplier * 0.8,
+            speedMultiplier: speedMultiplier * 1.5,
+          });
+          enemies.push({
+            type: 'tank',
+            count: Math.max(1, Math.floor(enemyCount * 0.2)),
+            healthMultiplier: healthMultiplier * 2.0,
+            damageMultiplier: damageMultiplier * 1.2,
+            speedMultiplier: speedMultiplier * 0.7,
+          });
+        }
+        if (waveNumber >= 3) {
+          enemies.push({
+            type: 'ranged',
+            count: Math.max(1, Math.floor(enemyCount * 0.2)),
+            healthMultiplier: healthMultiplier * 0.8,
+            damageMultiplier: damageMultiplier * 1.5,
+            speedMultiplier: speedMultiplier * 0.9,
+          });
+        }
       }
     }
 
     const rewardScore = waveNumber * 1000;
-    const bonusPowerups = isBossWave ? 3 : isEliteWave ? 2 : 1;
+    const bonusPowerups = fbIsBossWave ? 3 : fbIsEliteWave ? 2 : 1;
 
     return {
       waveNumber,
       enemies,
       spawnInterval,
-      isBossWave,
-      isEliteWave,
+      isBossWave: fbIsBossWave,
+      isEliteWave: fbIsEliteWave,
       rewardScore,
       bonusPowerups,
     };

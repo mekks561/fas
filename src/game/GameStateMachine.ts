@@ -22,6 +22,7 @@ export enum GameState {
   LEADERBOARD = 'leaderboard',
   FRIENDS = 'friends',
   DAILY_CHALLENGE = 'daily_challenge',
+  STAR_MAP = 'star_map',
 }
 
 export interface GameStateTransition {

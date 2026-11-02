@@ -205,6 +205,14 @@ class GlobalAudioManager {
     for (const el of this.cues.values()) el.volume = this.effectiveCueVolume();
   }
 
+  /** 设置背景音乐播放速度（间接影响音高） */
+  public setMusicPitch(pitch: number): void {
+    const rate = Math.max(0.5, Math.min(2.0, pitch));
+    for (const el of this.music.values()) {
+      el.playbackRate = rate;
+    }
+  }
+
   /** 当前正在播放的音乐（DEV 验证用） */
   public getCurrentMusic(): MusicTrack | null {
     return this.current;

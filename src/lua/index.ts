@@ -19,7 +19,9 @@
  */
 
 // 核心引擎
-export { LuaEngine, luaEngine } from './LuaEngine';
+import { LuaEngine, luaEngine } from './LuaEngine';
+export { LuaEngine, luaEngine };
+
 export type {
   LuaEngineOptions,
   LuaFunction,
@@ -40,7 +42,8 @@ export {
 } from './luaSources';
 
 // AI 管理
-export { EnemyAIManager, enemyAIManager } from './ai/EnemyAIManager';
+import { EnemyAIManager, enemyAIManager } from './ai/EnemyAIManager';
+export { EnemyAIManager, enemyAIManager };
 export type { AIType, LuaAIStepResult, LuaAIStats } from './ai/EnemyAIManager';
 
 // 配置管理
@@ -53,7 +56,8 @@ export type {
 } from './config/GameConfigManager';
 
 // 技能系统
-export { SkillSystemManager, skillSystemManager } from './skills/SkillSystemManager';
+import { SkillSystemManager, skillSystemManager } from './skills/SkillSystemManager';
+export { SkillSystemManager, skillSystemManager };
 export type {
   SkillTemplate,
   SkillEffect,
@@ -68,7 +72,8 @@ export type {
 } from './skills/SkillSystemManager';
 
 // 波次管理
-export { WaveManager, waveManager } from './wave/WaveManager';
+import { WaveManager, waveManager } from './wave/WaveManager';
+export { WaveManager, waveManager };
 export type { EnemyConfig, WaveState } from './wave/WaveManager';
 
 // 道具增益系统
@@ -83,3 +88,11 @@ export type {
 // 战斗统计系统
 export { CombatStatsManager, combatStatsManager } from './combat/CombatStatsManager';
 export type { CombatStatsData, ComboInfo, ScoreBreakdown } from './combat/CombatStatsManager';
+
+// 调试钩子：将核心系统挂载到 window，方便 E2E 性能测试与控制台诊断
+if (typeof window !== 'undefined') {
+  (window as any).luaEngine = luaEngine;
+  (window as any).enemyAIManager = enemyAIManager;
+  (window as any).skillSystemManager = skillSystemManager;
+  (window as any).waveManager = waveManager;
+}

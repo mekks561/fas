@@ -2,20 +2,25 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
+import glsl from 'vite-plugin-glsl';
+import wasmPack from 'vite-plugin-wasm-pack';
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    glsl(),
+    // wasmPack(['./src/wasm/physics-kernel']),
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
     tsconfigPaths: true,
   },
   server: {
     port: 5175,
+    strictPort: true,
     open: true,
   },
   build: {

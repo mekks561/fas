@@ -53,18 +53,15 @@ export class CombatStatsManager {
     await luaEngine.initialize();
 
     const combatStatsScript = await this.loadCombatStatsScript();
-    luaEngine.registerModule({ name: 'combat_stats', script: combatStatsScript, host: true });
+    luaEngine.registerModule({ name: 'combat_stats', script: combatStatsScript, host: false });
 
     this.initialized = true;
     console.log('[CombatStatsManager] Initialized');
   }
 
   private async loadCombatStatsScript(): Promise<string> {
-    if (combatStatsScript) {
-      return `
-${combatStatsScript}
-
-local CombatStats = require("combat_stats_module")
+    return `
+local CombatStats = require("combat/combat-stats")
 
 function getStats()
   local result = CombatStats.getStats()
@@ -241,165 +238,13 @@ function getRankThresholds()
   end
   return {}
 end
-      `;
-    }
-
-    console.warn('[CombatStatsManager] Failed to load lua file, using fallback');
-    return `
-CombatStats = {
-  kills = 0,
-  deaths = 0,
-  damageDealt = 0,
-  damageTaken = 0,
-  damageHealed = 0,
-  skillsUsed = 0,
-  skillsHit = 0,
-  powerupsCollected = 0,
-  projectilesFired = 0,
-  projectilesHit = 0,
-  comboMax = 0,
-  comboCurrent = 0,
-  comboTotal = 0,
-  accuracy = 0,
-  playTime = 0,
-  wavesCompleted = 0,
-  bossesKilled = 0,
-  elitesKilled = 0,
-  score = 0,
-  rank = "D"
-}
-
-function getStats()
-  return CombatStats
-end
-
-function onKill(enemyType, isBoss, isElite)
-  CombatStats.kills = CombatStats.kills + 1
-  if isBoss then CombatStats.bossesKilled = CombatStats.bossesKilled + 1 end
-  if isElite then CombatStats.elitesKilled = CombatStats.elitesKilled + 1 end
-  CombatStats.comboCurrent = CombatStats.comboCurrent + 1
-  CombatStats.comboMax = math.max(CombatStats.comboMax, CombatStats.comboCurrent)
-  return { success = true, kills = CombatStats.kills, comboCurrent = CombatStats.comboCurrent, comboMax = CombatStats.comboMax }
-end
-
-function onDeath()
-  CombatStats.deaths = CombatStats.deaths + 1
-  CombatStats.comboCurrent = 0
-  return { success = true, deaths = CombatStats.deaths }
-end
-
-function addDamageDealt(damage)
-  CombatStats.damageDealt = CombatStats.damageDealt + damage
-  return { success = true, damageDealt = CombatStats.damageDealt }
-end
-
-function addDamageTaken(damage)
-  CombatStats.damageTaken = CombatStats.damageTaken + damage
-  return { success = true, damageTaken = CombatStats.damageTaken }
-end
-
-function addDamageHealed(healAmount)
-  CombatStats.damageHealed = CombatStats.damageHealed + healAmount
-  return { success = true, damageHealed = CombatStats.damageHealed }
-end
-
-function onSkillUse(skillId, hit)
-  CombatStats.skillsUsed = CombatStats.skillsUsed + 1
-  if hit then CombatStats.skillsHit = CombatStats.skillsHit + 1 end
-  return { success = true, skillsUsed = CombatStats.skillsUsed, skillsHit = CombatStats.skillsHit }
-end
-
-function onPowerupCollected(powerupType)
-  CombatStats.powerupsCollected = CombatStats.powerupsCollected + 1
-  return { success = true, powerupsCollected = CombatStats.powerupsCollected }
-end
-
-function onProjectileFired()
-  CombatStats.projectilesFired = CombatStats.projectilesFired + 1
-  return { success = true, projectilesFired = CombatStats.projectilesFired }
-end
-
-function onProjectileHit()
-  CombatStats.projectilesHit = CombatStats.projectilesHit + 1
-  return { success = true, projectilesHit = CombatStats.projectilesHit }
-end
-
-function updateCombo(deltaTime)
-  return { success = true, comboCurrent = CombatStats.comboCurrent, comboTimer = 0, comboTimeout = 2.0 }
-end
-
-function addScore(points)
-  CombatStats.score = CombatStats.score + points
-  return { success = true, score = CombatStats.score, rank = CombatStats.rank }
-end
-
-function updatePlayTime(deltaTime)
-  CombatStats.playTime = CombatStats.playTime + deltaTime
-  return { success = true, playTime = CombatStats.playTime }
-end
-
-function onWaveCompleted(waveNumber)
-  CombatStats.wavesCompleted = CombatStats.wavesCompleted + 1
-  return { success = true, wavesCompleted = CombatStats.wavesCompleted }
-end
-
-function getComboMultiplier()
-  if CombatStats.comboCurrent <= 1 then return { success = true, multiplier = 1.0 } end
-  if CombatStats.comboCurrent <= 5 then return { success = true, multiplier = 1.5 } end
-  if CombatStats.comboCurrent <= 10 then return { success = true, multiplier = 2.0 } end
-  return { success = true, multiplier = 3.0 }
-end
-
-function getEfficiency()
-  if CombatStats.playTime > 0 then
-    return { success = true, efficiency = math.floor(CombatStats.damageDealt / CombatStats.playTime) }
-  end
-  return { success = true, efficiency = 0 }
-end
-
-function getSurvivalRate()
-  if CombatStats.kills + CombatStats.deaths == 0 then
-    return { success = true, rate = 0 }
-  end
-  return { success = true, rate = math.floor((CombatStats.kills / (CombatStats.kills + CombatStats.deaths)) * 100) }
-end
-
-function calculateFinalScore()
-  return { success = true, finalScore = CombatStats.score, breakdown = { baseScore = CombatStats.score, comboBonus = 0, accuracyBonus = 0, efficiencyBonus = 0, survivalBonus = 0 } }
-end
-
-function resetCombatStats()
-  CombatStats = { kills = 0, deaths = 0, damageDealt = 0, damageTaken = 0, damageHealed = 0, skillsUsed = 0, skillsHit = 0, powerupsCollected = 0, projectilesFired = 0, projectilesHit = 0, comboMax = 0, comboCurrent = 0, comboTotal = 0, accuracy = 0, playTime = 0, wavesCompleted = 0, bossesKilled = 0, elitesKilled = 0, score = 0, rank = "D" }
-  return true
-end
-
-function getRankThresholds()
-  return { S = 10000, A = 5000, B = 2500, C = 1000, D = 0 }
-end
-      `;
+`;
   }
 
   getStats(): CombatStatsData | null {
     if (!this.initialized) return null;
 
     try {
-      const stubModule = luaEngine.getStubModule('combat_stats_module');
-      if (stubModule) {
-        const getStatsFunc = (stubModule as Record<string, unknown>)['getStats'] as (
-          ...args: unknown[]
-        ) => unknown;
-        if (getStatsFunc) {
-          const result = getStatsFunc();
-          if (result && typeof result === 'object') {
-            const resultObj = result as Record<string, unknown>;
-            return (
-              (resultObj['stats'] as CombatStatsData) ||
-              (resultObj as unknown as CombatStatsData) ||
-              null
-            );
-          }
-        }
-      }
       const callResult = luaEngine.call<Record<string, unknown>>('getStats');
       if (callResult) {
         return (
@@ -426,17 +271,6 @@ end
     }
 
     try {
-      const stubModule = luaEngine.getStubModule('combat_stats_module');
-      if (stubModule) {
-        const onKillFunc = (stubModule as Record<string, unknown>)['onKill'] as (
-          ...args: unknown[]
-        ) => unknown;
-        if (onKillFunc) {
-          return onKillFunc(enemyType, isBoss, isElite) as
-            | { success: boolean; kills?: number; comboCurrent?: number; comboMax?: number }
-            | { success: boolean; error: string };
-        }
-      }
       const result = luaEngine.call<
         | { success: boolean; kills?: number; comboCurrent?: number; comboMax?: number }
         | { success: boolean; error: string }
@@ -758,7 +592,7 @@ end
   async reloadScript(): Promise<void> {
     console.log('[CombatStatsManager] Reloading combat stats script...');
     const newScript = await this.loadCombatStatsScript();
-    luaEngine.registerModule({ name: 'combat_stats', script: newScript, host: true });
+    luaEngine.registerModule({ name: 'combat_stats', script: newScript, host: false });
     console.log('[CombatStatsManager] Combat stats script reloaded');
   }
 

@@ -51,6 +51,13 @@ export const ENEMY_TYPE_TO_LUA_AI: Record<EnemyType, AIType> = {
   boss_sentinel: 'BOSS',
   boss_overlord: 'BOSS',
   boss: 'BOSS',
+  // v2.7 新增敌机类型
+  void_lord: 'BOSS',
+  assault: 'ASSAULT',
+  sniper: 'SNIPER',
+  swarm: 'SWARM',
+  static_outpost: 'PATROL',
+  cruiser: 'SNIPER',
 };
 
 /**
@@ -170,6 +177,7 @@ export class LuaEnemyAIBridge implements ExternalAIBrain {
       this.aiType,
       initialPosition.x,
       initialPosition.z,
+      0, // Lua 是 2D，第三轴占位
       health,
       maxHealth,
       detectRange,
@@ -193,9 +201,9 @@ export class LuaEnemyAIBridge implements ExternalAIBrain {
     const playerPosition = this.player.getPosition();
 
     // 位置真值同步进 Lua：Lua 的积分因此只是"本帧位移"，不会与钳制后的实体位置漂移
-    enemyAIManager.sync(this.handle, position.x, position.z, this.lastSyncHealth);
+    enemyAIManager.sync(this.handle, position.x, position.z, 0, this.lastSyncHealth);
 
-    const step = enemyAIManager.step(this.handle, playerPosition.x, playerPosition.z, dt);
+    const step = enemyAIManager.step(this.handle, playerPosition.x, playerPosition.z, 0, dt);
     if (!step) {
       this.fallback('step-failed');
       return false;

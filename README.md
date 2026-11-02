@@ -1,7 +1,7 @@
 # Fighter Game · 3D Space Shooter
 
 > 基于 **PlayCanvas 2 + React 19** 的 3D 太空射击游戏。
-> 当前版本 **`2.6.0`**，10 个关卡 / 12 种敌机 / 真实 Lua 5.4 运行时。
+> 当前版本 **`2.6.1`**，10 个关卡 / 18 种敌机 / 真实 Lua 5.4 运行时。
 
 一个纯前端（可选后端）的浏览器 3D 太空射击游戏：程序化 + GLB 混合资产管线、
 PBR + IBL 光照、数据驱动的关卡与波次、以及一套**真实在跑**的 Lua 脚本层
@@ -11,17 +11,27 @@ PBR + IBL 光照、数据驱动的关卡与波次、以及一套**真实在跑**
 
 ## 当前状态一览
 
-| 维度         | 现状                                                                 |
-| ------------ | -------------------------------------------------------------------- |
-| 版本         | `2.6.0`（`package.json`）                                            |
-| 主分支       | `master`                                                             |
-| 关卡         | **10 关 × 3 波**，含 2 个 Boss 关（`src/levels/level-01..10.ts`）    |
-| 敌机         | **12 种**（`EnemyType` 枚举），敌机 AI 有 TS / Lua 双后端可切        |
-| 飞船活动范围 | X/Z **±50**、Y **±30**（`src/engine/arena.ts`；满速横穿约 2.7 秒）   |
-| Lua 运行时   | **wasmoon 1.16 → Lua 5.4**，7 个 `.lua` 模块真实执行（带运行时自检） |
-| 单元测试     | **389 个 / 25 个文件**（Vitest）                                     |
-| 端到端脚本   | **19 个** `scripts/verify-*.mjs`（Playwright，真实浏览器驱动）       |
-| 游戏资产     | `public/assets` 约 **568 MB / 53,495 个文件**                        |
+| 维度         | 现状                                                                                |
+| ------------ | ----------------------------------------------------------------------------------- |
+| 版本         | `2.6.1`（`package.json`）                                                           |
+| 主分支       | `master`                                                                            |
+| 关卡         | **10 关 × 3 波**，含 2 个 Boss 关（`src/levels/level-01..10.ts`）                    |
+| 敌机         | **18 种**（`EnemyType` 枚举，含新增的 assault/sniper/swarm 等），AI 有 TS / Lua 双后端 |
+| 飞船活动范围 | X/Z **±50**、Y **±30**（`src/engine/arena.ts`；满速横穿约 2.7 秒）                   |
+| Lua 运行时   | **wasmoon 1.16 → Lua 5.4**，7 个 `.lua` 模块真实执行（带运行时自检）                  |
+| 单元测试     | **529 个 / 37 个文件**（Vitest；当前 5 个失败，见下方警告）                            |
+| 端到端脚本   | **24 个** `scripts/verify-*.mjs`（Playwright，真实浏览器驱动）                        |
+| 游戏资产     | `public/assets` 约 **372 MB / 5.3 万个文件**                                          |
+
+> ⚠️ **当前工作区状态（2026-10-28 实测）**：仓库内存在一批**未提交**的 v2.7「深空觉醒」
+> 半成品改动（139 个变更：24+ 个新引擎模块 + 60 余个已有文件被修改），导致：
+> - `npx tsc --noEmit` **约 150 个错误**（新模块仍按 PlayCanvas 1.x API 编写、
+>   `Plugin` 接口缺索引签名、`App.tsx`/`MainMenu` prop 不匹配等）
+> - `npx vitest run` **5 个失败**（524 通过）：新敌机类型未纳入 `ENEMY_TYPE_TO_LUA_AI`
+>   换算表与生存模式波次配置，被既有护栏测试拦下
+>
+> 下文描述的是**已提交基线**的口径；涉及 v2.7 新模块的内容见
+> 「已知问题与待办」。修复或剥离这批改动前，请勿以当前工作区出生产构建。
 
 ---
 
@@ -135,7 +145,7 @@ npm run audit:dead-code  # 审计 src 死代码（LIVE / DEAD / TESTONLY）
 ```
 fighter-game/
 ├── src/
-│   ├── engine/          # 游戏引擎核心（66 个模块：渲染/物理/AI/系统）
+│   ├── engine/          # 游戏引擎核心（104 个模块：渲染/物理/AI/系统）
 │   │   ├── arena.ts             # ★ 活动空间唯一真源（零依赖叶子）
 │   │   ├── PlayCanvasEngine.ts  # PlayCanvas 封装
 │   │   ├── GameplayManager.ts   # 玩法总装（各子系统初始化在此串起来）
@@ -145,7 +155,7 @@ fighter-game/
 │   ├── lua/             # ★ Lua 脚本层
 │   │   ├── LuaEngine.ts         # 运行时装配 + 模块装载 + 自检
 │   │   ├── luaSources.ts        # .lua 源码注册表（构建期内联，唯一取源口）
-│   │   ├── ai/enemy-ai.lua      # 敌机 AI 行为模板（457 行）
+│   │   ├── ai/enemy-ai.lua      # 敌机 AI 行为模板（412 行）
 │   │   ├── wave/ powerup/ combat/ skills/ config/ utils.lua
 │   │   └── tests/               # Lua 自测脚本（不进运行时注册表）
 │   ├── levels/          # ★ 关卡配置唯一真源（level-01..10.ts + 派生层 index.ts）
@@ -156,15 +166,15 @@ fighter-game/
 │   ├── i18n/            # 国际化（zh / en）
 │   ├── types/ config/ utils/ monitoring/ textures/
 │   └── main.tsx         # 前端入口
-├── public/assets/       # 游戏资产（约 568 MB / 5.3 万文件：GLB / 贴图 / 音频 / HDR）
-├── scripts/             # 资产生成、审计、19 个 verify-*.mjs 端到端验证脚本
+├── public/assets/       # 游戏资产（约 372 MB / 5.3 万文件：GLB / 贴图 / 音频 / HDR）
+├── scripts/             # 资产生成、审计、24 个 verify-*.mjs 端到端验证脚本
 ├── docs/                # 设计文档与验证截图（见「文档索引」）
 ├── server/              # 独立子包：Express + Prisma 后端（fighter-game-server 2.5.0）
 ├── poc/                 # 概念验证：trpc-leaderboard / neon-leaderboard
 ├── edge/                # Cloudflare Workers（wrangler）边缘函数
 ├── ai-training/         # Python 训练脚本与导出的模型（实验性）
 ├── tests/e2e/           # Playwright 测试用例
-├── dist/                # 构建产物（含 public/ 原样拷贝，约 583 MB）
+├── dist/                # 构建产物（含 public/ 原样拷贝，约 413 MB）
 └── index.html
 ```
 
@@ -180,7 +190,7 @@ fighter-game/
 ### 内容规模
 
 - **战役**：10 关 × 3 波，第 5 关（Boss: Sentinel）与第 10 关（Boss: Overlord）为 Boss 关
-- **敌机**：12 种（侦察 / 战斗机 / 轰炸机 / 坦克 / 刺客 / 无人机 / 精英 / 护卫舰 / 驱逐舰 / 3 种 Boss）
+- **敌机**：18 种（侦察 / 战斗机 / 轰炸机 / 坦克 / 刺客 / 无人机 / 精英 / 护卫舰 / 驱逐舰 / 突击 / 狙击 / 蜂群 / 前哨站 / 巡洋舰 / 4 种 Boss）
 - **技能**：主动技能 + **技能树**加点（`SkillTreeManager` + `SkillTreeUI`）
 - **道具**：多种随机掉落（`PowerupSystem`）
 - **建造 / 升级**：局内三选一升级（`BuildSystem` + `UpgradeChoiceOverlay` + `config/build-upgrades.json`）
@@ -199,7 +209,7 @@ fighter-game/
 > **界面接线 ≠ 功能生效**：这条判据是本项目反复踩到的坑。曾经「商店」能开、
 > 能扣钱、能显示「已购买 ✓」，但购买结果**没有任何下游读取方**。
 > 现在的口径是：每个界面写出的存储/字段，都必须能指出**它的读取方在哪**。
-> 元进度闭环的做法与验证见 `docs/2026-10-10-元进度闭环.md`。
+> 元进度闭环的做法与验证见 `docs/archive/CHANGELOG_DETAILS_2026_OCT.md`（元进度闭环章节）。
 
 > **多人游戏未实现**：`MultiplayerPanel.tsx` 存在但**没有任何入口引用**（属死代码），
 > `MultiplayerSystem` 亦不可达。规划中，尚未开工。
@@ -273,24 +283,23 @@ PROJECTILE_CULL_RADIUS         // = 敌机对角 + 60（派生，非魔数）
   **不要**改回 `import.meta.glob(..., { as: 'raw' })`（Vite 8 下已失效且不报警告，
   产物会变成 `/assets/x-xxxx.lua` 这样的 URL 字符串——dev 正常、生产必炸），
   也**不要**用 `fetch('/src/lua/...')`（生产 404）。
-- 三层护栏：模块级 `looksLikeSourcePath()` 校验 + 单测 + e2e `verify-lua-ai.mjs` 的 A3b。
+- 三层护栏：模块级 `looksLikeSourcePath()` 校验 + 单测 + e2e `verify-lua-runtime-prod.mjs`。
 
 ### 模块清单（7 个）
 
-| 文件                         | 职责                       | 迁移状态                  |
-| ---------------------------- | -------------------------- | ------------------------- |
-| `ai/enemy-ai.lua`            | 敌机 AI 行为模板（457 行） | ✅ **已由真实 Lua 驱动**  |
-| `config/game-config.lua`     | 游戏配置                   | ✅ 真实 Lua               |
-| `wave/wave-manager.lua`      | 波次编排                   | ⏳ `host: true`（迁移期） |
-| `powerup/powerup-system.lua` | 道具掉落与效果             | ⏳ `host: true`（迁移期） |
-| `combat/combat-stats.lua`    | 战斗统计 / 连击            | ⏳ `host: true`（迁移期） |
-| `skills/skill-system.lua`    | 技能系统                   | ⏳ `host: true`（迁移期） |
-| `utils.lua`                  | 公共工具                   | ✅ 被 `require` 复用      |
+| 文件                         | 职责                       | 迁移状态               |
+| ---------------------------- | -------------------------- | ---------------------- |
+| `ai/enemy-ai.lua`            | 敌机 AI 行为模板（412 行） | ✅ **已由真实 Lua 驱动** |
+| `config/game-config.lua`     | 游戏配置                   | ✅ 真实 Lua            |
+| `wave/wave-manager.lua`      | 波次编排                   | ✅ 真实 Lua            |
+| `powerup/powerup-system.lua` | 道具掉落与效果             | ✅ 真实 Lua            |
+| `combat/combat-stats.lua`    | 战斗统计 / 连击            | ✅ 真实 Lua            |
+| `skills/skill-system.lua`    | 技能系统                   | ✅ 真实 Lua            |
+| `utils.lua`                  | 公共工具                   | ✅ 被 `require` 复用   |
 
-> **`host: true` 是迁移期标记**：带此标记的模块在真实 Lua 模式下**不执行 script**，
-> 行为由宿主 JS 实现提供 —— 目的是「切换运行时不改变行为」，把风险留给逐个迁移。
-> 迁移就是摘掉这个标记，逐个做、每个都断言行为等价。
-> **完整迁移清单见 `docs/2026-10-07-Lua运行时接通与敌机AI接线.md`。**
+> **迁移已完成**：此前的 `host: true` 迁移期标记（真实 Lua 模式下不执行 script、行为由宿主
+> JS 提供）已全部摘除——`LuaEngine.ts` 中 `HOST_MODULE_NAMES` 现为**空数组**，7 个模块
+> 均由真实 Lua 执行。宿主侧保留的 `*Manager.ts` 是引擎与 Lua 状态之间的适配/观测层。
 
 ### 敌机 AI 的 A/B 后端
 
@@ -316,13 +325,13 @@ PROJECTILE_CULL_RADIUS         // = 敌机对角 + 60（派生，非魔数）
 ### 单元测试
 
 ```bash
-npx vitest run     # 389 个测试 / 25 个文件，全绿
+npx vitest run     # 529 个测试 / 37 个文件（当前 5 个失败，见顶部工作区警告）
 ```
 
 覆盖：AI 边界与换算表、Lua 源码注册表、运行时降级路径、排行榜 Provider
 （含 4 条降级规则）、安全系统、资源管理器、波次计划、关卡派生层、存档等。
 
-### 端到端验证（19 个脚本）
+### 端到端验证（24 个脚本）
 
 都是 Playwright 驱动**真实浏览器**（真实键盘输入、真实渲染），不是 mock：
 
@@ -338,8 +347,7 @@ VERIFY_URL=http://localhost:5177/ NO_PROXY=localhost,127.0.0.1 node scripts/veri
 | `verify-level-system`                        | 关卡配置驱动（18 项）                                      |
 | `verify-wave-plans`                          | 波次计划（16 项，含 `?level=5` 深链 Boss 断言）            |
 | `verify-arena-bounds`                        | **真实键盘飞行**，活动边界（14 项，dev + 生产各跑）        |
-| `verify-lua-ai`                              | Lua 敌机 AI 接线 + A/B 对照（21 项）                       |
-| `verify-lua-runtime-prod`                    | **生产构建**的 Lua 运行时冒烟（纯 console 证据，9 项）     |
+| `verify-lua-runtime-prod`                    | **生产构建**的 Lua 运行时冒烟（纯 console 证据，16 项）    |
 | `verify-environment`                         | 环境光照 / 色调映射（14 项差分）                           |
 | `verify-survival-wiring`                     | 生存模式接线（36 项）                                      |
 | `verify-glb-models` / `verify-glb-pivot`     | GLB 模型加载与几何中心归一                                 |
@@ -349,13 +357,20 @@ VERIFY_URL=http://localhost:5177/ NO_PROXY=localhost,127.0.0.1 node scripts/veri
 | `verify-icon-wiring` / `verify-audio-wiring` | 图标 / 音频接线                                            |
 | `verify-wave-progression`                    | 波次推进                                                   |
 | `verify-skilltree-wiring`                    | 技能树（清档→清波→加点→**重进一关**后断言真实属性）        |
+| `verify-skill-activation` / `verify-skill-damage` | 技能状态层（68 项）与**效果层**真伤害（18 项）         |
+| `verify-flight-feel`                         | 操作手感（惯性旋转 / 俯仰口径，12 项）                     |
+| `verify-achievements`                        | 成就运行时快照与奖励入账（38 项）                          |
+| `verify-unlocks`                             | 解锁链路（69 项，含真打一局通关解锁技能）                  |
 | `verify-final-wave`                          | 末波闭环（波数从 `getState().totalWaves` 推导）            |
 | `verify-meta-progression`                    | **元进度闭环**（商店买 → 下一局 PlayerShip/Weapon 真的变） |
 | …（`verify-audio` / `verify-asset-reserve`） | 见脚本头注释                                               |
 
+> 注：`verify-lua-ai.mjs`（21 项 A/B 对照）在当前工作区已被删除，其生产侧覆盖由
+> `verify-lua-runtime-prod.mjs` 承担；如需恢复 A/B 对照请从 git 历史取回。
+
 > **「dev 绿、prod 炸」是真实存在的缺陷类别**（上面 Lua 取源那条就是）。
 > 调试钩子被 `import.meta.env.DEV` 包着，生产会被整体剔除，
-> 所以 `verify-lua-ai` **证明不了生产构建** —— 有生产风险的改动请额外走
+> 所以 dev 侧的调试钩子脚本**证明不了生产构建** —— 有生产风险的改动请额外走
 > `npm run build` → `npm run preview -- --port 4180` → `verify-lua-runtime-prod`。
 
 ### 审计脚本
@@ -366,7 +381,7 @@ npm run audit:dead-code  # src 可达性（LIVE / DEAD / TESTONLY）
 ```
 
 `src` 的死代码已从 54 个文件 / 16,627 行清理到 **20 个 / 8,587 行**（LIVE 数始终 107，
-未误伤活文件）。分类与处置建议见 `docs/2026-10-07-源码死簇审计与清理.md`。
+未误伤活文件）。分类与处置建议见 `docs/archive/CHANGELOG_DETAILS_2026_OCT.md`（死簇审计章节）。
 
 ---
 
@@ -380,43 +395,44 @@ npm run audit:dead-code  # src 可达性（LIVE / DEAD / TESTONLY）
    `AchievementSystem` 的快照（32 条定义、真实进度条、奖励入账），
    `public/assets/achievements/*.json`（content 层旧定义）已删除。
    缺失的上游统计（命中率 / 技能使用 / Boss 击杀类型）也已补齐接线。
-   细节见 `docs/2026-10-10-成就系统接线.md`。
-3. **`rewards.unlocks` 仍只写日志**（`['ship-fighter']` / `['skill-missile-strike']` …）。
-   「解锁内容」与「数值加成」是两件事，后者已闭环，前者未做。
+3. ~~**`rewards.unlocks` 仍只写日志**~~ **已修复（2026-10-12，commit `29663d2c`）**：
+   通关奖励接成真链——技能 / 舰体 / 商店货架真解锁（`UnlockRegistry` 幂等派生，
+   护栏 `verify-unlocks.mjs` 69 项）。
 4. **消耗品不可购买**：需要背包 + 使用时机，商店里已如实标为「即将开放」，
    而不是卖了不生效。涂装则已真实生效（改变舰体主色）。
+5. **⚠️ 工作区 v2.7 半成品未提交**（见顶部警告）：约 150 个 tsc 错误、5 个单测失败。
+   新增敌机类型（assault / sniper / swarm / static_outpost / cruiser / void_lord）
+   尚未纳入 `ENEMY_TYPE_TO_LUA_AI` 换算表与生存模式波次配置。
 
 ### 待办
 
-优先方向与实测依据见 `docs/2026-10-10-下一步开发方向.md`；
-元进度这一轮已完成的与明确不做的，见 `docs/2026-10-10-元进度闭环.md`。
-
-- **方向 B：部署体积治理** —— `public/assets` 458.93 MB 中 **422.87 MB / 52,506 个文件
-  无消费方**（Kenney 全库 361 MB 只用到 714 个文件，占 1%），全部原样进 `dist`（583 MB）
-- 把 4 个 `host: true` 的 Lua 模块逐个迁到真实 Lua（先决条件已就绪）
+- **先收敛工作区**：修复或剥离未提交的 v2.7 改动，恢复「tsc 0 错 + vitest 全绿」基线
+- **方向 B：部署体积治理** —— `public/assets` 372 MB 中绝大多数文件无消费方
+  （Kenney 全库 361 MB 只用到 714 个文件，占 1%），全部原样进 `dist`（413 MB）
 - 多人游戏（UI 骨架在，系统与入口均未实现）
-- 源码债：`src` 仍有 20 个死文件 / 8,587 行；另有 11 个文件**只被测试引用**、
-  生产不可达（含 `ResourceManager` 672 行、`SecuritySystem` 421 行）
+- 源码债：`src` 仍有 20 个死文件 / 8,587 行（v2.7 改动后待复核）；另有 11 个文件
+  **只被测试引用**、生产不可达（含 `ResourceManager` 672 行、`SecuritySystem` 421 行）
+- 残留物清理：`tsc_errors.txt`（2026-08-01 的陈旧快照）、`package.json.backup`、
+  `*-pre-pc2-bak`、`package-lock.json.npm-bak`、`webpack.config.js`（已用 Vite 8）
+- v2.7 新敌机类型接入 `ENEMY_TYPE_TO_LUA_AI` 与生存模式波次配置
 
 ---
 
 ## 文档索引
 
-| 文档                                           | 内容                                                       |
-| ---------------------------------------------- | ---------------------------------------------------------- |
-| `CHANGELOG.md`                                 | 完整变更历史（Keep a Changelog 格式）                      |
-| `docs/2026-10-10-元进度闭环.md`                | **本轮完成**：商店→下一局生效、EXP→等级、换算表与验证证据  |
-| `docs/2026-10-10-成就系统接线.md`              | **本轮完成**：成就面板接运行时真源、缺失统计补齐、奖励入账 |
-| `docs/2026-10-10-下一步开发方向.md`            | 方向评估（含纠错与实测数据；方向 A 已执行）                |
-| `docs/2026-10-07-Lua运行时接通与敌机AI接线.md` | **Lua 运行时事实纠正、改造细节、迁移清单**                 |
-| `docs/2026-10-07-飞船活动范围扩大.md`          | arena 唯一真源的设计与验证                                 |
-| `docs/2026-10-07-源码死簇审计与清理.md`        | 死代码分类与处置建议                                       |
-| `docs/2026-10-05-资源库利用率审计.md`          | 资产使用率审计                                             |
-| `docs/2026-10-03-playcanvas2-迁移执行记录.md`  | PlayCanvas 1.x → 2.x 迁移记录                              |
-| `docs/2026-10-03-项目现状体检.md`              | 项目全面体检                                               |
-| `docs/API_DESIGN.md` / `DATABASE_DESIGN.md`    | 后端接口与数据模型                                         |
-| `docs/dev-status.md`                           | 开发状态速览                                               |
-| `docs/verify/*.png`                            | 各验证脚本的截图证据                                       |
+| 文档                                                | 内容                                                                 |
+| --------------------------------------------------- | -------------------------------------------------------------------- |
+| `CHANGELOG.md`                                      | 完整变更历史（Keep a Changelog 格式）                                |
+| `docs/archive/CHANGELOG_DETAILS_2026_OCT.md`        | **2026 年 10 月开发日志存档**（原 docs/2026-10-*.md 系列的合并版）   |
+| `.workbuddy/memory/MEMORY.md`                       | 工程铁律与各子系统真源口径（改代码前必看）                           |
+| `docs/superpowers/specs/v2.7-design-spec.md`        | v2.7「深空觉醒」设计规范（对应工作区半成品改动）                     |
+| `PROJECT_ARCHIVE_v2.7.md`                           | v2.7 存档声明（⚠️ 声称「已交付」，实际未提交且编译不过，仅供参考）   |
+| `docs/architecture/{FRONTEND,API,DATABASE,RESOURCES}.md` | ⚠️ **内容过时**（React 18 / PlayCanvas 1.62 / MongoDB 口径），待重写 |
+| `docs/verify/*.png`                                 | 各验证脚本的截图证据                                                 |
+
+> 原 `docs/2026-10-*.md`、`API_DESIGN.md`、`DATABASE_DESIGN.md`、`dev-status.md` 等
+> 单篇日志已在工作区删除，内容并入 `docs/archive/CHANGELOG_DETAILS_2026_OCT.md`；
+> 如需原文可从 git 历史取回。
 
 ---
 

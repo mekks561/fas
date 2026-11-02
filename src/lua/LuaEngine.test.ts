@@ -110,15 +110,15 @@ describe('LuaEngine 运行时', () => {
     engine.destroy();
   });
 
-  it('宿主模块在两种模式下都取得到（既有四个管理器的取数路径）', async () => {
+  it('宿主模块在两种模式下都取得到（既有剩余管理器的取数路径）', async () => {
     for (const forceStub of [true, false]) {
       const engine = new LuaEngine({ forceStub });
       await engine.initialize();
 
-      const waveModule = engine.getStubModule('wave_manager_module') as
+      const combatStatsModule = engine.getStubModule('combat_stats_module') as
         Record<string, unknown> | undefined;
-      expect(waveModule, `forceStub=${forceStub}`).toBeTruthy();
-      expect(typeof waveModule?.['getWaveState']).toBe('function');
+      expect(combatStatsModule, `forceStub=${forceStub}`).toBeTruthy();
+      expect(typeof combatStatsModule?.['getStats']).toBe('function');
 
       // 调用面：宿主全局可直接 call（stub 走宿主；真实 Lua 走注入的宿主全局）
       expect(engine.call<boolean>('setDifficulty', 'hard')).toBe(true);

@@ -9,6 +9,8 @@ import { TouchControlOverlay } from './TouchControlOverlay';
 import { DialogueSystem } from './DialogueSystem';
 import { QuestTracker } from './QuestTracker';
 import { UpgradeChoiceOverlay } from './UpgradeChoiceOverlay';
+import { StationTradePanel } from './StationTradePanel';
+import StarMap from './StarMap';
 import { gameplayManager } from '../engine/GameplayManager';
 import type { GameplayEvents } from '../engine/GameplayManager';
 import { luaEngine } from '../lua/LuaEngine';
@@ -52,8 +54,11 @@ type BuildSystem = import('../engine/BuildSystem').BuildSystem;
 type CameraSystem = import('../engine/CameraSystem').CameraSystem;
 type VisualEffectSystem = import('../engine/VisualEffectSystem').VisualEffectSystem;
 type AsteroidSystem = import('../engine/AsteroidSystem').AsteroidSystem;
+type ResourceSystem = import('../engine/ResourceSystem').ResourceSystem;
+type NPCManager = import('../engine/NPCManager').NPCManager;
 import { skillTreeManager } from '../engine/SkillTreeManager';
 import { survivalModeManager } from '../engine/SurvivalModeManager';
+import { SectorManager } from '../engine/SectorManager';
 import {
   getLevelByIndex,
   SKYBOX_TEXTURES,
@@ -199,6 +204,8 @@ export const GameScene: React.FC<{
   const powerupSpawnerRef = useRef<PowerupSpawner | null>(null);
   const vfxSystemRef = useRef<VisualEffectSystem | null>(null);
   const asteroidSystemRef = useRef<AsteroidSystem | null>(null);
+  const resourceSystemRef = useRef<ResourceSystem | null>(null);
+  const npcManagerRef = useRef<NPCManager | null>(null);
   const prevBoostRef = useRef(false);
   /** 波间过渡调度：上一波清空后延迟启动下一波。
    *  nextWave 为 null 表示当前没有待启动的波次。 */
@@ -249,7 +256,6 @@ export const GameScene: React.FC<{
   const survivalWaveRef = useRef(0);
 
   const [storyManager, setStoryManager] = useState<StoryMissionManager | null>(null);
-  const [currentDialogue, setCurrentDialogue] = useState<Dialogue | null>(null);
 
   const isLoading = useGameStore((state) => state.isLoading);
   const isGamePaused = useGameStore((state) => state.isGamePaused);
@@ -277,12 +283,19 @@ export const GameScene: React.FC<{
   const isBossWave = useGameStore((state) => state.isBossWave);
   const isEliteWave = useGameStore((state) => state.isEliteWave);
   const killCount = useGameStore((state) => state.killCount);
+  const inventory = useGameStore((state) => state.inventory);
+  const currency = useGameStore((state) => state.currency);
+  const activeDialogue = useGameStore((state) => state.activeDialogue);
+  const setActiveDialogue = useGameStore((state) => state.setActiveDialogue);
 
   // Build 协同系统状态
   const pendingUpgradeChoices = useGameStore((state) => state.pendingUpgradeChoices);
   const isUpgradeChoiceVisible = useGameStore((state) => state.isUpgradeChoiceVisible);
   const upgradeChoiceTimer = useGameStore((state) => state.upgradeChoiceTimer);
   const activeResonances = useGameStore((state) => state.activeResonances);
+  const isTradePanelVisible = useGameStore((state) => state.isTradePanelVisible);
+  const pendingTradeChoices = useGameStore((state) => state.pendingTradeChoices);
+  const isStarMapVisible = useGameStore((state) => state.isStarMapVisible);
 
   const skillCooldowns = useGameStore((state) => state.skills.cooldowns);
   const skillMaxCooldowns = useGameStore((state) => state.skills.maxCooldowns);
@@ -300,6 +313,7 @@ export const GameScene: React.FC<{
     pitchDown: false,
     rollLeft: false,
     rollRight: false,
+    interact: false,
   });
 
   const audioManagerRef = useRef<typeof import('../engine/AudioSystem').AudioManager | null>(null);
@@ -335,6 +349,24 @@ export const GameScene: React.FC<{
       clearTimeout(readyTimer);
       window.removeEventListener('resize', resizeCanvas);
     };
+  }, []);
+
+  const [factionInfo, setFactionInfo] = useState<{ dominant: string; safety: number } | null>(null);
+
+  useEffect(() => {
+    // 每一秒更新一次星区派系信息（低频更新）
+    const timer = setInterval(() => {
+      const sectorManager = SectorManager.getInstance();
+      const currentSector = sectorManager.getCurrentSector();
+      const factionManager = (engineRef.current?.getApp() as any)?._factionManager;
+      
+      if (currentSector && factionManager) {
+        const dominant = factionManager.getDominantFaction(currentSector.config.id);
+        const safety = factionManager.getSectorSafety(currentSector.config.id);
+        setFactionInfo({ dominant: dominant.name, safety });
+      }
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleTouchMove = useCallback((x: number, y: number) => {
@@ -449,6 +481,43 @@ export const GameScene: React.FC<{
     }
   }, []);
 
+  const handleTradeBuy = useCallback((upgradeId: string, price: number) => {
+    const store = useGameStore.getState();
+    if (store.currency < price) return;
+    
+    store.addCurrency(-price);
+    buildSystemRef.current?.selectUpgrade(upgradeId);
+    
+    // 刷新已购列表
+    const build = buildSystemRef.current?.getActiveBuild();
+    if (build) {
+      store.setActiveBuild(
+        build.upgrades.map((au) => ({
+          id: au.upgrade.id,
+          name: au.upgrade.name,
+          tag: au.upgrade.tag,
+          stacks: au.stacks,
+          rarity: au.upgrade.rarity,
+        })),
+        buildSystemRef.current?.getActiveResonanceNames() || [],
+      );
+    }
+    
+    // 购买后关闭面板
+    store.setTradePanelVisible(false);
+    store.setGamePaused(false);
+    store.setPendingTradeChoices(null);
+    
+    globalAudio.playCue('uiLevelUp');
+  }, []);
+
+  const handleTradeClose = useCallback(() => {
+    const store = useGameStore.getState();
+    store.setTradePanelVisible(false);
+    store.setGamePaused(false);
+    // 保留 pendingTradeChoices，这样下次靠近空间站还是同一批货（直到刷新）
+  }, []);
+
   // 强化选择倒计时
   useEffect(() => {
     if (!isUpgradeChoiceVisible) return;
@@ -484,7 +553,17 @@ export const GameScene: React.FC<{
 
     console.log('[GameScene] Initializing game engine...');
 
+    // 2026 Tech: 整个初始化过程增加全局超时保护 (30s)
+    const globalTimeout = setTimeout(() => {
+      if (useGameStore.getState().isLoading) {
+        console.warn('[GameScene] Global initialization timeout reached. Forcing loading to end.');
+        useGameStore.getState().setLoading(false);
+        useGameStore.getState().setError('初始化响应缓慢，已尝试强制启动游戏逻辑');
+      }
+    }, 30000);
+
     try {
+      useGameStore.getState().setLoadingProgress(5);
       const [
         pcModule,
         { PlayCanvasGameEngine },
@@ -507,6 +586,9 @@ export const GameScene: React.FC<{
         import('../engine/PowerupSystem'),
       ]);
 
+      clearTimeout(globalTimeout);
+      useGameStore.getState().setLoadingProgress(30);
+
       const pc = pcModule;
 
       const engine = new PlayCanvasGameEngine({
@@ -515,7 +597,21 @@ export const GameScene: React.FC<{
         enablePhysics: false,
       });
       engineRef.current = engine;
+      // 2026 Tech: 暴露引擎实例到 window 以供 UI (如 StarMap) 访问
+      (window as any)._gameEngine = engine;
       console.log('[GameScene] PlayCanvas engine created');
+
+      useGameStore.getState().setLoadingProgress(50);
+
+      // 2026 Tech: 立即并行加载所有插件（v2.7+ 子系统），确保后续逻辑可以访问插件数据
+      try {
+        await engine.loadAllPlugins();
+        console.log('[GameScene] All engine plugins loaded successfully');
+        useGameStore.getState().setLoadingProgress(70);
+      } catch (pluginError) {
+        console.error('[GameScene] Failed to load engine plugins:', pluginError);
+      }
+
 
       AudioManager.initialize(engine.getApp());
       // 音乐不在这里起：改由 globalAudio 按界面统一驱动（App 的 gameState 变化时切歌），
@@ -626,6 +722,42 @@ export const GameScene: React.FC<{
         });
       }
 
+      // 太空残骸 (Debris)：随机分布的 Kenney 资源，利用碎片化的资产丰富背景。
+      for (const debrisType of BACKDROP.debris) {
+        for (let i = 0; i < debrisType.count; i++) {
+          const name = `${debrisType.name}_${i}`;
+          const holder = new pc.Entity(name);
+
+          // 随机位置：在小行星带半径附近（70~110）随机分布
+          const radius =
+            ASTEROID_BELT.innerRadius +
+            Math.random() * (ASTEROID_BELT.outerRadius - ASTEROID_BELT.innerRadius);
+          const theta = Math.random() * Math.PI * 2;
+          const phi = (Math.random() - 0.5) * Math.PI;
+
+          holder.setPosition(
+            radius * Math.cos(theta) * Math.cos(phi),
+            radius * Math.sin(phi),
+            radius * Math.sin(theta) * Math.cos(phi),
+          );
+          holder.setLocalEulerAngles(Math.random() * 360, Math.random() * 360, Math.random() * 360);
+
+          const scale =
+            debrisType.scale[0] + Math.random() * (debrisType.scale[1] - debrisType.scale[0]);
+          holder.setLocalScale(scale, scale, scale);
+
+          // 占位符
+          const placeholder = modelGen.createStructure('satellite', { scale: 0.5 });
+          holder.addChild(placeholder);
+          engine.addToScene(holder);
+
+          // 异步替换为真源
+          engine.getModelAssets().upgrade(holder, placeholder, debrisType.path, {
+            scaleMultiplier: scale,
+          });
+        }
+      }
+
       // 雾效：增强深度感，远处物体渐隐（临时禁用排查黑屏）
       // engine.enableFog(new pc.Color(0.02, 0.02, 0.05), 0.008);
 
@@ -637,11 +769,13 @@ export const GameScene: React.FC<{
       //
       // 放在场景搭建之后：bloom 会让粒子尾焰/爆炸、激光、发光材质真正「发光」，
       // 与上一轮接入的粒子贴图是配套的。初始化失败只降级、不影响开局。
+      /* 暂时禁用后处理以排查黑屏问题
       try {
         const { VisualEffectSystem: VFXClass } = await import('../engine/VisualEffectSystem');
         const vfxSystem = new VFXClass(engine.getApp(), engine.getCamera());
         vfxSystem.applyPreset('cinematic');
         vfxSystemRef.current = vfxSystem;
+        (engine.getApp() as any)._vfxSystem = vfxSystem;
         console.log('[GameScene] Visual effect system initialized (cinematic preset)');
       } catch (vfxError) {
         console.warn(
@@ -649,6 +783,7 @@ export const GameScene: React.FC<{
           vfxError,
         );
       }
+      */
 
       console.log('[GameScene] Environment created (with asteroid field, structures, fog, VFX)');
 
@@ -674,7 +809,14 @@ export const GameScene: React.FC<{
       // 所以「机库显示可选」与「真的能开」永远一致；已授予但存档写了个不可用舰体时
       // 也会回落到初始舰体。
       const selectedHull = getSelectedHull(unlockSnapshot.granted);
-      const player = new PlayerShip({
+      
+      const { StoryMissionManager: StoryMissionManagerClass } = await import('../engine/StoryMissionManager');
+      const storyMgr = new StoryMissionManagerClass();
+      storyManagerRef.current = storyMgr;
+      setStoryManager(storyMgr);
+
+      const { PlayerShip: PlayerShipClass } = await import('../engine/PlayerShip');
+      const player = new PlayerShipClass({
         engine,
         initialPosition: new pc.Vec3(0, 0, 0),
         health: levelConfig?.player.health ?? gameState.player.health,
@@ -683,6 +825,7 @@ export const GameScene: React.FC<{
         tint: hullTint ?? undefined,
       });
       playerRef.current = player;
+      (engine.getApp() as any)._player = player;
       console.log(
         `[GameScene] Player created at position (0, 0, 0)，舰体 ${HULL_DEFS[selectedHull].name}` +
           `（${selectedHull}）`,
@@ -706,19 +849,37 @@ export const GameScene: React.FC<{
       const { AsteroidSystem: AsteroidSystemClass } = await import('../engine/AsteroidSystem');
       const asteroidSystem = new AsteroidSystemClass(player, engine);
       asteroidSystemRef.current = asteroidSystem;
+      (engine.getApp() as any)._asteroidSystem = asteroidSystem;
       console.log('[GameScene] Asteroid collision system created');
 
-      const enemySystem = new EnemySystem(engine, player);
+      const resourceSystem = engine.getPlugin<ResourceSystem>('ResourceSystem');
+      if (resourceSystem) {
+        resourceSystemRef.current = resourceSystem;
+        console.log('[GameScene] Resource collection system attached from engine');
+      }
+
+      const { NPCManager: NPCManagerClass } = await import('../engine/NPCManager');
+      const npcManager = new NPCManagerClass(engine, player);
+      npcManagerRef.current = npcManager;
+      (engine.getApp() as any)._npcManager = npcManager;
+      console.log('[GameScene] NPC system created');
+
+      const { EnemySystem: EnemySystemClass } = await import('../engine/EnemySystem');
+      const enemySystem = new EnemySystemClass(engine, player, gameplayManager.getWaveManager() || undefined, storyMgr);
       enemySystemRef.current = enemySystem;
+      (engine.getApp() as any)._enemySystem = enemySystem;
       console.log('[GameScene] Enemy system created');
 
-      const weaponSystem = new WeaponSystem(engine);
+      const { WeaponSystem: WeaponSystemClass } = await import('../engine/WeaponSystem');
+      const weaponSystem = new WeaponSystemClass(engine);
       weaponSystem.setPlayer(player);
       weaponSystemRef.current = weaponSystem;
       console.log('[GameScene] Weapon system created');
 
-      const buildSystem = new (await import('../engine/BuildSystem')).BuildSystem();
+      const { BuildSystem: BuildSystemClass } = await import('../engine/BuildSystem');
+      const buildSystem = new BuildSystemClass();
       buildSystemRef.current = buildSystem;
+      (engine.getApp() as any)._buildSystem = buildSystem;
       console.log('[GameScene] Build system created');
 
       // 摄像机跟随系统：平滑追踪玩家位置和姿态
@@ -733,11 +894,16 @@ export const GameScene: React.FC<{
       // 显式启用地平线稳定模式：摄像机不跟随玩家滚转，保持地平线水平
       cameraSystem.setRollStabilized(true);
       cameraSystemRef.current = cameraSystem;
+      // 2026 Tech: 将相机系统挂载到 app，方便 SectorManager 等外部系统在星区跳转时重置相机
+      (engine.getApp() as any)._cameraSystem = cameraSystem;
+      (engine.getApp() as any)._engine = engine;
+      
       console.log(
         '[GameScene] Camera follow system created (offset: 0,8,15, followSpeed: 0.15, rollStabilized)',
       );
 
-      const powerupSpawner = new PowerupSpawner(engine);
+      const { PowerupSpawner: PowerupSpawnerClass } = await import('../engine/PowerupSystem');
+      const powerupSpawner = new PowerupSpawnerClass(engine);
       powerupSpawner.setSpawnInterval(8);
       powerupSpawner.setMaxPowerups(6);
       powerupSpawnerRef.current = powerupSpawner;
@@ -745,7 +911,8 @@ export const GameScene: React.FC<{
 
       // 技能按通关进度解锁：注入上面那份快照，未解锁的技能**连对象都不创建**，
       // 于是 `activateSkill` 必然返回 false —— 键盘按下去也不会有反应（冷却也不会走）。
-      const skillSystem = new SkillSystem(player, engine, {
+      const { SkillSystem: SkillSystemClass } = await import('../engine/SkillSystem');
+      const skillSystem = new SkillSystemClass(player, engine, {
         grantedUnlockIds: unlockSnapshot.granted,
         // 技能要真的打到敌人身上，就得有人告诉它「爆炸点附近有谁」。
         // 这里注入一个**半径查询**口，而不是让技能模块去 import EnemySystem ——
@@ -773,26 +940,67 @@ export const GameScene: React.FC<{
       });
       console.log('[GameScene] Skill system created');
 
-      const storyMgr = new StoryMissionManager();
-      storyManagerRef.current = storyMgr;
+      // v2.7 星区系统初始化
+      try {
+        const sectorManager = SectorManager.getInstance();
+        (engine.getApp() as any)._sectorManager = sectorManager;
 
-      // 任务奖励入账：任务完成 → 经验 + 信用点，与关卡奖励同一套真源。
+        if (
+          asteroidSystemRef.current &&
+          npcManagerRef.current &&
+          storyMgr
+        ) {
+          sectorManager.init(
+            engine,
+            player,
+            asteroidSystemRef.current,
+            resourceSystemRef.current!, // resourceSystem might be null but SectorManager handles it
+            npcManagerRef.current,
+            storyMgr,
+            vfxSystemRef.current! // vfxSystem might be null but SectorManager handles it
+          );
+          await sectorManager.enterInitialSector();
+          console.log('[GameScene] Sector system initialized');
+        }
+      } catch (sectorError) {
+        console.error('[GameScene] Sector system init failed:', sectorError);
+      }
+
+      // 任务与章节奖励入账：完成 → 经验 + 信用点，与关卡奖励同一套真源。
       //
-      // 差分识别「新完成的任务」（subscribe 每次变更都会回调，包括目标进度），
+      // 差分识别「新完成的任务/章节」（subscribe 每次变更都会回调），
       // 而不是让 StoryMissionManager 去依赖 store —— 引擎模块保持无存储依赖。
-      // 任务追踪面板显示的 `+N EXP / +N 信用` 从此是按实际发放的值渲染的。
       const rewardedMissionIds = new Set<string>();
+      const rewardedChapterIds = new Set<string>();
+
       storyMgr.subscribe(() => {
+        // 1. 处理任务奖励
         for (const mission of storyMgr.getAllMissions()) {
           if (rewardedMissionIds.has(mission.id)) continue;
           if (storyMgr.getMissionState(mission.id)?.status !== 'completed') continue;
           rewardedMissionIds.add(mission.id);
+
           const store = useGameStore.getState();
           store.addExperience(mission.rewards.experience);
           const credits = addCredits(mission.rewards.credits);
           console.log(
-            `[GameScene] 任务奖励：${mission.id} → 经验 +${mission.rewards.experience}` +
-              `（等级 ${useGameStore.getState().player.level}）、信用点 +${mission.rewards.credits}（${credits}）`,
+            `[GameScene] 任务奖励：${mission.id}「${mission.name}」→ 经验 +${mission.rewards.experience}` +
+              `（等级 ${useGameStore.getState().player.level}）、信用点 +${mission.rewards.credits}（当前 ${credits}）`,
+          );
+        }
+
+        // 2. 处理章节奖励
+        for (const chapter of storyMgr.getAllChapters()) {
+          if (rewardedChapterIds.has(chapter.id)) continue;
+          if (!storyMgr.isChapterCompleted(chapter.id)) continue;
+          rewardedChapterIds.add(chapter.id);
+
+          const store = useGameStore.getState();
+          store.addExperience(chapter.rewards.experience);
+          const credits = addCredits(chapter.rewards.credits);
+          console.log(
+            `[GameScene] 章节奖励：${chapter.id}「${chapter.title}」→ 经验 +${chapter.rewards.experience}` +
+              `（等级 ${useGameStore.getState().player.level}）、信用点 +${chapter.rewards.credits}（当前 ${credits}）`,
           );
         }
       });
@@ -800,7 +1008,7 @@ export const GameScene: React.FC<{
         setStoryManager(storyMgr);
         const startDialogue = storyMgr.getDialogueByTrigger('story', 'story-chapter-01', 'start');
         if (startDialogue) {
-          setCurrentDialogue(startDialogue);
+          setActiveDialogue(startDialogue);
         }
         storyMgr.startMission('mission-01');
         console.log('[GameScene] Story mission manager initialized');
@@ -1636,6 +1844,22 @@ export const GameScene: React.FC<{
               }
             ).__waveDiag;
             if (d) d.logicTicks++;
+
+            // 2026 Tech: 每 180 帧 (约 3s) 输出一次渲染诊断，排查黑屏
+            if ((window as any)._logicTicks % 180 === 0) {
+              const cam = engineRef.current?.getCamera();
+              const p = playerRef.current?.getEntity();
+              console.log('[diag] Scene Update Tick:', {
+                ticks: (window as any)._logicTicks,
+                playerPos: p?.getPosition().toString(),
+                cameraPos: cam?.getPosition().toString(),
+                cameraFar: cam?.camera?.farClip,
+                fogDensity: engineRef.current?.getApp().scene.fog.density,
+                isPaused: gameState.isGamePaused,
+                isReady: gameState.isSceneReady
+              });
+            }
+            (window as any)._logicTicks = ((window as any)._logicTicks || 0) + 1;
           }
 
           playerRef.current.update(dt, controlsRef.current);
@@ -1658,10 +1882,29 @@ export const GameScene: React.FC<{
           // 小行星碰撞检测（触发伤害和无敌帧）
           asteroidSystemRef.current?.update(dt);
 
+          // 资源采集检测
+          resourceSystemRef.current?.update(dt);
+
+          // NPC 行为更新
+          npcManagerRef.current?.update(dt);
+
+          // 每 60 帧更新一次 WebGPU 性能数据到 Store
+          if (engineRef.current && (window as any)._frameCount % 60 === 0) {
+            const damageSystem = engineRef.current.getPlugin<any>('WebGPUDamageSystem');
+            if (damageSystem) {
+              const profilerData = damageSystem.getProfilerData();
+              useGameStore.getState().setWebGPUProfiler(profilerData);
+            }
+          }
+          (window as any)._frameCount = ((window as any)._frameCount || 0) + 1;
+
           // 摄像机跟随更新（在玩家位置更新之后，确保追踪最新位置）
           if (cameraSystemRef.current) {
             cameraSystemRef.current.update(dt);
           }
+
+          // v2.7 星区与跃迁门逻辑更新
+          SectorManager.getInstance().update(dt, controlsRef.current);
 
           if (controlsRef.current.fire && weaponSystemRef.current) {
             weaponSystemRef.current.shoot();
@@ -1687,14 +1930,41 @@ export const GameScene: React.FC<{
           if (skillSystemRef.current) {
             skillSystemRef.current.update(dt);
 
+            const timeScale = skillSystemRef.current.getTimeScale();
+            const overdrive = skillSystemRef.current.getOverdriveMultipliers();
+            const activeSkills = skillSystemRef.current.getActiveSkills();
+
+            // 1. 分发给敌机系统
+            enemySystemRef.current?.setGlobalTimeScale(timeScale);
+
+            // 2. 分发给玩家系统
+            const isOverdrive = activeSkills.includes(SkillType.OVERDRIVE);
+            playerRef.current?.setOverdrive(isOverdrive, overdrive.speed);
+
+            // 3. 分发给武器系统
+            weaponSystemRef.current?.setGlobalMultipliers(timeScale, overdrive.fireRate);
+
+            // 4. 分发给特效系统
+            vfxSystemRef.current?.applySkillEffect(
+              SkillType.TIME_SLOW,
+              activeSkills.includes(SkillType.TIME_SLOW),
+            );
+            vfxSystemRef.current?.applySkillEffect(SkillType.OVERDRIVE, isOverdrive);
+
+            // 5. 音效处理：Time Slow 期间降低 Pitch
+            if (activeSkills.includes(SkillType.TIME_SLOW)) {
+              globalAudio.setMusicPitch(0.7);
+            } else {
+              globalAudio.setMusicPitch(1.0);
+            }
+
             // 把「哪个槽位正在生效」从引擎侧真源同步到 store —— HUD 的激活高亮读它。
             // 此前这条线根本不存在：HUD 里 `isActive` 写死 false，黄框高亮代码是死的。
             // 值没变时 store 侧会用 Object.is 整帧跳过，所以逐帧调用没有额外渲染代价。
-            const activeTypes = skillSystemRef.current.getActiveSkills();
             SKILL_SLOT_ORDER.forEach((type, index) => {
               useGameStore
                 .getState()
-                .setSkillActive(SKILL_SLOT_KEYS[index], activeTypes.includes(type));
+                .setSkillActive(SKILL_SLOT_KEYS[index], activeSkills.includes(type));
             });
           }
 
@@ -1941,6 +2211,7 @@ export const GameScene: React.FC<{
         }
       });
 
+      // 引擎启动
       engine.start();
       console.log('[GameScene] Engine started');
 
@@ -2007,6 +2278,7 @@ export const GameScene: React.FC<{
         if (engineRef.current) {
           engineRef.current.destroy();
           engineRef.current = null;
+          (window as any)._gameEngine = null;
         }
       };
     } catch (error) {
@@ -2045,6 +2317,10 @@ export const GameScene: React.FC<{
   // 独立的键盘事件处理，确保在整个游戏期间都有效
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      (window as any).__lastKeyDown = e.code;
+      if (import.meta.env.DEV) {
+        console.log('[GameScene] KeyDown:', e.code, e.key);
+      }
       switch (e.code) {
         // WASD = 节流(W/S) + 偏航(A/D)
         case 'KeyW':
@@ -2086,6 +2362,17 @@ export const GameScene: React.FC<{
           break;
         case 'KeyJ':
           controlsRef.current.fire = true;
+          e.preventDefault();
+          break;
+        case 'KeyF':
+          controlsRef.current.interact = true;
+          e.preventDefault();
+          break;
+        case 'KeyM':
+          if (isSceneReady) {
+            useGameStore.getState().setStarMapVisible(!isStarMapVisible);
+            useGameStore.getState().setGamePaused(!isStarMapVisible);
+          }
           e.preventDefault();
           break;
         // 技能槽位 Q/E/T/G —— 键位字母取自真源（`SkillConfig.keyBinding`），
@@ -2136,6 +2423,9 @@ export const GameScene: React.FC<{
           break;
         case 'KeyJ':
           controlsRef.current.fire = false;
+          break;
+        case 'KeyF':
+          controlsRef.current.interact = false;
           break;
       }
     };
@@ -2214,6 +2504,9 @@ export const GameScene: React.FC<{
       killCount,
       isBossWave,
       isEliteWave,
+      inventory,
+      currency,
+      factionInfo,
       activeEffects: activePowerups.map((p) => ({
         type: p.type,
         icon: p.type,
@@ -2263,8 +2556,8 @@ export const GameScene: React.FC<{
 
       {isSceneReady && storyManager && <QuestTracker manager={storyManager} />}
 
-      {isSceneReady && currentDialogue && (
-        <DialogueSystem dialogue={currentDialogue} onComplete={() => setCurrentDialogue(null)} />
+      {isSceneReady && activeDialogue && (
+        <DialogueSystem dialogue={activeDialogue} onComplete={() => setActiveDialogue(null)} />
       )}
 
       {isLoading && <LoadingOverlay />}
@@ -2277,6 +2570,15 @@ export const GameScene: React.FC<{
           timer={upgradeChoiceTimer}
           onSelect={handleUpgradeSelect}
           resonances={activeResonances}
+        />
+      )}
+
+      {isSceneReady && isTradePanelVisible && pendingTradeChoices && (
+        <StationTradePanel
+          choices={pendingTradeChoices}
+          onBuy={handleTradeBuy}
+          onClose={handleTradeClose}
+          currency={currency}
         />
       )}
 

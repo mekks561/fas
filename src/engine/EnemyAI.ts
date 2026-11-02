@@ -705,6 +705,56 @@ export class BossAI extends EnemyAI {
   }
 }
 
+/** 2026 Tech: 战略级巡洋舰 AI */
+export class CruiserAI extends EnemyAI {
+  constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
+    super(entity, player, initialPosition);
+    this.aiConfig.patrolRadius = 20;
+    this.aiConfig.chaseRadius = 50;
+    this.aiConfig.attackRadius = 15;
+  }
+
+  protected executeBehavior(dt: number): void {
+    const distance = this.getDistanceToPlayer();
+    if (distance > this.aiConfig.chaseRadius) {
+      this.aiConfig.state = AIState.PATROL;
+      this.executePatrol(dt);
+    } else if (distance <= this.aiConfig.attackRadius) {
+      this.aiConfig.state = AIState.ATTACK;
+      this.executeAttack(dt);
+    } else {
+      this.aiConfig.state = AIState.CHASE;
+      this.executeChase(dt);
+    }
+  }
+
+  private executePatrol(dt: number): void {
+    const centerDir = this.getDirectionToPatrolCenter();
+    this.moveTowards(centerDir, 1.0 * this.getSpeedMultiplier(), dt);
+    this.entity.lookAt(this.entity.getPosition().clone().add(centerDir));
+  }
+
+  private executeChase(dt: number): void {
+    const direction = this.getDirectionToPlayer();
+    this.moveTowards(direction, 1.2 * this.getSpeedMultiplier(), dt);
+    this.entity.lookAt(this.player.getPosition());
+  }
+
+  private executeAttack(dt: number): void {
+    // 巡洋舰在攻击范围内会缓慢移动并保持正对玩家
+    const direction = this.getDirectionToPlayer();
+    const perpendicular = this.getPerpendicular(direction);
+    
+    // 侧移机动
+    this.moveTowards(perpendicular, 0.5 * this.getSpeedMultiplier(), dt);
+    this.entity.lookAt(this.player.getPosition());
+  }
+
+  public getState(): AIState {
+    return this.aiConfig.state;
+  }
+}
+
 /**
  * 敌人类型 → 原生 AI 的实现表。
  *
@@ -731,6 +781,12 @@ const NATIVE_AI_FACTORY: Record<EnemyType, (e: pc.Entity, p: PlayerShip, pos: pc
     boss_sentinel: (e, p, pos) => new FighterAI(e, p, pos),
     boss_overlord: (e, p, pos) => new FighterAI(e, p, pos),
     boss: (e, p, pos) => new BossAI(e, p, pos),
+    cruiser: (e, p, pos) => new CruiserAI(e, p, pos),
+    void_lord: (e, p, pos) => new BossAI(e, p, pos),
+    assault: (e, p, pos) => new FighterAI(e, p, pos),
+    sniper: (e, p, pos) => new FighterAI(e, p, pos),
+    swarm: (e, p, pos) => new FighterAI(e, p, pos),
+    static_outpost: (e, p, pos) => new FighterAI(e, p, pos),
   };
 
 export class EnemyAIFactory {

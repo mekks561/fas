@@ -16,6 +16,7 @@ const adapter = new PrismaMariaDb({
   password: url.password,
   database: url.pathname.replace('/', ''),
   connectionLimit: 5,
+  allowPublicKeyRetrieval: true, // 2026 Tech: 修复 MySQL 8.0+ 的 RSA 公钥检索问题
 });
 
 export const prisma = new PrismaClient({ adapter });

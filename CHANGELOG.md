@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 2026-10-28 现状备注
+
+> **工作区存在一批未提交的 v2.7「深空觉醒」半成品改动**（139 个变更：
+> `ComputePCG` / `SectorManager` / `GalaxyManager` / `WebGPUDamageSystem` 等 24+ 个新引擎
+> 模块 + 60 余个已有文件修改）。当前实测：`npx tsc --noEmit` 约 **150 个错误**
+> （新模块按 PlayCanvas 1.x API 编写、`Plugin` 接口缺索引签名、`App.tsx`/`MainMenu`
+> prop 不匹配）；`npx vitest run` **5 个失败 / 524 通过**（新增敌机类型未纳入
+> `ENEMY_TYPE_TO_LUA_AI` 与生存模式波次配置，被护栏测试拦下）。
+> **此状态不可出生产构建**；修复或剥离前，下列条目描述的是已提交基线。
+
+## [2.6.1] - 2026-10-13
+
+### Fixed — 生存模式与进度同步
+
+- **波次进度条不更新**：修复了生存模式接入真实战斗后，击杀敌人未触发生存管理器的内部计数问题。在 `addKill` 方法中同步增加 `waveEnemiesDefeated`，确保 UI 进度条正确驱动。
+- **剧情奖励闭环**：修复了剧情任务和章节奖励未正确存入信用点商店（CreditsStore）的问题。在 `GameScene` 中通过 `subscribe` 监听 `StoryMissionManager` 状态变化，实现任务完成时经验与信用点的自动入账。
+
+### Improved — 数值与 UI 对齐
+
+- **商店标签优化**：重构了 `ShopPanel` 的 `attrLabels` 和 `attrUnits`，将模糊的属性名（如“伤害”）明确为“基础伤害”或“额外伤害”，并修正了百分比单位，确保 UI 显示与 `MetaBonuses.ts` 中的数值公式完全对齐。
+- **属性换算一致性**：验证并确立了 `fraction` (1+v) 与 `percent` (1+v/100) 的分类换算标准，消除了商店显示与后台计算逻辑间的理解歧义。
+
+### Visual — PBR 材质审计与派系着色
+
+- **材质分发策略**：确立了“重型单位/Boss 使用 `metalPlates`（更多划痕/凹凸），轻型单位使用 `metal`”的材质分发逻辑，并在 `Enemy.ts` 中完成接线。
+- **环境光照验证**：核查了 `PlayCanvasEngine.applyPbrMaterialWhenReady` 逻辑，确保 HDR 环境光与 PBR 贴图在所有机型上正确渲染，提升了低模的视觉质感。
+
+### Technical — 性能测试与 Lua 架构
+
+- **AI 压力测试**：解决了 `wasmoon` 在 Node.js 环境下的 `environ_get` 限制，通过浏览器环境验证了 100+ 敌人同时存在的 Swarm AI 场景下的性能稳定性，目标帧开销 < 8ms。
+- **逻辑对齐校验**：验证了 `MetaBonuses.applyMetaBonusesToWeapon` 已覆盖商店中所有的武器全局加成属性。
+
+### Added — 元进度与成长链（2026-10-10 ~ 10-12 已提交补齐）
+
+- **元进度闭环**（`163f955c`）：商店购买结果落地为永久全局加成（`OwnedItems` 属性快照 →
+  `MetaBonuses` 唯一换算表 → 下一局真实生效）；EXP 接进等级（`Experience.ts` 纯函数曲线，
+  等级由累计经验推导）。
+- **成就系统接线**（`88a72503`）：面板改读 `AchievementSystem` 运行时快照（32 条定义、
+  真实进度条），奖励 exp/credits/score 真入账；补齐命中率 / 技能使用 / Boss 击杀类型统计。
+- **解锁链路**（`29663d2c`）：`rewards.unlocks` 接成真链——通关真解锁技能 / 舰体 / 商店
+  货架（`UnlockRegistry` 幂等派生，护栏 `verify-unlocks.mjs` 69 项）。
+- **导弹打击真伤害**（`7666977e`）：技能伤害接入 `Enemy.takeDamage()`（单发 7.5），
+  位置/引爆改为帧驱动（`advanceMissiles(dt)`），修复低帧率下飞行距离不足与幽灵弹。
+- **打击感第一批**（`f77beff1`）：受击闪白/鼓包、命中火花、枪口闪光、击杀屏幕震动。
+- **操作手感**（`4a2da113`）：飞船旋转改惯性式（帧率无关的指数逼近），修正俯仰口径
+  （1080°/s → 360°/s）；技能条标注技能名并接通「激活中」高亮。
+
+### Fixed — 技能与构建（2026-10-11 ~ 10-12 已提交补齐）
+
+- **技能静默失效**（`a0952304`）：统一技能槽位口径（`skillSlots.ts` 真源），修复 HUD/触屏
+  路径 3/4 技能点了没反应（枚举 camelCase vs 调用方 snake_case 被 `as` 强转掩盖）。
+- **生产构建 Lua 静默降级**（`a0952304`）：wasmoon 不传 `customWasmUri` 时硬编码走
+  unpkg CDN，断网/内网静默回落 stub；改为 `glue.wasm?url` 随包发布。
+- **PBR 全通道升级**（`52ff934a`）：备用库五套精选材质全通道接线；十关环境光氛围差异化
+  （每关独立 HDR + 曝光档）。
+- **NAS 一键部署**（`2630e3bd` / `2dacf469`）：`scripts/deploy-nas.mjs`（单流 tar.gz、
+  改名失败即报错、md5 走 Node 内建、探针失败不阻断）。
+
+### Changed — Lua 迁移状态
+
+- 7 个 `.lua` 模块的 `host: true` 迁移期标记已全部摘除（`HOST_MODULE_NAMES` 为空数组），
+  wave / powerup / combat-stats / skill / game-config 现均由真实 Lua 执行。
+
+### Removed
+
+- `scripts/verify-lua-ai.mjs`（21 项 A/B 对照）已在工作区删除；生产侧覆盖由
+  `verify-lua-runtime-prod.mjs`（16 项）承担。
+- 文档重组：`docs/2026-10-*.md` 等单篇日志合并进 `docs/archive/CHANGELOG_DETAILS_2026_OCT.md`；
+  新增 `docs/architecture/` 四件套（⚠️ 内容为早期 React 18 / MongoDB 口径，待重写）。
+
 ## [Unreleased] - 2026-10-07
 
 ### Added — 画质：环境光照（IBL）+ 色调映射（HDR 资产首次被消费）

@@ -308,11 +308,23 @@ export class TouchInputHandler {
     const canvas = app.canvas;
     if (!canvas) return;
 
-    canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
-    canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
-    canvas.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
-    canvas.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false });
+    canvas.addEventListener('touchstart', this.onStart, { passive: false });
+    canvas.addEventListener('touchmove', this.onMove, { passive: false });
+    canvas.addEventListener('touchend', this.onEnd, { passive: false });
+    canvas.addEventListener('touchcancel', this.onEnd, { passive: false });
   }
+
+  private onStart = (event: TouchEvent): void => {
+    this.handleTouchStart(event);
+  };
+
+  private onMove = (event: TouchEvent): void => {
+    this.handleTouchMove(event);
+  };
+
+  private onEnd = (event: TouchEvent): void => {
+    this.handleTouchEnd(event);
+  };
 
   private handleTouchStart(event: TouchEvent): void {
     event.preventDefault();
@@ -427,10 +439,10 @@ export class TouchInputHandler {
     const appTyped = this.app as unknown as { canvas?: HTMLCanvasElement };
     const canvas = appTyped.canvas || document.querySelector('canvas');
     if (canvas) {
-      canvas.removeEventListener('touchstart', this.handleTouchStart.bind(this));
-      canvas.removeEventListener('touchmove', this.handleTouchMove.bind(this));
-      canvas.removeEventListener('touchend', this.handleTouchEnd.bind(this));
-      canvas.removeEventListener('touchcancel', this.handleTouchEnd.bind(this));
+      canvas.removeEventListener('touchstart', this.onStart);
+      canvas.removeEventListener('touchmove', this.onMove);
+      canvas.removeEventListener('touchend', this.onEnd);
+      canvas.removeEventListener('touchcancel', this.onEnd);
     }
 
     this.touchZones.clear();

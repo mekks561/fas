@@ -1,0 +1,22 @@
+namespace FighterGame.Physics;
+
+struct Vec3 {
+  x: float;
+  y: float;
+  z: float;
+}
+
+table PhysicsState {
+  entity_id: uint;
+  position: Vec3;
+  velocity: Vec3;
+  rotation: [float:4]; // Quaternion
+  damage_level: float;
+}
+
+table WorldState {
+  states: [PhysicsState];
+  timestamp: double;
+}
+
+root_type WorldState;

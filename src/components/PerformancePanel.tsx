@@ -33,6 +33,7 @@ export const PerformancePanel: React.FC = () => {
   });
 
   const fps = useGameStore((state) => state.fps);
+  const webgpuProfiler = useGameStore((state) => state.webgpuProfiler);
 
   // 键盘快捷键切换显示
   useEffect(() => {
@@ -143,6 +144,18 @@ export const PerformancePanel: React.FC = () => {
           <p className="text-xs font-bold text-blue-400">{t('performance.frameTime')}</p>
           <div className="text-xl text-white mt-1">{metrics.frameTime.toFixed(2)} ms</div>
         </div>
+
+        {webgpuProfiler && webgpuProfiler.isSupported && (
+          <div className="mb-4 pb-3 border-b border-white/[0.05]">
+            <p className="text-xs font-bold text-orange-400">WEBGPU DAMAGE COMPUTE</p>
+            <div className="text-xl text-white mt-1">
+              {webgpuProfiler.computePassTimeMs.toFixed(3)} ms
+            </div>
+            <div className="text-[10px] text-white/40 mt-1 uppercase">
+              Dispatch Count: {webgpuProfiler.dispatchCount}
+            </div>
+          </div>
+        )}
 
         <div className="mb-4 pb-3 border-b border-white/[0.05]">
           <p className="text-xs font-bold text-purple-400">{t('performance.memory')}</p>

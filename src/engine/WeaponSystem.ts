@@ -3,6 +3,7 @@ import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { Enemy } from './Enemy';
 import { LuaSkillBridge } from './LuaSkillBridge';
+import { useGameStore } from '../store/useGameStore';
 import type { WeaponModifiers } from './BuildSystem';
 import { PROJECTILE_CULL_RADIUS } from './arena';
 
@@ -48,6 +49,10 @@ export class WeaponSystem {
   private luaSkillBridge: LuaSkillBridge | null = null;
   private playerLevel: number = 1;
   private learnedSkills: string[] = [];
+
+  // 全局倍率
+  private timeScale: number = 1;
+  private overdriveFireRateMult: number = 1;
 
   /**
    * 命中率统计（供成就系统消费）。
@@ -129,6 +134,11 @@ export class WeaponSystem {
 
   public setBuildModifiers(mods: WeaponModifiers): void {
     this.buildMods = mods;
+  }
+
+  public setGlobalMultipliers(timeScale: number, overdriveFireRateMult: number): void {
+    this.timeScale = timeScale;
+    this.overdriveFireRateMult = overdriveFireRateMult;
   }
 
   /**
@@ -251,11 +261,23 @@ export class WeaponSystem {
     const config = this.getWeaponConfig();
 
     // 应用 Build 修饰符：射击间隔（fireRateMultiplier > 1 = 更慢，< 1 = 更快）
-    const effectiveFireRate = config.fireRate * this.buildMods.fireRateMultiplier;
+    // 同时应用全局超载倍率（overdriveFireRateMult > 1 = 更快）
+    const effectiveFireRate =
+      (config.fireRate * this.buildMods.fireRateMultiplier) / this.overdriveFireRateMult;
     if (now - this.lastShootTime < effectiveFireRate) return;
 
     const playerPos = this.player.getEntity().getPosition();
     const playerForward = this.player.getEntity().forward.clone();
+
+    // 2026 Tech: 检查武器挂架健康状态 (WebGPU Functional Loss)
+    const damageSystem = (this.player as any).damageSystem;
+    let canFireL = true;
+    let canFireR = true;
+    
+    if (damageSystem) {
+      canFireL = damageSystem.isComponentFunctional('WEAPON_L');
+      canFireR = damageSystem.isComponentFunctional('WEAPON_R');
+    }
 
     // 调用 Lua 技能系统
     if (this.luaSkillBridge) {
@@ -291,16 +313,18 @@ export class WeaponSystem {
 
     switch (this.currentWeapon) {
       case 'normal':
-        this.createNormalProjectile(playerPos, playerForward, config);
+        if (canFireL) this.createNormalProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(-1)), playerForward, config);
+        if (canFireR) this.createNormalProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(1)), playerForward, config);
         break;
       case 'spread':
         this.createSpreadProjectiles(playerPos, playerForward, config);
         break;
       case 'laser':
-        this.createLaserProjectile(playerPos, playerForward, config);
+        if (canFireL || canFireR) this.createLaserProjectile(playerPos, playerForward, config);
         break;
       case 'missile':
-        this.createMissileProjectile(playerPos, playerForward, config);
+        if (canFireL) this.createMissileProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(-1.5)), playerForward, config);
+        if (canFireR) this.createMissileProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(1.5)), playerForward, config);
         break;
     }
 
@@ -327,8 +351,12 @@ export class WeaponSystem {
 
     this.engine.addToScene(projectile);
 
+    // 2026 Tech: 应用全局增益 (伤害加成)
+    const globalModifiers = useGameStore.getState().globalModifiers || [];
+    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
+
     // 应用 Build 修饰符：伤害倍率 + 穿透次数
-    const effectiveDamage = config.damage * this.buildMods.damageMultiplier;
+    const effectiveDamage = config.damage * this.buildMods.damageMultiplier * damageMod;
     const proj = new Projectile(
       projectile,
       effectiveDamage,
@@ -342,6 +370,9 @@ export class WeaponSystem {
   private createSpreadProjectiles(pos: pc.Vec3, forward: pc.Vec3, config: WeaponConfig): void {
     const count = config.spreadCount || 3;
     const angle = ((config.spreadAngle || 15) * Math.PI) / 180;
+
+    const globalModifiers = useGameStore.getState().globalModifiers || [];
+    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
 
     for (let i = 0; i < count; i++) {
       const offsetAngle = (i - (count - 1) / 2) * angle;
@@ -359,7 +390,7 @@ export class WeaponSystem {
       this.projectiles.push(
         new Projectile(
           projectile,
-          config.damage * this.buildMods.damageMultiplier,
+          config.damage * this.buildMods.damageMultiplier * damageMod,
           direction.clone().mulScalar(config.projectileSpeed),
           'spread',
         ),
@@ -384,10 +415,13 @@ export class WeaponSystem {
 
     this.engine.addToScene(projectile);
 
+    const globalModifiers = useGameStore.getState().globalModifiers || [];
+    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
+
     this.projectiles.push(
       new Projectile(
         projectile,
-        config.damage * this.buildMods.damageMultiplier,
+        config.damage * this.buildMods.damageMultiplier * damageMod,
         forward.clone().mulScalar(config.projectileSpeed),
         'laser',
       ),
@@ -431,10 +465,13 @@ export class WeaponSystem {
 
     this.engine.addToScene(missile);
 
+    const globalModifiers = useGameStore.getState().globalModifiers || [];
+    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
+
     this.projectiles.push(
       new Projectile(
         missile,
-        config.damage * this.buildMods.damageMultiplier,
+        config.damage * this.buildMods.damageMultiplier * damageMod,
         forward.clone().mulScalar(config.projectileSpeed),
         'missile',
       ),
@@ -470,7 +507,7 @@ export class WeaponSystem {
       proj.hitEnemyIds.clear();
 
       const pos = proj.entity.getPosition();
-      pos.add(proj.velocity.clone().mulScalar(dt));
+      pos.add(proj.velocity.clone().mulScalar(dt * this.timeScale));
       proj.entity.setPosition(pos);
 
       if (pos.length() > PROJECTILE_CULL_RADIUS) {

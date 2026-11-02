@@ -1,10 +1,12 @@
 import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
-import { Enemy, EnemyType } from './Enemy';
+import { Enemy, EnemyType, CapitalShip, EnemyProjectile } from './Enemy';
+import { VoidLordBoss } from './VoidLordBoss';
 import { WaveManager } from '../lua/wave/WaveManager';
+import { StoryMissionManager } from './StoryMissionManager';
 import type { EnemyConfig as WaveEnemyConfig } from '../lua/wave/WaveManager';
-import { ENEMY_SPAWN } from './arena';
+import { ENEMY_SPAWN, PROJECTILE_CULL_RADIUS } from './arena';
 
 export type PowerupDropCallback = (position: pc.Vec3, enemyType: EnemyType) => void;
 
@@ -15,8 +17,10 @@ export class EnemySystem {
   private engine: PlayCanvasGameEngine;
   private player: PlayerShip;
   private enemies: Enemy[] = [];
+  private enemyProjectiles: EnemyProjectile[] = [];
   private waveManager: WaveManager;
-  private lastSpawnTime: number = 0;
+  private storyManager: StoryMissionManager | null = null;
+  private spawnTimer: number = 0;
   private spawnInterval: number = 1500;
   private waveActive: boolean = false;
   private powerupDropCallback: PowerupDropCallback | null = null;
@@ -24,11 +28,18 @@ export class EnemySystem {
   private dropRate: number = 0.15;
   /** 难度自适应倍率（缩放敌人生命/速度/伤害/生成间隔） */
   private difficultyMultiplier: number = 1.0;
+  private globalTimeScale: number = 1.0;
 
-  constructor(engine: PlayCanvasGameEngine, player: PlayerShip, waveManager?: WaveManager) {
+  constructor(
+    engine: PlayCanvasGameEngine,
+    player: PlayerShip,
+    waveManager?: WaveManager,
+    storyManager?: StoryMissionManager
+  ) {
     this.engine = engine;
     this.player = player;
     this.waveManager = waveManager || (null as unknown as WaveManager);
+    if (storyManager) this.storyManager = storyManager;
   }
 
   public setWaveManager(manager: WaveManager): void {
@@ -44,7 +55,7 @@ export class EnemySystem {
     const result = this.waveManager.startWave(waveNumber);
     if (result.success) {
       this.waveActive = true;
-      this.lastSpawnTime = 0;
+      this.spawnTimer = this.spawnInterval;
       const r = result as { enemyCount: number; isBossWave: boolean };
       // 基础生成间隔随波次递减；难度倍率越高，生成越快（除以倍率），但不低于 350ms
       const baseInterval = r.isBossWave ? 2500 : Math.max(500, 1500 - waveNumber * 80);
@@ -56,6 +67,8 @@ export class EnemySystem {
   }
 
   public update(dt: number): void {
+    const scaledDt = dt * this.globalTimeScale;
+
     // 先把本帧阵亡的敌人整体回调给上层结算，再从数组移除。
     // 此前 filter 直接丢弃死敌，非武器击杀（技能/撞击/调试钩子）永远漏结算，
     // 导致波次计数不推进、游戏打完一波就静止。
@@ -68,22 +81,71 @@ export class EnemySystem {
     }
 
     if (this.waveActive && this.waveManager) {
-      const now = Date.now();
+      this.spawnTimer += scaledDt * 1000;
 
-      if (now - this.lastSpawnTime >= this.spawnInterval) {
+      if (this.spawnTimer >= this.spawnInterval) {
         const spawnResult = this.waveManager.spawnNextEnemy();
 
         if (spawnResult.success) {
           const r = spawnResult as { enemy: WaveEnemyConfig };
           this.spawnEnemy(r.enemy);
-          this.lastSpawnTime = now;
+          this.spawnTimer -= this.spawnInterval;
         }
       }
 
       this.waveManager.update(dt);
     }
 
-    this.enemies.forEach((enemy) => enemy.update(dt));
+    this.enemies.forEach((enemy) => {
+      enemy.update(scaledDt);
+      if (enemy instanceof CapitalShip || enemy instanceof VoidLordBoss) {
+        const newProjectiles = (enemy as any).consumeNewProjectiles();
+        this.enemyProjectiles.push(...newProjectiles);
+      }
+    });
+
+    // 更新敌方子弹
+    this.enemyProjectiles = this.enemyProjectiles.filter((proj) => {
+      if (!proj.active) {
+        proj.entity.destroy();
+        return false;
+      }
+
+      proj.update(scaledDt);
+
+      // 碰撞检测：与玩家碰撞
+      const projPos = proj.entity.getPosition();
+      const playerPos = this.player.getPosition();
+      const dist = projPos.clone().sub(playerPos).length();
+
+      if (dist < 1.5) {
+        this.player.takeDamage(proj.damage);
+        proj.active = false;
+        return false;
+      }
+
+      // 2026 Tech: 敌方子弹也能误伤 NPC (Faction Conflict)
+      const npcManager = (this.engine.getApp() as any)._npcManager;
+      if (npcManager) {
+        const npcs = npcManager.getNPCs();
+        for (const npc of npcs) {
+          const npcPos = npc.getPosition();
+          const npcDist = projPos.clone().sub(npcPos).length();
+          if (npcDist < 2.0) {
+            npc.takeDamage?.(proj.damage); // NPC 需要实现 takeDamage
+            proj.active = false;
+            return false;
+          }
+        }
+      }
+
+      if (projPos.length() > PROJECTILE_CULL_RADIUS) {
+        proj.entity.destroy();
+        return false;
+      }
+
+      return true;
+    });
 
     if (this.waveActive && this.waveManager) {
       const state = this.waveManager.getWaveState();
@@ -112,6 +174,12 @@ export class EnemySystem {
       boss_overlord: EnemyType.BOSS_OVERLORD,
       boss: EnemyType.BOSS,
       basic: EnemyType.FIGHTER,
+      assault: EnemyType.ASSAULT,
+      sniper: EnemyType.SNIPER,
+      swarm: EnemyType.SWARM,
+      static_outpost: EnemyType.STATIC_OUTPOST,
+      cruiser: EnemyType.CRUISER,
+      void_lord: EnemyType.VOID_LORD,
     };
     return typeMap[type] || EnemyType.FIGHTER;
   }
@@ -133,20 +201,75 @@ export class EnemySystem {
     const z = Math.cos(phi) * spawnRadius;
     const clampedY = Math.max(-ENEMY_SPAWN.yLimit, Math.min(ENEMY_SPAWN.yLimit, y));
 
-    const enemy = new Enemy({
+    const config = {
       engine: this.engine,
       type,
       position: new pc.Vec3(x, clampedY, z),
       player: this.player,
       difficultyMultiplier: this.difficultyMultiplier,
-    });
+    };
+
+    let enemy: Enemy;
+    if (type === EnemyType.VOID_LORD) {
+      enemy = new VoidLordBoss(config);
+    } else if (type === EnemyType.CRUISER) {
+      enemy = new CapitalShip(config);
+    } else {
+      enemy = new Enemy(config);
+    }
 
     this.enemies.push(enemy);
+  }
+
+  /**
+   * 2026 Tech: 允许其他系统（如巨型母舰）在运行时生成敌机实例。
+   */
+  public spawnEnemyInstance(type: EnemyType, position: pc.Vec3): Enemy {
+    const config = {
+      engine: this.engine,
+      type,
+      position,
+      player: this.player,
+      difficultyMultiplier: this.difficultyMultiplier,
+    };
+
+    let enemy: Enemy;
+    if (type === EnemyType.VOID_LORD) {
+      enemy = new VoidLordBoss(config);
+    } else if (type === EnemyType.CRUISER) {
+      enemy = new CapitalShip(config);
+    } else {
+      enemy = new Enemy(config);
+    }
+
+    this.enemies.push(enemy);
+    return enemy;
+  }
+
+  /**
+   * 2026 Tech: 生成特定的静态目标（如前哨站、基地核心）
+   */
+  public spawnStaticTarget(type: EnemyType, position: pc.Vec3): Enemy {
+    const config = {
+      engine: this.engine,
+      type,
+      position,
+      player: this.player,
+      difficultyMultiplier: this.difficultyMultiplier,
+    };
+    const enemy = type === EnemyType.CRUISER ? new CapitalShip(config) : new Enemy(config);
+    this.enemies.push(enemy);
+    return enemy;
   }
 
   /** 设置难度自适应倍率（由 GameScene 每帧同步） */
   public setDifficultyMultiplier(multiplier: number): void {
     this.difficultyMultiplier = multiplier > 0 ? multiplier : 1.0;
+  }
+
+  /** 设置全局时间缩放系数 */
+  public setGlobalTimeScale(scale: number): void {
+    this.globalTimeScale = Math.max(0, scale);
   }
 
   /**
@@ -158,6 +281,20 @@ export class EnemySystem {
    */
   public onEnemyKilled(enemy: Enemy): number {
     const score = 100;
+
+    // 2026 Tech: 更新任务进度
+    if (this.storyManager) {
+      const activeMissions = this.storyManager.getActiveMissions();
+      activeMissions.forEach((m) => {
+        const targetType = enemy.getType();
+        // 如果任务有特定目标且匹配，或者没有特定目标（普通击杀任务）
+        const objective = m.objectives.find(o => o.type === 'destroy' && (!o.target || o.target === targetType || (o.target === 'outpost_core' && targetType === EnemyType.STATIC_OUTPOST)));
+        
+        if (objective) {
+          this.storyManager?.incrementObjective(m.mission.id, 'destroy', 1);
+        }
+      });
+    }
 
     if (this.powerupDropCallback) {
       const isBoss = enemy.getType().includes('boss') || enemy.getType() === EnemyType.BOSS;
@@ -229,7 +366,7 @@ export class EnemySystem {
   public reset(): void {
     this.destroyAll();
     this.waveActive = false;
-    this.lastSpawnTime = 0;
+    this.spawnTimer = 0;
     if (this.waveManager) {
       this.waveManager.reset();
     }

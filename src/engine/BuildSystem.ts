@@ -157,11 +157,22 @@ export class BuildSystem {
   private activeResonanceIds: Set<string> = new Set();
   private playerModifiers: PlayerModifiers = defaultPlayerModifiers();
   private weaponModifiers: WeaponModifiers = defaultWeaponModifiers();
+  private unlockedVoidUpgrades: Set<string> = new Set();
   private rarityWeights: Record<string, number> = { common: 100, rare: 45, epic: 15, legendary: 3 };
   private choiceCount: number = 3;
 
   constructor() {
     this.loadConfig();
+  }
+
+  public unlockVoidUpgrade(relicCount: number): string | null {
+    const lockedVoid = this.upgrades.filter(u => u.id.startsWith('void_') && !this.unlockedVoidUpgrades.has(u.id));
+    if (lockedVoid.length > 0 && relicCount > 0) {
+      const selected = lockedVoid[Math.floor(Math.random() * lockedVoid.length)];
+      this.unlockedVoidUpgrades.add(selected.id);
+      return selected.name;
+    }
+    return null;
   }
 
   private loadConfig(): void {
@@ -185,6 +196,10 @@ export class BuildSystem {
       if (u.unlockWave > waveNumber) return false;
       const active = this.activeUpgrades.get(u.id);
       if (active && (!u.stackable || active.stacks >= u.maxStacks)) return false;
+      
+      // 2026 Tech: 虚空模块仅在解锁后出现，且出现权重极高 (因为稀有)
+      if (u.id.startsWith('void_') && !this.unlockedVoidUpgrades.has(u.id)) return false;
+      
       return true;
     });
 
@@ -224,6 +239,40 @@ export class BuildSystem {
     }
 
     return choices;
+  }
+
+  /**
+   * 2026 Tech: 获取空间站可售卖的强化插件。
+   * 与波次奖励不同，这里包含价格，且通常质量更高或更稀有。
+   * 价格受派系声望 (reputation) 影响。
+   */
+  public getStationTradeChoices(waveNumber: number, reputation: number = 0): (UpgradeChoice & { price: number })[] {
+    const choices = this.getUpgradeChoices(waveNumber);
+    return choices.map(choice => {
+      // 根据稀有度计算基础价格
+      const rarityPrices: Record<Rarity, number> = {
+        common: 500,
+        rare: 1200,
+        epic: 3000,
+        legendary: 8000
+      };
+      
+      let basePrice = rarityPrices[choice.rarity] || 500;
+      
+      // 2026 Tech: 声望折扣/惩罚系数 (reputation 范围通常在 -100 到 100)
+      // 声望 100 时打 5 折，声望 -100 时涨 3 倍
+      let reputationMult = 1.0;
+      if (reputation > 0) {
+        reputationMult = 1.0 - (reputation / 100.0) * 0.5;
+      } else {
+        reputationMult = 1.0 + (Math.abs(reputation) / 100.0) * 2.0;
+      }
+
+      return {
+        ...choice,
+        price: Math.round(basePrice * reputationMult)
+      };
+    });
   }
 
   // ----------------------------------------------------------

@@ -248,5 +248,12 @@
     "submit": "Submit",
     "playAgain": "Play Again",
     "backToMenu": "Back to Menu"
+  },
+  "factions": {
+    "trade_union": "Trade Union",
+    "scavengers": "Scavengers",
+    "imperial_guard": "Imperial Guard",
+    "void_cult": "Void Cult",
+    "neutral": "Neutral"
   }
 }

@@ -88,6 +88,45 @@
       }
     },
     {
+      "id": "void_singularity_shield",
+      "name": "虚空奇点护盾",
+      "nameEn": "Void Singularity Shield",
+      "description": "受击时产生一个微型黑洞，吸引并吞噬 5 米内的所有小型弹药",
+      "tag": "special",
+      "rarity": "legendary",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 1,
+      "weight": 0,
+      "synergyContribution": true,
+      "effect": {
+        "type": "void_shield",
+        "params": {
+          "swallowRadius": 5.0,
+          "cooldownMs": 8000
+        }
+      }
+    },
+    {
+      "id": "void_temporal_burst",
+      "name": "虚空时间爆发",
+      "nameEn": "Void Temporal Burst",
+      "description": "使用技能时，触发 3 秒的时间停止效应（敌方静止）",
+      "tag": "special",
+      "rarity": "legendary",
+      "stackable": false,
+      "maxStacks": 1,
+      "unlockWave": 1,
+      "weight": 0,
+      "synergyContribution": true,
+      "effect": {
+        "type": "void_temporal",
+        "params": {
+          "stopDurationMs": 3000
+        }
+      }
+    },
+    {
       "id": "fp_overcharge",
       "name": "过载充能",
       "nameEn": "Overcharge",

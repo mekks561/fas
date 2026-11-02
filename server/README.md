@@ -35,21 +35,21 @@
 |------|------|------|
 | **Node.js** | ^18.0.0 | 运行时环境 |
 | **Express** | ^4.18.2 | Web框架 |
-| **MongoDB** | ^6.0 | 主数据库 |
-| **Mongoose** | ^8.0.3 | MongoDB ODM |
-| **Redis** | ^4.6.11 | 缓存层 |
-| **JWT** | ^9.0.2 | 身份认证 |
+| **MySQL** | ^8.0 | 主数据库 |
+| **Prisma** | ^7.8.0 | ORM / 数据库建模 |
+| **Redis** | ^5.4.1 | 缓存层 |
+| **JWT** | ^8.5.1 | 身份认证 |
 | **bcryptjs** | ^2.4.3 | 密码加密 |
 | **Joi** | ^17.11.0 | 数据验证 |
 | **Socket.io** | ^4.6.1 | 实时通信 |
-| **Jest** | ^29.7.0 | 测试框架 |
+| **Vitest** | ^4.1.9 | 测试框架 |
 
 ## 快速开始
 
 ### 前置要求
 
 - Node.js >= 18.0.0
-- MongoDB >= 6.0
+- MySQL >= 8.0
 - Redis >= 7.0 (可选)
 
 ### 安装
@@ -62,10 +62,11 @@ cd fighter-game/server
 # 安装依赖
 npm install
 
-# 复制环境变量文件
+# 复制环境变量文件并配置 DATABASE_URL
 cp .env.example .env
 
-# 编辑 .env 文件配置数据库连接
+# 初始化数据库
+npx prisma db push
 ```
 
 ### 运行
@@ -244,48 +245,17 @@ Authorization: Bearer <token>
 
 ## 数据库设计
 
-### 用户集合 (users)
+本项目使用 Prisma 进行 ORM 建模，详细 Schema 请参考 `prisma/schema.prisma`。
 
-```javascript
-{
-  _id: ObjectId,
-  username: String,          // 唯一, 3-20字符
-  email: String,             // 唯一, 邮箱格式
-  password: String,          // bcrypt加密
-  avatar: String,           // 头像URL
-  level: Number,            // 等级 (默认1)
-  experience: Number,       // 经验值 (默认0)
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+### 主要模型
 
-**索引:**
-- `username`: 唯一索引
-- `email`: 唯一索引
-
-### 排行榜集合 (leaderboard)
-
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,         // 用户ID (外键)
-  username: String,         // 用户名 (冗余)
-  score: Number,           // 分数
-  level: Number,          // 等级
-  wave: Number,            // 波次
-  kills: Number,           // 击杀数
-  gameDuration: Number,    // 游戏时长
-  difficulty: String,     // 难度
-  date: Date,            // 游戏日期
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-**索引:**
-- `score`: 降序索引 (排名查询)
-- `userId + score`: 复合索引
+- **User**: 核心用户信息，包含等级、经验、信用点等。
+- **Leaderboard**: 全球/区域排行榜数据。
+- **Achievement**: 玩家成就解锁进度。
+- **GameSession**: 详细的游戏场次记录（用于分析 v2.7 战略 AI 行为）。
+- **UserInventory**: 玩家拥有的飞船、武器及组件。
+- **Friendship**: 社交系统数据。
+- **GameResource**: 游戏资源清单（用于 v2.7 程序化生成校验）。
 
 ## 测试
 
@@ -345,34 +315,26 @@ CMD ["npm", "start"]
 version: '3.8'
 
 services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: fighter_game
+    volumes:
+      - mysql_data:/var/lib/mysql
+
   api:
     build: .
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongo:27017/fighter-game
-      - REDIS_URI=redis://redis:6379
+      - DATABASE_URL=mysql://root:root_pass@mysql:3306/fighter_game
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - mongo
-      - redis
-    restart: unless-stopped
-
-  mongo:
-    image: mongo:6
-    volumes:
-      - mongo_data:/data/db
-    restart: unless-stopped
+      - mysql
 
   redis:
     image: redis:7-alpine
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-
-volumes:
-  mongo_data:
-  redis_data:
 ```
 
 ### 环境变量配置

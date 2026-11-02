@@ -91,25 +91,20 @@ export class SkillSystemManager {
     await luaEngine.initialize();
 
     const skillScript = await this.loadSkillScript();
-    luaEngine.registerModule({ name: 'skill_system', script: skillScript, host: true });
+    luaEngine.registerModule({ name: 'skill_system', script: skillScript, host: false });
 
     this.initialized = true;
     console.log('[SkillSystemManager] Initialized');
   }
 
   private async loadSkillScript(): Promise<string> {
-    try {
-      // 走 luaSources 内联取源。**不要**改回 fetch('/src/lua/...')：dev 能跑、
-      // 生产构建必然 404，静默退化成空脚本（典型假接线）。
-      const luaCode = getLuaSource('skills/skill-system');
-      if (!luaCode) {
-        throw new Error('skill-system.lua 不在 luaSources 注册表中');
-      }
+    const luaCode = getLuaSource('skills/skill-system');
+    if (!luaCode) {
+      throw new Error('skill-system.lua 不在 luaSources 注册表中');
+    }
 
-      return `
-${luaCode}
-
-local SkillSystem = require("skill_system_module")
+    return `
+local SkillSystem = require("skills/skill-system")
 
 function SkillSystem.learnSkill(skillId, playerLevel, learnedSkillIds)
   local result = SkillSystem.learnSkill(skillId, playerLevel, learnedSkillIds)
@@ -163,111 +158,7 @@ end
 function SkillSystem.createSkill(skillId)
   return SkillSystem.createSkill(skillId)
 end
-      `;
-    } catch (error) {
-      console.warn('[SkillSystemManager] Failed to load external lua file, using fallback:', error);
-      return `
-SkillSystem = {
-  VERSION = "1.0.0",
-  SkillType = { ACTIVE = "active", PASSIVE = "passive", TOGGLE = "toggle", ULTIMATE = "ultimate" },
-  EffectType = { DAMAGE = "damage", DOT = "dot", HEAL = "heal", HOT = "hot", BUFF = "buff", DEBUFF = "debuff", SHIELD = "shield", STUN = "stun", KNOCKBACK = "knockback", SUMMON = "summon", AREA = "area" },
-  ResourceType = { MANA = "mana", ENERGY = "energy", HEALTH = "health", COOLDOWN = "cooldown", CHARGE = "charge" },
-  SkillState = { READY = "ready", COOLDOWN = "cooldown", ACTIVE = "active", DISABLED = "disabled", LOCKED = "locked" },
-  LearnedSkills = {},
-  ActiveCombo = { currentSequence = {}, startTime = 0, lastSkillTime = 0 }
-}
-
-function SkillSystem.createSkill(skillId)
-  if type(skillId) ~= "string" then return nil end
-  return { id = skillId, state = SkillSystem.SkillState.LOCKED, currentCooldown = 0, level = 1 }
-end
-
-function SkillSystem.learnSkill(skillId, playerLevel, learnedSkillIds)
-  SkillSystem.LearnedSkills[skillId] = SkillSystem.createSkill(skillId)
-  if SkillSystem.LearnedSkills[skillId] then
-    SkillSystem.LearnedSkills[skillId].state = SkillSystem.SkillState.READY
-    return true
-  end
-  return false
-end
-
-function SkillSystem.upgradeSkill(skillId)
-  local skill = SkillSystem.LearnedSkills[skillId]
-  if skill and skill.level < skill.maxLevel then
-    skill.level = skill.level + 1
-    return true, skill.level
-  end
-  return false, 0
-end
-
-function SkillSystem.canCastSkill(skillId, resources)
-  local skill = SkillSystem.LearnedSkills[skillId]
-  if not skill then return false, "skill_not_learned" end
-  if skill.state ~= SkillSystem.SkillState.READY then return false, "skill_not_ready" end
-  return true, "ready"
-end
-
-function SkillSystem.castSkill(skillId, caster, target, resources)
-  local canCast, reason = SkillSystem.canCastSkill(skillId, resources)
-  if not canCast then return { success = false, error = reason } end
-  local skill = SkillSystem.LearnedSkills[skillId]
-  skill.state = SkillSystem.SkillState.COOLDOWN
-  return { success = true, skillId = skillId, effects = {}, remainingCooldown = skill.cooldown or 0, costPaid = 0 }
-end
-
-function SkillSystem.updateCooldowns(deltaTime)
-  local readySkills = {}
-  for skillId, skill in pairs(SkillSystem.LearnedSkills) do
-    if skill.state == SkillSystem.SkillState.COOLDOWN then
-      skill.currentCooldown = math.max(0, skill.currentCooldown - deltaTime)
-      if skill.currentCooldown <= 0 then
-        skill.state = SkillSystem.SkillState.READY
-        readySkills[#readySkills + 1] = skillId
-      end
-    end
-  end
-  return readySkills
-end
-
-function SkillSystem.getSkillStatus(skillId)
-  local skill = SkillSystem.LearnedSkills[skillId]
-  if not skill then return nil end
-  return skill
-end
-
-function SkillSystem.getAllSkillStatus()
-  local statuses = {}
-  for skillId, skill in pairs(SkillSystem.LearnedSkills) do
-    statuses[#statuses + 1] = skill
-  end
-  return statuses
-end
-
-function SkillSystem.resetCooldown(skillId)
-  local skill = SkillSystem.LearnedSkills[skillId]
-  if skill then
-    skill.currentCooldown = 0
-    skill.state = SkillSystem.SkillState.READY
-    return true
-  end
-  return false
-end
-
-function SkillSystem.startCombo()
-  SkillSystem.ActiveCombo = { currentSequence = {}, startTime = os.time(), lastSkillTime = 0 }
-  return true
-end
-
-function SkillSystem.addToCombo(skillId)
-  SkillSystem.ActiveCombo.currentSequence[#SkillSystem.ActiveCombo.currentSequence + 1] = skillId
-  return true, "combo_in_progress"
-end
-
-function SkillSystem.checkComboBonus()
-  return nil
-end
-      `;
-    }
+`;
   }
 
   learnSkill(skillId: string, playerLevel: number, learnedSkillIds: string[]): boolean {
@@ -437,7 +328,7 @@ end
     console.log('[SkillSystemManager] Reloading skill script...');
     try {
       const newScript = await this.loadSkillScript();
-      luaEngine.registerModule({ name: 'skill_system', script: newScript, host: true });
+      luaEngine.registerModule({ name: 'skill_system', script: newScript, host: false });
       console.log('[SkillSystemManager] Skill script reloaded');
     } catch (error) {
       console.warn(

@@ -4,6 +4,7 @@ import type { DifficultySnapshot } from '../engine/DifficultyManager';
 import type { UpgradeChoice } from '../engine/BuildSystem';
 import { expForLevel, levelForExp } from '../engine/Experience';
 import { SKILL_SLOT_COOLDOWNS, type SkillSlotKey } from '../engine/skillSlots';
+import { GalaxyGenerator } from '../engine/GalaxyGenerator';
 
 interface ActiveBuildUpgrade {
   id: string;
@@ -70,6 +71,13 @@ interface PerformanceStats {
   memoryUsage: number;
 }
 
+interface GlobalModifier {
+  id: string;
+  type: 'energy_regen' | 'damage' | 'shield_regen' | 'speed';
+  value: number;
+  description: string;
+}
+
 interface GameState {
   isLoading: boolean;
   loadingProgress: number;
@@ -79,6 +87,9 @@ interface GameState {
   showAchievements: boolean;
   isVictory: boolean;
   player: PlayerState;
+  inventory: Record<string, number>;
+  currency: number;
+  activeDialogue: import('../engine/StoryMissionManager').Dialogue | null;
   skills: SkillsState;
   touchHandlers: TouchHandlers | null;
   currentWave: number;
@@ -113,6 +124,29 @@ interface GameState {
   upgradeChoiceTimer: number;
   activeBuildUpgrades: ActiveBuildUpgrade[];
   activeResonances: string[];
+  // 2026 Tech: 空间站交易系统状态
+  pendingTradeChoices: (UpgradeChoice & { price: number })[] | null;
+  isTradePanelVisible: boolean;
+  // 2026 Tech: WebGPU 性能监控
+  webgpuProfiler: {
+    computePassTimeMs: number;
+    dispatchCount: number;
+    isSupported: boolean;
+  } | null;
+  // 2026 Tech: 动态银河星图
+  isStarMapVisible: boolean;
+  // 2026 Tech: 银河战略态势
+  galacticStatus: {
+    conflictIndex: number;
+    tradeActivity: number;
+    factionInfluence: Record<string, number>;
+    intelligenceFeed: string[];
+    nodes: any[]; // v2.8: 银河星图节点
+    events: any[]; // v2.8: 战略事件
+    currentSectorId: string;
+  };
+  // 2026 Tech: 全局增益系统 (Dyson Swarm / Star Map Effects)
+  globalModifiers: GlobalModifier[];
 }
 
 interface AchievementNotification {
@@ -150,6 +184,10 @@ interface GameActions {
   setPlayerMaxHealth: (maxHealth: number) => void;
   setPlayerMaxShield: (maxShield: number) => void;
   addScore: (score: number) => void;
+  addCurrency: (amount: number) => void;
+  addItem: (id: string, count: number) => void;
+  removeItem: (id: string, count: number) => void;
+  setActiveDialogue: (dialogue: import('../engine/StoryMissionManager').Dialogue | null) => void;
   setPlayerLevel: (level: number) => void;
   /**
    * 发放经验（清波 / 通关 / 任务完成）。等级由累计经验**推导**并同步写入，
@@ -209,6 +247,15 @@ interface GameActions {
   setUpgradeChoiceVisible: (visible: boolean) => void;
   setUpgradeChoiceTimer: (timer: number) => void;
   setActiveBuild: (upgrades: ActiveBuildUpgrade[], resonances: string[]) => void;
+  // 2026 Tech: 空间站交易系统 actions
+  setPendingTradeChoices: (choices: (UpgradeChoice & { price: number })[] | null) => void;
+  setTradePanelVisible: (visible: boolean) => void;
+  setWebGPUProfiler: (data: { computePassTimeMs: number; dispatchCount: number; isSupported: boolean }) => void;
+  setStarMapVisible: (visible: boolean) => void;
+  setGalacticNodes: (nodes: any[]) => void;
+  setGalacticEvents: (events: any[]) => void;
+  updateGalacticStatus: (status: Partial<GameState['galacticStatus']>) => void;
+  addGlobalModifier: (modifier: GlobalModifier) => void;
 }
 
 const STORAGE_KEY = 'fighter-game-save';
@@ -277,7 +324,7 @@ export const defaultSkillsState: SkillsState = {
   active: { skill1: false, skill2: false, skill3: false, skill4: false },
 };
 
-const defaultState: GameState = {
+const initialState: GameState = {
   isLoading: true,
   loadingProgress: 0,
   error: null,
@@ -286,6 +333,9 @@ const defaultState: GameState = {
   showAchievements: false,
   isVictory: false,
   player: defaultPlayerState,
+  inventory: {},
+  currency: 0,
+  activeDialogue: null,
   skills: defaultSkillsState,
   touchHandlers: null,
   currentWave: 1,
@@ -324,12 +374,34 @@ const defaultState: GameState = {
   upgradeChoiceTimer: 10,
   activeBuildUpgrades: [],
   activeResonances: [],
+  pendingTradeChoices: null,
+  isTradePanelVisible: false,
+  webgpuProfiler: null,
+  isStarMapVisible: false,
+  galacticStatus: {
+      conflictIndex: 0.5,
+      tradeActivity: 0.4,
+      factionInfluence: {
+        trade_union: 30,
+        scavengers: 20,
+        imperial_guard: 25,
+        void_cult: 25
+      },
+      intelligenceFeed: [
+        "[SYSTEM] 银河指挥系统已就绪，等待指挥官指令。",
+        "[INTEL] 边境星区监测到不明高能反应。"
+      ],
+      nodes: GalaxyGenerator.generate(50), // v2.8: 初始银河拓扑
+      events: [],
+      currentSectorId: 'solar-system-alpha'
+    },
+  globalModifiers: []
 };
 
 export const useGameStore = create<GameState & GameActions>()(
   persist(
     (set, get) => ({
-      ...defaultState,
+      ...initialState,
 
       setLoading: (loading) => set({ isLoading: loading }),
       setLoadingProgress: (progress) => set({ loadingProgress: progress }),
@@ -374,6 +446,27 @@ export const useGameStore = create<GameState & GameActions>()(
         set((state) => ({
           player: { ...state.player, score: state.player.score + score },
         })),
+
+      addCurrency: (amount) => set((state) => ({ currency: state.currency + amount })),
+
+      addItem: (id, count) =>
+        set((state) => {
+          const currentCount = state.inventory[id] || 0;
+          return {
+            inventory: { ...state.inventory, [id]: currentCount + count },
+          };
+        }),
+
+      removeItem: (id, count) =>
+        set((state) => {
+          const currentCount = state.inventory[id] || 0;
+          if (currentCount < count) return state;
+          return {
+            inventory: { ...state.inventory, [id]: currentCount - count },
+          };
+        }),
+
+      setActiveDialogue: (dialogue) => set({ activeDialogue: dialogue }),
 
       setPlayerLevel: (level) =>
         set((state) => ({
@@ -476,7 +569,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
       resetGame: () =>
         set({
-          ...defaultState,
+          ...initialState,
           // 分数与元进度（等级 = 经验）跨局保留；**两者必须一起保留**，
           // 只带 level 不带 experience 会让下一次 addExperience 把等级打回 1。
           player: {
@@ -600,6 +693,24 @@ export const useGameStore = create<GameState & GameActions>()(
       setUpgradeChoiceTimer: (timer) => set({ upgradeChoiceTimer: timer }),
       setActiveBuild: (upgrades, resonances) =>
         set({ activeBuildUpgrades: upgrades, activeResonances: resonances }),
+      setPendingTradeChoices: (choices) => set({ pendingTradeChoices: choices }),
+      setTradePanelVisible: (visible) => set({ isTradePanelVisible: visible }),
+      setWebGPUProfiler: (data) => set({ webgpuProfiler: data }),
+      setStarMapVisible: (visible) => set({ isStarMapVisible: visible }),
+      setGalacticNodes: (nodes) => set((state) => ({
+        galacticStatus: { ...state.galacticStatus, nodes }
+      })),
+      setGalacticEvents: (events) => set((state) => ({
+        galacticStatus: { ...state.galacticStatus, events }
+      })),
+      updateGalacticStatus: (status) =>
+        set((state) => ({
+          galacticStatus: { ...state.galacticStatus, ...status },
+        })),
+      addGlobalModifier: (modifier) =>
+        set((state) => ({
+          globalModifiers: [...state.globalModifiers.filter((m) => m.id !== modifier.id), modifier],
+        })),
     }),
     {
       name: STORAGE_KEY,
@@ -610,6 +721,8 @@ export const useGameStore = create<GameState & GameActions>()(
           level: state.player.level,
           experience: state.player.experience,
         },
+        currency: state.currency,
+        inventory: state.inventory,
       }),
       /**
        * 老存档（v1 只存了 score / level）没有 experience 字段。
@@ -638,3 +751,9 @@ export const useGameStore = create<GameState & GameActions>()(
     },
   ),
 );
+
+// 2026 Tech: 暴露 Store 到 window 以供引擎插件访问
+if (typeof window !== 'undefined') {
+  (window as any).useGameStore = useGameStore;
+}
+

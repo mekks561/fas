@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WaveManager } from './WaveManager';
+import { luaEngine } from '../LuaEngine';
 import type { WavePlan } from './WaveManager';
 
 /**
@@ -168,5 +169,69 @@ describe('WaveManager 计划模式（关卡显式波次表）', () => {
     wm.setLevelWaves(level01Plans);
     expect(wm.getWaveState().maxWaves).toBe(3);
     expect(wm.getNextWaveNumber()).not.toBeNull();
+  });
+});
+
+describe('WaveManager Lua 模式（生存模式/未注入计划）', () => {
+  let wm: WaveManager;
+
+  beforeEach(async () => {
+    wm = new WaveManager();
+    // 强制初始化，触发 registerModule
+    await wm.initialize();
+  });
+
+  it('在未注入计划时，getWaveState 尝试调用 Lua 引擎', () => {
+    vi.spyOn(luaEngine, 'getStubModule').mockReturnValue(undefined);
+    const spy = vi.spyOn(luaEngine, 'call').mockReturnValue({
+      waveNumber: 5,
+      maxWaves: 20,
+      currentState: 'active',
+      enemiesRemaining: 10,
+    });
+
+    const state = wm.getWaveState();
+    expect(spy).toHaveBeenCalledWith('getWaveState');
+    expect(state.waveNumber).toBe(5);
+    expect(state.enemiesRemaining).toBe(10);
+    spy.mockRestore();
+    vi.restoreAllMocks();
+  });
+
+  it('startWave 在未注入计划时调用 Lua 引擎的 startWave', () => {
+    vi.spyOn(luaEngine, 'getStubModule').mockReturnValue(undefined);
+    const spy = vi.spyOn(luaEngine, 'call').mockReturnValue({
+      success: true,
+      waveNumber: 2,
+      enemyCount: 8,
+      isBossWave: false,
+      isEliteWave: true,
+      enemyTypes: ['basic', 'elite'],
+    });
+
+    const result = wm.startWave(2);
+    expect(spy).toHaveBeenCalledWith('startWave', 2);
+    expect(result).toMatchObject({
+      success: true,
+      waveNumber: 2,
+      enemyCount: 8,
+      isEliteWave: true,
+    });
+    spy.mockRestore();
+    vi.restoreAllMocks();
+  });
+
+  it('registerModule 时 host 标记应为 false', async () => {
+    const spy = vi.spyOn(luaEngine, 'registerModule');
+    const newWm = new WaveManager();
+    await newWm.initialize();
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'wave_manager',
+        host: false,
+      }),
+    );
+    spy.mockRestore();
   });
 });

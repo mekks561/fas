@@ -1,6 +1,6 @@
 {
   "name": "fighter-game-playcanvas",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "3D Fighter Game using PlayCanvas",
   "type": "module",
   "main": "src/main.tsx",
@@ -80,11 +80,13 @@
     "@typescript-eslint/parser": "^8.62.1",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.10",
+    "@webgpu/types": "^0.1.74",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
+    "flatbuffers": "^25.9.23",
     "globals": "^17.7.0",
     "husky": "^9.1.7",
     "identity-obj-proxy": "^3.0.0",
@@ -98,6 +100,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
     "vite": "^8.1.0",
+    "vite-plugin-glsl": "^1.6.2",
+    "vite-plugin-wasm-pack": "^0.1.12",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.9"
   }

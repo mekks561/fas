@@ -49,18 +49,15 @@ export class PowerupSystemManager {
     await luaEngine.initialize();
 
     const powerupScript = await this.loadPowerupScript();
-    luaEngine.registerModule({ name: 'powerup_system', script: powerupScript, host: true });
+    luaEngine.registerModule({ name: 'powerup_system', script: powerupScript, host: false });
 
     this.initialized = true;
     console.log('[PowerupSystemManager] Initialized');
   }
 
   private async loadPowerupScript(): Promise<string> {
-    if (powerupSystemScript) {
-      return `
-${powerupSystemScript}
-
-local PowerupSystem = require("powerup_system_module")
+    return `
+local PowerupSystem = require("powerup/powerup-system")
 
 function getPowerupTypes()
   return PowerupSystem.getPowerupTypes().types
@@ -157,75 +154,7 @@ function resetPowerupSystem()
   local result = PowerupSystem.reset()
   return result.success
 end
-      `;
-    }
-
-    console.warn('[PowerupSystemManager] Failed to load lua file, using fallback');
-    return `
-PowerupSystem = {
-  activePowerups = {},
-  powerupConfigs = {
-    health = { name = "health", displayName = "Health", type = "instant", value = 25, duration = 0 },
-    shield = { name = "shield", displayName = "Shield", type = "duration", value = 50, duration = 10.0 },
-    speed = { name = "speed", displayName = "Speed", type = "duration", multiplier = 2.0, duration = 8.0 },
-    damage = { name = "damage", displayName = "Damage", type = "duration", multiplier = 2.0, duration = 8.0 }
-  }
-}
-
-function getPowerupTypes()
-  local types = {}
-  for key, config in pairs(PowerupSystem.powerupConfigs) do
-    types[#types + 1] = config
-  end
-  return types
-end
-
-function getPowerupConfig(powerupType)
-  return PowerupSystem.powerupConfigs[powerupType]
-end
-
-function applyPowerup(powerupType)
-  return { success = true, powerupType = powerupType, effects = {} }
-end
-
-function getActivePowerups()
-  return PowerupSystem.activePowerups
-end
-
-function updatePowerups(deltaTime)
-  return { expired = {}, activeCount = #PowerupSystem.activePowerups }
-end
-
-function removePowerup(powerupId)
-  return true
-end
-
-function removeAllPowerups()
-  PowerupSystem.activePowerups = {}
-  return true
-end
-
-function hasActivePowerup(powerupType)
-  return false
-end
-
-function getPowerupMultiplier(powerupType)
-  return { multiplier = 1.0, stacks = 0 }
-end
-
-function getPowerupRemainingDuration(powerupType)
-  return { remainingDuration = 0, totalDuration = 0, progress = 0 }
-end
-
-function generateRandomPowerup()
-  return { powerupType = "health" }
-end
-
-function resetPowerupSystem()
-  PowerupSystem.activePowerups = {}
-  return true
-end
-      `;
+`;
   }
 
   getPowerupTypes(): PowerupConfig[] {
@@ -264,23 +193,6 @@ end
     }
 
     try {
-      const stubModule = luaEngine.getStubModule('powerup_system_module');
-      if (stubModule) {
-        const applyPowerupFunc = (stubModule as Record<string, unknown>)['applyPowerup'] as (
-          ...args: unknown[]
-        ) => unknown;
-        if (applyPowerupFunc) {
-          return applyPowerupFunc(powerupType, {}) as
-            | {
-                success: boolean;
-                powerupType: string;
-                config?: PowerupConfig;
-                effects?: PowerupEffect[];
-                powerupId?: number;
-              }
-            | { success: boolean; error: string };
-        }
-      }
       const result = luaEngine.call<
         | {
             success: boolean;
@@ -302,23 +214,6 @@ end
     if (!this.initialized) return [];
 
     try {
-      const stubModule = luaEngine.getStubModule('powerup_system_module');
-      if (stubModule) {
-        const getActivePowerupsFunc = (stubModule as Record<string, unknown>)[
-          'getActivePowerups'
-        ] as (...args: unknown[]) => unknown;
-        if (getActivePowerupsFunc) {
-          const result = getActivePowerupsFunc();
-          if (result && typeof result === 'object') {
-            const resultObj = result as Record<string, unknown>;
-            return (
-              (resultObj['powerups'] as ActivePowerup[]) ||
-              (resultObj as unknown as ActivePowerup[]) ||
-              []
-            );
-          }
-        }
-      }
       return luaEngine.call<ActivePowerup[]>('getActivePowerups') || [];
     } catch {
       return [];
@@ -447,7 +342,7 @@ end
   async reloadScript(): Promise<void> {
     console.log('[PowerupSystemManager] Reloading powerup script...');
     const newScript = await this.loadPowerupScript();
-    luaEngine.registerModule({ name: 'powerup_system', script: newScript, host: true });
+    luaEngine.registerModule({ name: 'powerup_system', script: newScript, host: false });
     console.log('[PowerupSystemManager] Powerup script reloaded');
   }
 

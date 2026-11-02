@@ -36,6 +36,26 @@ export class AsteroidSystem {
   }
 
   /**
+   * 显式设置小行星列表（用于星区切换）。
+   */
+  public setAsteroids(asteroids: pc.Entity[]): void {
+    this.asteroids = asteroids;
+    this.cooldownPerAsteroid.clear();
+    console.log(`[AsteroidSystem] Set ${this.asteroids.length} asteroids`);
+  }
+
+  /**
+   * 移除特定小行星（例如采矿耗尽或被摧毁）。
+   */
+  public removeAsteroid(asteroid: pc.Entity): void {
+    const index = this.asteroids.indexOf(asteroid);
+    if (index !== -1) {
+      this.asteroids.splice(index, 1);
+      this.cooldownPerAsteroid.delete(asteroid);
+    }
+  }
+
+  /**
    * 每帧更新：检测玩家与小行星的碰撞
    * @param dt 帧间隔（秒）
    */

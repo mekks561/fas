@@ -97,27 +97,91 @@ SkillSystem.SkillState = {
 
 -- 预定义技能模板
 SkillSystem.SkillTemplates = {
-    -- === 主动技能 === --
+    -- === 核心战斗技能 (Fighter Game Real Skills) === --
     
-    -- 基础攻击技能
-    BASIC_ATTACK = {
-        id = "basic_attack",
-        name = "基础攻击",
-        description = "发射一枚普通弹丸",
+    -- 导弹打击
+    MISSILE_STRIKE = {
+        id = "missile_strike",
+        name = "导弹打击",
+        description = "向前方发射多枚导弹，造成范围伤害",
         type = SkillSystem.SkillType.ACTIVE,
         effects = {
-            { type = SkillSystem.EffectType.DAMAGE, value = 10, scaling = 1.0 }
+            { type = SkillSystem.EffectType.DAMAGE, value = 7.5, scaling = 0, radius = 12 }
         },
-        cost = { type = SkillSystem.ResourceType.ENERGY, value = 0 },
-        cooldown = 0.5,
-        range = 100,
-        duration = 0,
-        icon = "attack_basic",
+        cost = { type = SkillSystem.ResourceType.COOLDOWN, value = 15.0 },
+        cooldown = 15.0,
+        range = 50,
+        duration = 2.0,
+        icon = "skill_missile",
         level = 1,
-        maxLevel = 10,
-        unlockLevel = 1,
+        maxLevel = 3,
+        unlockLevel = 2,
         prerequisites = {}
     },
+    
+    -- 护盾脉冲
+    SHIELD_BURST = {
+        id = "shield_burst",
+        name = "护盾脉冲",
+        description = "瞬间恢复护盾并推开周围敌人",
+        type = SkillSystem.SkillType.ACTIVE,
+        effects = {
+            { type = SkillSystem.EffectType.SHIELD, value = 50, scaling = 25 },
+            { type = SkillSystem.EffectType.KNOCKBACK, value = 10, radius = 20 }
+        },
+        cost = { type = SkillSystem.ResourceType.COOLDOWN, value = 20.0 },
+        cooldown = 20.0,
+        range = 0,
+        duration = 1.0,
+        icon = "skill_shield",
+        level = 1,
+        maxLevel = 3,
+        unlockLevel = 3,
+        prerequisites = {}
+    },
+    
+    -- 时间减缓
+    TIME_SLOW = {
+        id = "time_slow",
+        name = "时间减缓",
+        description = "扭曲时空，使周围时间流速降低",
+        type = SkillSystem.SkillType.ACTIVE,
+        effects = {
+            { type = SkillSystem.EffectType.BUFF, stat = "timeScale", value = 0.3, scaling = 0.1 }
+        },
+        cost = { type = SkillSystem.ResourceType.COOLDOWN, value = 30.0 },
+        cooldown = 30.0,
+        range = 0,
+        duration = 5.0,
+        icon = "skill_time",
+        level = 1,
+        maxLevel = 3,
+        unlockLevel = 5,
+        prerequisites = {}
+    },
+    
+    -- 过载驱动
+    OVERDRIVE = {
+        id = "overdrive",
+        name = "过载驱动",
+        description = "提升武器射速和飞船动力",
+        type = SkillSystem.SkillType.ACTIVE,
+        effects = {
+            { type = SkillSystem.EffectType.BUFF, stat = "fireRate", value = 0.5, scaling = -0.05 },
+            { type = SkillSystem.EffectType.BUFF, stat = "speed", value = 1.5, scaling = 0.25 }
+        },
+        cost = { type = SkillSystem.ResourceType.COOLDOWN, value = 25.0 },
+        cooldown = 25.0,
+        range = 0,
+        duration = 8.0,
+        icon = "skill_overdrive",
+        level = 1,
+        maxLevel = 3,
+        unlockLevel = 8,
+        prerequisites = {}
+    },
+
+    -- === 预定义技能模板 (Legacy/RPG Templates) === --
     
     -- 强力射击
     POWER_SHOT = {

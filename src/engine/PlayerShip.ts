@@ -1,9 +1,13 @@
-import * as pc from 'playcanvas';
+﻿import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { ProceduralModelGenerator, ShipModelType } from './ProceduralModelGenerator';
 import { ModelAssetProvider } from './ModelAssetProvider';
 import type { PlayerModifiers } from './BuildSystem';
 import { PLAYER_BOUNDS } from './arena';
+import { PhysicsKernel } from './PhysicsKernel';
+import { MeshTearingSystem } from './MeshTearingSystem';
+import { WebGPUDamageSystem } from './WebGPUDamageSystem';
+import { useGameStore } from '../store/useGameStore';
 
 export interface PlayerConfig {
   engine: PlayCanvasGameEngine;
@@ -32,6 +36,7 @@ export interface PlayerControls {
   pitchDown: boolean; // 俯仰低头（方向键↓）
   rollLeft: boolean; // 滚转左（方向键←）
   rollRight: boolean; // 滚转右（方向键→）
+  interact: boolean; // 交互（F）
 }
 
 export class PlayerShip {
@@ -92,6 +97,7 @@ export class PlayerShip {
    * 最大速度、能量消耗速率、`canBoost` 的判定条件全部不变，只是倍率不再瞬跳。
    */
   private boostBlend: number = 0;
+  private latestControls: PlayerControls | null = null;
 
   // 引擎尾焰粒子系统
   private engineTrail: pc.Entity | null = null;
@@ -101,6 +107,9 @@ export class PlayerShip {
   private isInvulnerable: boolean = false;
   private invulnerabilityDuration: number = 1000;
   private invulnerabilityEndTime: number = 0;
+
+  private isOverdriveActive: boolean = false;
+  private overdriveSpeedMult: number = 1;
 
   /**
    * 本局累计受到的伤害（护盾 + 生命实际被扣掉的量）。
@@ -129,6 +138,10 @@ export class PlayerShip {
     thorns: null,
   };
   private prevMaxHealthBonus: number = 0;
+  private physicsKernel: PhysicsKernel;
+  private damageSystem: WebGPUDamageSystem | null = null;
+  private meshTearing: MeshTearingSystem | null = null;
+  private externalForces: pc.Vec3[] = [];
 
   constructor(config: PlayerConfig) {
     this.engine = config.engine;
@@ -138,6 +151,14 @@ export class PlayerShip {
     this.maxShield = this.shield;
     this.shipModelType = config.shipModel || 'fighter';
     if (config.tint) this.hullTint = config.tint;
+
+    this.physicsKernel = new PhysicsKernel(1000); // 飞船质量 1000kg
+
+    // 获取 WebGPU 损毁系统插件
+    this.damageSystem = this.engine.getPlugin('WebGPUDamageSystem');
+    if (this.damageSystem) {
+      this.meshTearing = new MeshTearingSystem(this.engine.getApp(), this.damageSystem);
+    }
 
     this.modelGenerator = new ProceduralModelGenerator(this.engine.getApp());
     this.entity = this.createPlayerShip(config.initialPosition || new pc.Vec3(0, 0, 0));
@@ -180,6 +201,15 @@ export class PlayerShip {
         tint: this.hullTint,
         scaleMultiplier: ModelAssetProvider.shipScale(),
         yaw: ModelAssetProvider.shipYaw(),
+        onReplaced: (instance) => {
+          // 叠上真 PBR 材质（金属），配合 faction tint 着色
+          this.engine.applyPbrMaterialWhenReady(instance, 'metal', this.hullTint);
+          
+          // 2026 Tech: 应用网格撕裂着色器
+          if (this.meshTearing) {
+            this.meshTearing.applyToEntity(player);
+          }
+        },
       });
 
     // 创建引擎尾焰粒子系统
@@ -230,92 +260,51 @@ export class PlayerShip {
   }
 
   /**
-   * 六自由度旋转控制：俯仰、偏航、滚转。
-   *
-   * 输入 → **目标角速度** → 一阶惯性 → `rotateLocal(角速度 × dt)`。
-   * 中间那一层惯性是手感的关键：它让键盘的开关式输入变成有爬升/滑行的模拟量，
-   * 稳态角速度与加惯性之前完全一致（见 `angularSmoothing` 的说明）。
+   * 2026 Tech: 获取控制扭矩。
+   * 将玩家按键输入转化为物理扭矩。
    */
-  private updateRotation(controls: PlayerControls, dt: number): void {
+  private getControlTorques(controls: PlayerControls): pc.Vec3 {
     const yawInput = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
     const pitchInput = (controls.pitchUp ? 1 : 0) - (controls.pitchDown ? 1 : 0);
     const rollInput = (controls.rollRight ? 1 : 0) - (controls.rollLeft ? 1 : 0);
 
-    const effRot = this.rotationSpeed * this.buildMods.rotationSpeedMultiplier;
+    const effRot = this.rotationSpeed * this.buildMods.rotationSpeedMultiplier * 1000;
+    const effPitch = this.pitchSpeed * 1000 * this.buildMods.rotationSpeedMultiplier;
+    const effRoll = this.rollSpeed * 1000;
 
-    // 目标角速度（度/秒）。
-    // 俯仰这里**只乘一次**倍率：旧代码写的是 `pitchSpeed * effRot`，而 effRot 里已经含
-    // 了 rotationSpeed(3)，等于俯仰被额外放大 3 倍 —— 实际 1080°/秒，是偏航(540°/秒)的
-    // 两倍，与字段注释「俯仰角速度 2.0 < 偏航 3」的意图正好相反，按一下方向键机体就翻过去了。
-    // 现在三个轴同一口径：基准角速度 × rotationSpeedMultiplier。
-    let targetYaw = yawInput * effRot * 180;
-    let targetPitch = pitchInput * this.pitchSpeed * 180 * this.buildMods.rotationSpeedMultiplier;
-    let targetRoll = rollInput * this.rollSpeed * 180;
+    let torqueYaw = yawInput * effRot;
+    let torquePitch = pitchInput * effPitch;
+    let torqueRoll = rollInput * effRoll;
 
-    // 软俯仰限制：检测 forward.y，超过 ±pitchSoftLimit 时不再向同侧加速。
-    // 注意这里改的是**目标值**而不是角速度本身 —— 实际角速度由惯性自然衰减，
-    // 所以限位不再是"撞到一堵硬墙"，而是先减速再贴住。
-    const fwd = this.entity.forward;
-    if (pitchInput > 0 && fwd.y > this.pitchSoftLimit) targetPitch = 0;
-    if (pitchInput < 0 && fwd.y < -this.pitchSoftLimit) targetPitch = 0;
+    // 自动倾斜扭矩
+    torqueRoll += yawInput * this.autoBankAngle * 10;
 
-    // 自动倾斜：根据偏航输入产生视觉滚转（banking turn）
-    targetRoll += yawInput * this.autoBankAngle;
-
-    // 自平衡：无偏航/滚转输入且速度 > 1 时，滚转回水平
+    // 自平衡扭矩
     if (yawInput === 0 && rollInput === 0 && this.speed > 1) {
       const right = new pc.Vec3(1, 0, 0);
       this.entity.getRotation().transformVector(right);
-      const rollSin = right.y; // 测量当前滚转程度
-      targetRoll += -rollSin * this.selfLevelRate * 180;
+      const rollSin = right.y;
+      torqueRoll += -rollSin * this.selfLevelRate * 500;
     }
 
-    // 一阶惯性逼近：有输入走 rise、松手走 fall。
-    // 用指数形式而不是 `vel += delta * k`，是为了对帧率抖动鲁棒 ——
-    // 掉帧时后者会阶跃甚至过冲，前者永远落在 [0,1) 的插值里。
-    const step = (target: number, current: number, rising: boolean, h: number): number => {
-      const rate = rising ? this.angularSmoothing.rise : this.angularSmoothing.fall;
-      return current + (target - current) * (1 - Math.exp(-rate * h));
-    };
+    return new pc.Vec3(torquePitch, torqueYaw, torqueRoll);
+  }
 
-    /*
-     * **固定子步进**：把本帧切成不超过 1/60 秒的小片，逐片逼近再逐片旋转。
-     *
-     * 不做这一步的话，惯性是**帧率相关**的：dt 一大（掉帧、低端机、后台标签页回来），
-     * `1 - exp(-24 × 0.1) ≈ 0.91`，一帧就逼近到位 —— 于是"顺滑"恰好在你最需要它的
-     * 机器上先消失，又变回开关式硬转。切子步之后手感与帧率解耦：60fps 和 10fps 下
-     * 都是"约 90ms 爬升、约 230ms 滑行"这同一条曲线。
-     *
-     * 单帧总推进量钳到 100ms（最多 6 个子步）：切标签页回来时 dt 可能是好几秒，
-     * 不钳会让这一帧空转几十次、并且把机体一次甩过大角度。
-     */
-    const MAX_SUB_STEP = 1 / 60;
-    let remaining = Math.min(dt, 0.1);
-    while (remaining > 1e-6) {
-      const h = Math.min(remaining, MAX_SUB_STEP);
-      remaining -= h;
+  /**
+   * 2026 Tech: 应用物理驱动的旋转。
+   */
+  private applyRotation(angVel: pc.Vec3, dt: number): void {
+    // 将角速度应用到实体
+    this.entity.rotateLocal(
+      angVel.x * dt,
+      angVel.y * dt,
+      angVel.z * dt
+    );
 
-      this.angularVelocity.yaw = step(targetYaw, this.angularVelocity.yaw, yawInput !== 0, h);
-      this.angularVelocity.pitch = step(
-        targetPitch,
-        this.angularVelocity.pitch,
-        pitchInput !== 0,
-        h,
-      );
-      // 滚转的"输入"来源有两个：滚转键与偏航自动倾斜，任一存在都算按键中。
-      this.angularVelocity.roll = step(
-        targetRoll,
-        this.angularVelocity.roll,
-        rollInput !== 0 || yawInput !== 0,
-        h,
-      );
-
-      this.entity.rotateLocal(
-        this.angularVelocity.pitch * h,
-        this.angularVelocity.yaw * h,
-        this.angularVelocity.roll * h,
-      );
-    }
+    // 同步视觉状态 (用于尾焰等)
+    this.angularVelocity.pitch = angVel.x;
+    this.angularVelocity.yaw = angVel.y;
+    this.angularVelocity.roll = angVel.z;
   }
 
   /**
@@ -326,20 +315,42 @@ export class PlayerShip {
     if (!this.engineTrail?.particlesystem) return;
 
     const ps = this.engineTrail.particlesystem;
-    const speedRatio = Math.min(1, Math.abs(finalSpeed) / (this.maxSpeed * this.boostMultiplier));
+    const speedRatio = Math.min(
+      1,
+      Math.abs(finalSpeed) / (this.maxSpeed * this.boostMultiplier * this.overdriveSpeedMult),
+    );
 
     // 速度越快，粒子生命越长（尾焰更持久）、生成率越高（更密集）
     ps.lifetime = 0.3 + speedRatio * 0.4;
     ps.rate = 30 + speedRatio * 60;
 
-    // boost 时尾焰更猛烈（粒子数量翻倍，强度提升）
-    if (isBoosting) {
-      ps.numParticles = 120;
-      ps.rate = 100;
-      ps.intensity = 1.5;
+    // Overdrive 状态下：紫色尾焰，粒子数量和生成率进一步提升
+    if (this.isOverdriveActive) {
+      ps.colorGraph = new pc.CurveSet([
+        [0.8, 0.2, 1.0], // 起始紫色
+        [0.4, 0.1, 0.6], // 过渡深紫
+        [0, 0, 0], // 渐隐透明
+      ]);
+      ps.numParticles = isBoosting ? 200 : 120;
+      ps.rate = isBoosting ? 150 : 80;
+      ps.intensity = isBoosting ? 2.0 : 1.5;
     } else {
-      ps.numParticles = 60;
-      ps.intensity = 1.0;
+      // 恢复蓝色尾焰
+      ps.colorGraph = new pc.CurveSet([
+        [0.6, 0.8, 1.0], // 起始蓝白
+        [0.3, 0.5, 1.0], // 过渡蓝色
+        [0, 0, 0], // 渐隐透明
+      ]);
+
+      // boost 时尾焰更猛烈（粒子数量翻倍，强度提升）
+      if (isBoosting) {
+        ps.numParticles = 120;
+        ps.rate = 100;
+        ps.intensity = 1.5;
+      } else {
+        ps.numParticles = 60;
+        ps.intensity = 1.0;
+      }
     }
 
     ps.reset();
@@ -352,7 +363,29 @@ export class PlayerShip {
     return this.isBoosting;
   }
 
+  /**
+   * 应用外部力场（引力井、EMP 冲击等）。
+   * 2026 Tech: 对接到 PhysicsKernel 实现真实的加速度偏移。
+   */
+  public applyExternalForce(force: pc.Vec3): void {
+    this.externalForces.push(force.clone());
+  }
+
   public update(dt: number, controls: PlayerControls): void {
+    this.latestControls = controls;
+    const sectorManager = (this.engine.getApp() as any)._sectorManager;
+    const inNebula = sectorManager?.isInNebula() || false;
+    
+    // 2026 Tech: 星云环境影响 (Tactical Volumetric Nebula)
+    // 1. 推进器过热：能量消耗增加
+    // 2. 制动失效：阻力减小，惯性增加
+    const nebulaHeatMult = inNebula ? 2.5 : 1.0; 
+    const nebulaDecelMult = inNebula ? 0.3 : 1.0; 
+    const nebulaMaxSpeedMult = inNebula ? 0.8 : 1.0; // 阻力导致最高速度下降
+
+    if (import.meta.env.DEV && (controls.up || controls.down || controls.left || controls.right)) {
+      console.log('[PlayerShip] Movement input detected:', controls);
+    }
     const now = Date.now();
 
     if (this.isInvulnerable && now > this.invulnerabilityEndTime) {
@@ -364,19 +397,28 @@ export class PlayerShip {
       0,
       this.shieldRechargeDelay + this.buildMods.shieldRechargeDelayBonusMs,
     );
+    
+    // 2026 Tech: 应用全局增益 (护盾恢复)
+    const globalModifiers = useGameStore.getState().globalModifiers || [];
+    const shieldRegenMod = globalModifiers.find(m => m.type === 'shield_regen')?.value || 1.0;
+
     const effectiveShieldRate =
-      this.shieldRechargeRate * this.buildMods.shieldRechargeRateMultiplier;
+      this.shieldRechargeRate * this.buildMods.shieldRechargeRateMultiplier * shieldRegenMod;
     if (this.shield < this.maxShield && now - this.lastDamageTime > effectiveShieldDelay) {
       this.shield = Math.min(this.maxShield, this.shield + effectiveShieldRate * dt);
     }
 
-    // 应用 Build 修饰符：速度/加速度
-    const effectiveMaxSpeed = this.maxSpeed * this.buildMods.maxSpeedMultiplier;
-    const effectiveDecel = this.deceleration * this.buildMods.decelerationMultiplier;
+    // 应用 Build 修饰符与 Overdrive：速度/加速度
+    const speedMod = globalModifiers.find(m => m.type === 'speed')?.value || 1.0;
+    const overdriveMult = this.isOverdriveActive ? this.overdriveSpeedMult : 1;
+    const effectiveMaxSpeed = this.maxSpeed * this.buildMods.maxSpeedMultiplier * overdriveMult * nebulaMaxSpeedMult * speedMod;
+    const effectiveAccel = this.acceleration * overdriveMult;
+    const effectiveDecel = this.deceleration * this.buildMods.decelerationMultiplier * nebulaDecelMult;
+
     if (controls.up) {
-      this.speed = Math.min(this.speed + this.acceleration * dt, effectiveMaxSpeed);
+      this.speed = Math.min(this.speed + effectiveAccel * dt, effectiveMaxSpeed);
     } else if (controls.down) {
-      this.speed = Math.max(this.speed - this.acceleration * dt, -effectiveMaxSpeed * 0.3);
+      this.speed = Math.max(this.speed - effectiveAccel * dt, -effectiveMaxSpeed * 0.3);
     } else {
       if (this.speed > 0) {
         this.speed = Math.max(this.speed - effectiveDecel * dt, 0);
@@ -388,10 +430,17 @@ export class PlayerShip {
     const canBoost = controls.boost && this.speed > 0 && this.boostEnergy > 0;
 
     if (canBoost) {
-      this.boostEnergy = Math.max(0, this.boostEnergy - this.boostEnergyConsumptionRate * dt);
+      this.boostEnergy = Math.max(0, this.boostEnergy - this.boostEnergyConsumptionRate * dt * nebulaHeatMult);
     } else if (!controls.boost && this.boostEnergy < this.maxBoostEnergy) {
+      // 2026 Tech: 应用全局增益 (如戴森云提供的能量恢复加成)
+      const globalModifiers = useGameStore.getState().globalModifiers || [];
+      const energyRegenMod = globalModifiers.find(m => m.type === 'energy_regen')?.value || 1.0;
+
       const effectiveBoostRecharge =
-        this.boostEnergyRechargeRate * this.buildMods.boostEnergyRechargeMultiplier;
+        this.boostEnergyRechargeRate *
+        this.buildMods.boostEnergyRechargeMultiplier *
+        overdriveMult *
+        energyRegenMod;
       this.boostEnergy = Math.min(
         this.maxBoostEnergy,
         this.boostEnergy + effectiveBoostRecharge * dt,
@@ -408,14 +457,56 @@ export class PlayerShip {
     // 更新 boost 状态（供 GameScene 查询触发摄像机 FOV/抖动）
     this.isBoosting = canBoost;
 
-    // 六自由度旋转：俯仰、偏航、滚转（使用 rotateLocal 叠加角速度）
-    this.updateRotation(controls, dt);
+    // 2026 Tech: 物理内核处理外部力场与质心扭矩
+    if (this.damageSystem) {
+      const com = this.damageSystem.calculateCenterOfMass();
+      this.physicsKernel.setCenterOfMass(com);
+      
+      // 2026 Tech: 几何形变视觉反馈 (Geometric Distortion)
+      this.updateDamageVisuals();
+      
+      // 2026 Tech: 更新网格撕裂着色器参数
+      if (this.meshTearing) {
+        this.meshTearing.update(this.entity);
+      }
+    }
 
+    // 1. 获取控制扭矩 (由用户输入产生)
+    const controlTorques = this.getControlTorques(controls);
+    
+    // 2. 获取推进力 (主引擎推力)
+    const physicsForces = this.externalForces.map(f => ({ 
+      force: f, 
+      position: new pc.Vec3(0, 0, 0) // 外部力场默认作用于中心
+    }));
+    
     if (this.speed !== 0) {
+      // 推进力作用于飞船尾部。如果 CoM 偏移，这会产生真实的偏转力矩。
+      const thrustForce = this.entity.forward.clone().scale(this.acceleration * this.physicsKernel.getMass() * (this.speed > 0 ? 1 : -0.5));
+      physicsForces.push({
+        force: thrustForce,
+        position: new pc.Vec3(0, 0, 1.2) // Kenney 飞船尾部位置
+      });
+    }
+
+    // 3. 步进物理内核
+    this.physicsKernel.step(dt, physicsForces, [controlTorques]);
+    this.externalForces = []; // 清空累加力
+    
+    const physicsVel = this.physicsKernel.getVelocity();
+    const physicsAngVel = this.physicsKernel.getAngularVelocity();
+
+    // 4. 应用物理旋转与控制旋转
+    this.applyRotation(physicsAngVel, dt);
+
+    if (this.speed !== 0 || physicsVel.length() > 0.01) {
       const forward = this.entity.forward.clone().scale(finalSpeed * dt);
       // Engine 2 的 getPosition() 返回 Readonly<Vec3>，clone() 出一份可写副本再就地钳位
       const currentPos = this.entity.getPosition().clone();
+      
+      // 叠加基础移动与物理偏移
       currentPos.add(forward);
+      currentPos.add(physicsVel.clone().scale(dt));
 
       // 各轴独立盒子钳制。边界值唯一真源是 arena.ts 的 PLAYER_BOUNDS ——
       // 改空间大小时必须同步 ENEMY_BOUNDS / ENEMY_SPAWN / ASTEROID_BELT / BACKDROP，
@@ -431,10 +522,9 @@ export class PlayerShip {
     this.updateEngineTrail(finalSpeed, canBoost);
 
     // 暴露玩家调试信息到全局变量。
-    // `angularVelocity` 是操手感的**可测真值**：验证脚本靠它断言旋转是渐变的
-    //（按下后首帧角速度必须显著小于稳态），否则"加了惯性"只是一句注释。
     const pos = this.entity.getPosition();
     const rot = this.entity.getEulerAngles();
+
     (window as any).__playerDebug = {
       position: { x: pos.x, y: pos.y, z: pos.z },
       rotation: { x: rot.x, y: rot.y, z: rot.z },
@@ -475,6 +565,17 @@ export class PlayerShip {
 
     if (remainingDamage > 0) {
       this.health -= remainingDamage;
+    }
+
+    // 2026 WebGPU: 触发物理损毁计算
+    if (this.damageSystem) {
+      // 模拟局部碰撞点：在飞船中心周围随机选择一个点
+      const localHitPos = new pc.Vec3(
+        (Math.random() - 0.5) * 4,
+        (Math.random() - 0.5) * 2,
+        (Math.random() - 0.5) * 4
+      );
+      this.damageSystem.applyDamage(localHitPos, new pc.Vec3(0, 0, 1).scale(amount));
     }
 
     this.isInvulnerable = true;
@@ -582,6 +683,10 @@ export class PlayerShip {
     return this.isInvulnerable;
   }
 
+  public getLatestControls(): PlayerControls | null {
+    return this.latestControls;
+  }
+
   public setMaxHealth(maxHealth: number): void {
     this.maxHealth = maxHealth;
     this.health = Math.min(this.health, maxHealth);
@@ -640,6 +745,11 @@ export class PlayerShip {
     this.invulnerabilityEndTime = Date.now() + durationMs;
   }
 
+  public setOverdrive(active: boolean, speedMult: number): void {
+    this.isOverdriveActive = active;
+    this.overdriveSpeedMult = speedMult;
+  }
+
   public setSpeedMultiplier(multiplier: number): void {
     this.maxSpeed = 15 * multiplier;
   }
@@ -650,5 +760,68 @@ export class PlayerShip {
 
   public destroy(): void {
     this.entity.destroy();
+  }
+
+  /**
+   * 2026 Tech: 几何形变与损毁视觉反馈。
+   * 基于 WebGPU 损毁数据动态调整模型状态。
+   */
+  private updateDamageVisuals(): void {
+    if (!this.damageSystem || !this.entity.model) return;
+    
+    const healthRatio = this.health / this.maxHealth;
+    if (healthRatio > 0.95) return;
+
+    // 1. 整体模型抖动 (模拟结构不稳定)
+    const jitter = (1.0 - healthRatio) * 0.05;
+    const modelRoot = this.entity.children[0]; // 假设第一个子节点是模型根
+    if (modelRoot) {
+      modelRoot.setLocalPosition(
+        (Math.random() - 0.5) * jitter,
+        (Math.random() - 0.5) * jitter,
+        (Math.random() - 0.5) * jitter
+      );
+    }
+
+    // 2. 局部发红 (模拟热损伤/漏电)
+    this.entity.model.meshInstances?.forEach(mi => {
+      if (mi.material instanceof pc.StandardMaterial) {
+        const mat = mi.material;
+        const damageColor = new pc.Color(1, 0.2, 0);
+        const intensity = (1.0 - healthRatio) * 0.5;
+        
+        mat.emissive.lerp(mat.emissive, damageColor, 0.1);
+        mat.emissiveIntensity = 1.0 + intensity * 5;
+        mat.update();
+      }
+    });
+
+    // 3. 2026 Tech: 关键组件失效烟雾
+    if (!this.damageSystem.isComponentFunctional('ENGINE')) {
+      this.createDamageSmoke('engine_smoke', new pc.Vec3(0, 0, 1.2));
+    }
+    if (!this.damageSystem.isComponentFunctional('WEAPON_L')) {
+      this.createDamageSmoke('weapon_l_smoke', new pc.Vec3(-1, 0, -1));
+    }
+    if (!this.damageSystem.isComponentFunctional('WEAPON_R')) {
+      this.createDamageSmoke('weapon_r_smoke', new pc.Vec3(1, 0, -1));
+    }
+  }
+
+  private createDamageSmoke(name: string, localPos: pc.Vec3): void {
+    if (this.entity.findByName(name)) return;
+    
+    const smoke = new pc.Entity(name);
+    smoke.setLocalPosition(localPos);
+    this.engine.addParticleSystem(smoke, {
+      numParticles: 30,
+      lifetime: 1.0,
+      rate: 10,
+      initialVelocity: 2,
+      colorGraph: new pc.CurveSet([[0.2, 0.2, 0.2], [0.1, 0.1, 0.1], [0, 0, 0]]),
+      scaleGraph: new pc.Curve([0.1, 0.5]),
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.engineFlame
+    });
+    this.entity.addChild(smoke);
   }
 }

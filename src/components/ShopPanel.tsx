@@ -126,33 +126,33 @@ const typeLabels: Record<string, string> = {
 };
 
 const typeIcons: Record<string, string> = {
-  ship: '🚀',
-  weapon: '⚡',
-  consumable: '💊',
-  cosmetic: '🎨',
-  upgrade: '🔧',
+  ship: 'icon-character',
+  weapon: 'icon-gun',
+  consumable: 'icon-heart',
+  cosmetic: 'icon-achieve',
+  upgrade: 'icon-speed',
 };
 
 const attrLabels: Record<string, string> = {
-  health: '生命',
-  shield: '护盾',
-  speed: '速度',
-  damage: '伤害',
-  weaponSlots: '武器槽',
-  fireRate: '射速',
-  range: '射程',
-  accuracy: '精准',
-  energyCost: '能耗',
-  capacity: '容量',
-  duration: '时长',
-  healAmount: '回复量',
-  shieldAmount: '护盾量',
+  health: '生命上限',
+  shield: '基础护盾',
+  speed: '基础速度',
+  damage: '基础伤害',
+  weaponSlots: '武器槽位',
+  fireRate: '每秒射速',
+  range: '攻击射程',
+  accuracy: '命中精度',
+  energyCost: '能量消耗',
+  capacity: '储能容量',
+  duration: '持续时间',
+  healAmount: '回复值',
+  shieldAmount: '护盾值',
   energyAmount: '能量值',
-  count: '数量',
-  damageBonus: '伤害',
-  shieldBonus: '护盾',
-  speedBonus: '速度',
-  energyBonus: '能量',
+  count: '弹药数量',
+  damageBonus: '额外伤害',
+  shieldBonus: '护盾倍率',
+  speedBonus: '速度倍率',
+  energyBonus: '加速能量',
 };
 
 /**
@@ -161,12 +161,16 @@ const attrLabels: Record<string, string> = {
  * 百分比类在这里补 `%`，绝对值类不加后缀。
  */
 const attrUnits: Record<string, string> = {
+  health: '',
+  shield: '',
   speed: '%',
   damage: '%',
-  damageBonus: '',
-  shieldBonus: '',
-  speedBonus: '',
-  energyBonus: '',
+  weaponSlots: '',
+  fireRate: '/秒',
+  damageBonus: '%',
+  shieldBonus: '%',
+  speedBonus: '%',
+  energyBonus: '%',
 };
 
 /** `*Bonus` 字段在 JSON 里是分数（0.1 = +10%），展示时换算成百分数。 */
@@ -177,8 +181,17 @@ const formatAttrValue = (key: string, raw: unknown): string => {
     return typeof raw === 'string' ? raw : String(raw);
   }
   if (ATTR_FRACTION_KEYS.has(key)) return `${Math.round(raw * 100)}%`;
-  if (key === 'fireRate') return `${raw}/秒`;
+  // 特殊处理百分比属性（speed/damage 是以 100 为基准的增量，如 15 表示 +15%）
+  if (key === 'speed' || key === 'damage') return `${raw}%`;
   return `${raw}${attrUnits[key] ?? ''}`;
+};
+
+const typeFallbackIcons: Record<string, string> = {
+  ship: 'icon-character',
+  weapon: 'icon-gun',
+  consumable: 'icon-heart',
+  cosmetic: 'icon-achieve',
+  upgrade: 'icon-speed',
 };
 
 export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
@@ -299,7 +312,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
         </button>
         <h1 className="shop-title">商店</h1>
         <div className="shop-credits">
-          <span className="shop-credits-icon">💰</span>
+          <AssetIcon name="icon-energy" fallback="💰" size={20} className="shop-credits-icon" />
           <span className="shop-credits-value">{credits.toLocaleString()}</span>
         </div>
       </div>
@@ -344,7 +357,13 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
             className={`shop-filter-btn ${filter === key ? 'active' : ''}`}
             onClick={() => setFilter(key)}
           >
-            {typeIcons[key]} {label}
+            <AssetIcon
+              name={typeIcons[key]}
+              fallback={typeFallbackIcons[key] || 'icon-achieve'}
+              size={18}
+              className="shop-filter-icon"
+            />
+            {label}
           </button>
         ))}
       </div>
@@ -364,61 +383,62 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
               className={`shop-card ${isPurchased ? 'purchased' : ''}`}
               style={{ borderColor: rarity.color }}
             >
-              <div className="shop-card-icon" style={{ color: rarity.color }}>
-                <AssetIcon
-                  name={item.icon}
-                  fallback={typeIcons[item.type] || '📦'}
-                  size={34}
-                  title={item.name}
-                />
-              </div>
-              <div className="shop-card-info">
-                <div className="shop-card-header">
-                  <span className="shop-card-name">{item.name}</span>
-                  <span className="shop-card-rarity" style={{ backgroundColor: rarity.color }}>
-                    {rarity.label}
-                  </span>
+              <div className="shop-card-main">
+                <div className="shop-card-icon" style={{ color: rarity.color }}>
+                  <AssetIcon
+                    name={item.icon}
+                    fallback={typeFallbackIcons[item.type] || 'icon-achieve'}
+                    size={34}
+                    title={item.name}
+                  />
                 </div>
-                <p className="shop-card-desc">{item.description}</p>
-                {item.attributes && (
-                  <div className="shop-card-attrs">
-                    {Object.entries(item.attributes)
-                      .filter(([, val]) => typeof val === 'number' || typeof val === 'string')
-                      .map(([key, val]) => (
-                        <span key={key} className="shop-attr">
-                          {attrLabels[key] || key}: +{formatAttrValue(key, val)}
-                        </span>
-                      ))}
+                <div className="shop-card-info">
+                  <div className="shop-card-header">
+                    <span className="shop-card-name">{item.name}</span>
+                    <span className="shop-card-rarity" style={{ backgroundColor: rarity.color }}>
+                      {rarity.label}
+                    </span>
                   </div>
-                )}
-                {/*
-                  门槛文案由 evaluateItemGate 给出，且与 handlePurchase 用的是同一个函数。
-                  此前这里渲染的是 `item.level`，而购买逻辑从不校验它 —— 界面写「要求等级: 20」，
-                  等级 1 的玩家点下去照样扣款发货。
-                */}
-                {gate.reason && (
-                  <div className="shop-card-level" data-testid={`shop-req-${item.id}`}>
-                    {gate.reason}
-                  </div>
-                )}
+                  <p className="shop-card-desc">{item.description}</p>
+                  {item.attributes && (
+                    <div className="shop-card-attrs">
+                      {Object.entries(item.attributes)
+                        .filter(([, val]) => typeof val === 'number' || typeof val === 'string')
+                        .map(([key, val]) => (
+                          <span key={key} className="shop-attr">
+                            {attrLabels[key] || key}: +{formatAttrValue(key, val)}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="shop-card-action">
-                {isPurchased ? (
-                  <span className="shop-purchased-label">已购买 ✓</span>
-                ) : gate.locked ? (
-                  <span className="shop-purchased-label">
-                    {NOT_PURCHASABLE_TYPES.has(item.type) ? '即将开放' : '🔒 未解锁'}
-                  </span>
-                ) : (
-                  <button
-                    className={`shop-buy-btn ${!canAfford ? 'disabled' : ''}`}
-                    onClick={() => handlePurchase(item)}
-                    disabled={!canAfford}
-                  >
-                    <span className="shop-price">{item.price.toLocaleString()}</span>
-                    <span className="shop-currency">信用</span>
-                  </button>
-                )}
+              <div className="shop-card-footer">
+                <div className="shop-card-level">
+                  {gate.reason && (
+                    <span data-testid={`shop-req-${item.id}`}>
+                      {gate.reason}
+                    </span>
+                  )}
+                </div>
+                <div className="shop-card-action">
+                  {isPurchased ? (
+                    <span className="shop-purchased-label">已购买 ✓</span>
+                  ) : gate.locked ? (
+                    <span className="shop-purchased-label">
+                      {NOT_PURCHASABLE_TYPES.has(item.type) ? '即将开放' : '🔒 未解锁'}
+                    </span>
+                  ) : (
+                    <button
+                      className={`shop-buy-btn ${!canAfford ? 'disabled' : ''}`}
+                      onClick={() => handlePurchase(item)}
+                      disabled={!canAfford}
+                    >
+                      <span className="shop-price">{item.price.toLocaleString()}</span>
+                      <span className="shop-currency">信用点</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );

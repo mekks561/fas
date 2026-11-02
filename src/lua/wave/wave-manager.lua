@@ -58,10 +58,13 @@ local difficultyMultipliers = {
 }
 
 local enemyTemplates = {
-  basic = { type = "basic", health = 50, damage = 10, speed = 2.0, score = 100 },
-  fast = { type = "fast", health = 30, damage = 8, speed = 4.0, score = 150 },
+  basic = { type = "fighter", health = 50, damage = 10, speed = 2.0, score = 100 },
+  fast = { type = "scout", health = 30, damage = 8, speed = 4.0, score = 150 },
   tank = { type = "tank", health = 100, damage = 15, speed = 1.0, score = 250 },
-  shooter = { type = "shooter", health = 40, damage = 12, speed = 1.5, score = 200 },
+  shooter = { type = "bomber", health = 40, damage = 12, speed = 1.5, score = 200 },
+  assault = { type = "assault", health = 60, damage = 8, speed = 5.0, score = 180 },
+  sniper = { type = "sniper", health = 40, damage = 30, speed = 3.0, score = 300 },
+  swarm = { type = "swarm", health = 20, damage = 4, speed = 7.0, score = 50 },
   elite = { type = "elite", health = 200, damage = 25, speed = 2.5, score = 500 },
   boss = { type = "boss", health = 1000, damage = 30, speed = 1.5, score = 2000 }
 }
@@ -164,12 +167,15 @@ function WaveManager.generateEnemyTypes(waveNumber)
     
     if waveNumber >= 2 then
       availableTypes[#availableTypes + 1] = "fast"
+      availableTypes[#availableTypes + 1] = "swarm"
     end
     if waveNumber >= 3 then
       availableTypes[#availableTypes + 1] = "shooter"
+      availableTypes[#availableTypes + 1] = "assault"
     end
     if waveNumber >= 4 then
       availableTypes[#availableTypes + 1] = "tank"
+      availableTypes[#availableTypes + 1] = "sniper"
     end
     if isElite then
       availableTypes[#availableTypes + 1] = "elite"

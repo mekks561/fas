@@ -14,7 +14,6 @@ export interface Plugin {
   destroy?(): void | Promise<void>;
   onUpdate?(dt: number): void;
   onFixedUpdate?(dt: number): void;
-  [key: string]: unknown;
 }
 
 export interface PluginConfig {
@@ -89,7 +88,12 @@ export class PluginSystem {
     }
 
     try {
-      await plugin.init(this.context);
+      // 2026 Tech: 插件初始化增加超时保护 (5s)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Plugin "${name}" init timeout`)), 5000),
+      );
+
+      await Promise.race([plugin.init(this.context), timeoutPromise]);
       this.loadedPlugins.add(name);
 
       if (plugin.onUpdate) {
@@ -141,10 +145,17 @@ export class PluginSystem {
     }
   }
 
+  /**
+   * 2026 Tech: 并行加载所有已注册插件。
+   */
   public async loadAll(): Promise<void> {
-    for (const [name] of this.plugins) {
-      await this.load(name);
-    }
+    const names = Array.from(this.plugins.keys());
+    console.log(`[PluginSystem] Starting parallel load of ${names.length} plugins: ${names.join(', ')}`);
+    
+    const loadPromises = names.map(name => this.load(name));
+    await Promise.all(loadPromises);
+    
+    console.log(`[PluginSystem] All plugins load attempt finished. Success: ${this.loadedPlugins.size}/${names.length}`);
   }
 
   public async unloadAll(): Promise<void> {

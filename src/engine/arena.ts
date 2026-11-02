@@ -104,6 +104,15 @@ export const BACKDROP = {
     },
     { name: 'satellite', position: [90, 24, -60], yaw: 200, scale: 1, material: 'metal' },
   ],
+  /** 太空残骸：随机分布的 Kenney 资源 */
+  debris: [
+    { name: 'cog', path: '/assets/kenney/3d/factory/cog-a.glb', count: 15, scale: [0.5, 1.5] },
+    { name: 'pipe', path: '/assets/kenney/3d/factory/pipe-large-curve.glb', count: 8, scale: [1, 2] },
+    { name: 'box', path: '/assets/kenney/3d/factory/box-large.glb', count: 12, scale: [0.8, 1.2] },
+    { name: 'barrel', path: '/assets/kenney/3d/platformer/barrel.glb', count: 10, scale: [0.6, 1] },
+    { name: 'obelisk', path: '/assets/kenney/3d/nature/statue_obelisk.glb', count: 5, scale: [2, 4] },
+    { name: 'ring', path: '/assets/kenney/3d/nature/statue_ring.glb', count: 5, scale: [3, 5] },
+  ],
 } as const;
 
 /** 盒子对角半径（各轴半边长 → 距原点距离） */

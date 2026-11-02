@@ -34,6 +34,24 @@ const shareService = new ShareService();
  * 并且在收到解锁事件时刷新。面板自己不解释任何条件 —— 每条成就的
  * `progress.current / requirement` 由系统算好，面板只负责画。
  */
+const categoryIcons: Record<string, string> = {
+  combat: 'icon-crosshair',
+  survival: 'icon-clock',
+  collection: 'icon-energy',
+  skill: 'icon-star',
+  mission: 'icon-achieve',
+  special: 'icon-bomb',
+};
+
+const categoryFallbackEmojis: Record<string, string> = {
+  combat: '⚔️',
+  survival: '⏱️',
+  collection: '📦',
+  skill: '✨',
+  mission: '🎖️',
+  special: '🌟',
+};
+
 export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) => {
   const [snapshot, setSnapshot] = useState<AchievementSnapshot | null>(null);
   const [filter, setFilter] = useState<string>('all');
@@ -127,6 +145,12 @@ export const AchievementPanel: React.FC<AchievementPanelProps> = ({ onBack }) =>
             className={`achievement-filter-btn ${filter === key ? 'active' : ''}`}
             onClick={() => setFilter(key)}
           >
+            <AssetIcon
+              name={categoryIcons[key]}
+              fallback={categoryFallbackEmojis[key] || '📦'}
+              size={18}
+              className="achievement-filter-icon"
+            />
             {label}
           </button>
         ))}

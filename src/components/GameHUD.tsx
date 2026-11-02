@@ -44,6 +44,9 @@ interface HUDProps {
   killCount?: number;
   isBossWave?: boolean;
   isEliteWave?: boolean;
+  inventory?: Record<string, number>;
+  currency?: number;
+  factionInfo?: { dominant: string; safety: number } | null;
 }
 
 interface ActiveEffect {
@@ -347,6 +350,54 @@ const WaveBadge: React.FC<{ isBossWave: boolean; isEliteWave: boolean }> = ({
   return null;
 };
 
+const FactionIndicator: React.FC<{ info: { dominant: string; safety: number } }> = ({ info }) => {
+  const safetyColor = info.safety > 0.6 ? 'text-green-400' : 'text-red-400';
+  return (
+    <div className="bg-slate-900/80 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-2 flex items-center gap-3">
+      <div className="flex flex-col">
+        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-tighter">星区主权</span>
+        <span className="text-sm font-bold text-white">{info.dominant}</span>
+      </div>
+      <div className="h-8 w-[1px] bg-slate-700" />
+      <div className="flex flex-col">
+        <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-tighter">安全等级</span>
+        <span className={`text-sm font-bold ${safetyColor}`}>{(info.safety * 100).toFixed(0)}%</span>
+      </div>
+    </div>
+  );
+};
+
+const InventoryDisplay: React.FC<{ inventory: Record<string, number>; currency: number }> = ({
+  inventory,
+  currency,
+}) => {
+  const items = Object.entries(inventory).filter(([_, count]) => count > 0);
+  
+  return (
+    <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-3 border border-yellow-500/20">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Gem className="w-4 h-4 text-yellow-400" />
+          <span className="text-xs font-bold text-slate-300 uppercase">资产与货物</span>
+        </div>
+        <span className="text-sm font-bold text-yellow-400">Ƶ {currency.toLocaleString()}</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {items.length === 0 ? (
+          <span className="text-[10px] text-slate-500 italic">货舱空置</span>
+        ) : (
+          items.map(([id, count]) => (
+            <div key={id} className="flex items-center gap-1 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700">
+              <span className="text-[10px] text-slate-300">{id === 'iron' ? '铁矿' : '等离子'}</span>
+              <span className="text-[10px] font-bold text-cyan-400">x{count}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 /** 难度自适应指示器：展示当前档位、倍率、趋势与表现条 */
 const DifficultyIndicator: React.FC<{
   info: import('../engine/DifficultyManager').DifficultySnapshot;
@@ -490,6 +541,9 @@ export const GameHUD: React.FC<HUDProps> = React.memo(
     killCount = 0,
     isBossWave = false,
     isEliteWave = false,
+    inventory = {},
+    currency = 0,
+    factionInfo = null,
   }) => {
     const [scoreAnimation, setScoreAnimation] = useState(false);
     const [prevScore, setPrevScore] = useState(score);
@@ -687,6 +741,11 @@ export const GameHUD: React.FC<HUDProps> = React.memo(
               {difficultyInfo && difficultyInfo.adaptiveEnabled && (
                 <DifficultyIndicator info={difficultyInfo} />
               )}
+              {factionInfo && (
+                <div className="mt-2 flex justify-center">
+                  <FactionIndicator info={factionInfo} />
+                </div>
+              )}
             </div>
 
             <div className="text-right">
@@ -758,6 +817,7 @@ export const GameHUD: React.FC<HUDProps> = React.memo(
                 boostEnergy={boostEnergy}
                 maxBoostEnergy={maxBoostEnergy}
               />
+              <InventoryDisplay inventory={inventory} currency={currency} />
             </div>
 
             <div className="flex flex-col gap-2 pointer-events-auto">

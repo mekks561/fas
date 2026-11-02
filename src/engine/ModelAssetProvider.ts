@@ -35,6 +35,7 @@ const ENEMY_FILES: Record<EnemyModelType, string> = {
   drone: 'enemies/enemy-drone',
   corvette: 'enemies/enemy-corvette',
   destroyer: 'enemies/enemy-destroyer',
+  cruiser: 'enemies/enemy-cruiser',
   boss_sentinel: 'bosses/boss-sentinel',
   boss_overlord: 'bosses/boss-overlord',
 };
@@ -66,6 +67,9 @@ const STRUCTURE_FILES: Record<StructureModelType, string[]> = {
   debris: [],
   mining_rig: [],
   defense_platform: [],
+  station: [],
+  crystal: [],
+  anomaly: [],
 };
 
 /**
@@ -243,9 +247,18 @@ export class ModelAssetProvider {
     const cached = this.pending.get(relPath);
     if (cached) return cached;
 
-    const url = `/assets/models/${relPath}.glb`;
+    // 允许通过以 /assets/ 开头的路径加载任意位置的模型，否则回落到默认的 /assets/models/
+    const url = relPath.startsWith('/assets/') ? relPath : `/assets/models/${relPath}.glb`;
+
     const promise = new Promise<pc.Asset | null>((resolve) => {
+      // 2026 Tech: 增加加载超时保护 (10s)
+      const timeout = setTimeout(() => {
+        console.warn(`[ModelAssetProvider] Model load timeout: ${url}`);
+        resolve(null);
+      }, 10000);
+
       this.app.assets.loadFromUrl(url, 'container', (err, asset) => {
+        clearTimeout(timeout);
         if (err || !asset) {
           console.warn(`[ModelAssetProvider] 加载 ${url} 失败:`, err);
           resolve(null);

@@ -1,33 +1,50 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: fighter-leaderboard-db
+  mysql:
+    image: mysql:8.0
+    container_name: fighter-game-db
     environment:
-      POSTGRES_USER: lb_user
-      POSTGRES_PASSWORD: lb_pass
-      POSTGRES_DB: leaderboard
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: fighter_game
+      MYSQL_USER: game_user
+      MYSQL_PASSWORD: game_pass
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lb_user -d leaderboard"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 3s
       retries: 10
 
-  postgres-test:
-    image: postgres:15-alpine
-    container_name: fighter-leaderboard-db-test
-    environment:
-      POSTGRES_USER: lb_user
-      POSTGRES_PASSWORD: lb_pass
-      POSTGRES_DB: leaderboard_test
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: fighter-game-api
     ports:
-      - "5433:5432"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mysql://game_user:game_pass@mysql:3306/fighter_game
+      - JWT_SECRET=v2.7_deep_space_awakening_secret
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: fighter-game-redis
+    ports:
+      - "6379:6379"
     volumes:
-      - pgdata-test:/var/lib/postgresql/data
+      - redis_data:/data
+    restart: unless-stopped
 
 volumes:
-  pgdata:
-  pgdata-test:
+  mysql_data:
+  redis_data:

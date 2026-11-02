@@ -579,13 +579,14 @@ export class OverdriveSkill extends Skill {
   }
 
   public getSpeedMultiplier(): number {
-    if (!this.state.isActive) return 1;
-    return 2 + (this.state.level - 1) * 0.5;
+    if (!this.state.isActive) return 1.0;
+    return 1.5 + (this.state.level - 1) * 0.25;
   }
 
   public getFireRateMultiplier(): number {
-    if (!this.state.isActive) return 1;
-    return 1.5 + (this.state.level - 1) * 0.25;
+    if (!this.state.isActive) return 1.0;
+    // 射速翻倍即间隔减半
+    return 0.5 - (this.state.level - 1) * 0.05;
   }
 
   protected override onUpgrade(): void {
@@ -790,20 +791,12 @@ export class SkillSystem {
     return 1;
   }
 
-  public getSpeedMultiplier(): number {
+  public getOverdriveMultipliers(): { speed: number; fireRate: number } {
     const overdrive = this.skills.get(SkillType.OVERDRIVE) as OverdriveSkill;
-    if (overdrive) {
-      return overdrive.getSpeedMultiplier();
-    }
-    return 1;
-  }
-
-  public getFireRateMultiplier(): number {
-    const overdrive = this.skills.get(SkillType.OVERDRIVE) as OverdriveSkill;
-    if (overdrive) {
-      return overdrive.getFireRateMultiplier();
-    }
-    return 1;
+    return {
+      speed: overdrive?.getSpeedMultiplier() ?? 1.0,
+      fireRate: overdrive?.getFireRateMultiplier() ?? 1.0,
+    };
   }
 
   public destroy(): void {

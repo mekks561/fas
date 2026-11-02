@@ -1,4 +1,5 @@
 import * as pc from 'playcanvas';
+import { SkillType } from './skillSlots';
 
 /**
  * 后处理（post-processing）系统：bloom + 暗角 + 色差 + 色彩校正。
@@ -61,6 +62,15 @@ export interface VisualEffectConfig {
   colorCorrectionSaturation: number;
   colorCorrectionContrast: number;
   colorCorrectionExposure: number;
+  colorCorrectionTint: pc.Color;
+  colorCorrectionTintAmount: number;
+
+  radialBlurEnabled: boolean;
+  radialBlurAmount: number;
+  radialBlurCenter: pc.Vec2;
+
+  jumpDistortionEnabled: boolean;
+  jumpDistortionAmount: number;
 }
 
 /** 创建一张用于后处理中间结果的纹理缓冲（线性过滤 + CLAMP，避免边缘渗色）。 */
@@ -244,6 +254,8 @@ export class VisualEffectSystem {
   private vignetteEffect: ShaderPostEffect | null = null;
   private chromaticAberrationEffect: ShaderPostEffect | null = null;
   private colorCorrectionEffect: ShaderPostEffect | null = null;
+  private radialBlurEffect: ShaderPostEffect | null = null;
+  private jumpDistortionEffect: ShaderPostEffect | null = null;
 
   private bloomBrightShader: pc.Shader | null = null;
   private bloomBlurShader: pc.Shader | null = null;
@@ -251,8 +263,12 @@ export class VisualEffectSystem {
   private vignetteShader: pc.Shader | null = null;
   private chromaticAberrationShader: pc.Shader | null = null;
   private colorCorrectionShader: pc.Shader | null = null;
+  private radialBlurShader: pc.Shader | null = null;
+  private jumpDistortionShader: pc.Shader | null = null;
 
   private disposed = false;
+  private originalConfig: VisualEffectConfig | null = null;
+  private activeSkillEffects = new Set<SkillType>();
 
   constructor(app: pc.Application, camera: pc.Entity) {
     this.app = app;
@@ -281,6 +297,15 @@ export class VisualEffectSystem {
       colorCorrectionSaturation: 1.2,
       colorCorrectionContrast: 1.1,
       colorCorrectionExposure: 1.0,
+      colorCorrectionTint: new pc.Color(1, 1, 1),
+      colorCorrectionTintAmount: 0,
+
+      radialBlurEnabled: false,
+      radialBlurAmount: 0.05,
+      radialBlurCenter: new pc.Vec2(0.5, 0.5),
+
+      jumpDistortionEnabled: false,
+      jumpDistortionAmount: 0.0,
     };
 
     this.initializeShaders();
@@ -532,7 +557,7 @@ export class VisualEffectSystem {
       `,
     );
 
-    // ---- 色彩校正（饱和度 / 对比度 / 曝光） ----
+    // ---- 色彩校正（饱和度 / 对比度 / 曝光 / 着色） ----
     this.colorCorrectionShader = this.createShader(
       'colorCorrection',
       GLSL_VERTEX,
@@ -543,6 +568,8 @@ export class VisualEffectSystem {
         uniform float uSaturation;
         uniform float uContrast;
         uniform float uExposure;
+        uniform vec3 uTint;
+        uniform float uTintAmount;
 
         void main(void) {
             vec4 color = texture2D(uColorBuffer, vUv);
@@ -553,6 +580,8 @@ export class VisualEffectSystem {
             color.rgb = ((color.rgb - 0.5) * uContrast + 0.5);
 
             color.rgb *= uExposure;
+            
+            color.rgb = mix(color.rgb, color.rgb * uTint, uTintAmount);
 
             gl_FragColor = color;
         }
@@ -564,6 +593,8 @@ export class VisualEffectSystem {
         uniform uSaturation: f32;
         uniform uContrast: f32;
         uniform uExposure: f32;
+        uniform uTint: vec3<f32>;
+        uniform uTintAmount: f32;
 
         @fragment
         fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
@@ -574,7 +605,101 @@ export class VisualEffectSystem {
             color = vec4<f32>(mix(vec3<f32>(gray), color.rgb, uSaturation), color.a);
             color = vec4<f32>((color.rgb - vec3<f32>(0.5)) * uContrast + vec3<f32>(0.5), color.a);
             color = vec4<f32>(color.rgb * uExposure, color.a);
+            color = vec4<f32>(mix(color.rgb, color.rgb * uTint, uTintAmount), color.a);
             return color;
+        }
+      `,
+    );
+
+    // ---- 径向模糊 ----
+    this.radialBlurShader = this.createShader(
+      'radialBlur',
+      GLSL_VERTEX,
+      `
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D uColorBuffer;
+        uniform float uAmount;
+        uniform vec2 uCenter;
+
+        void main(void) {
+            vec4 sum = vec4(0.0);
+            vec2 dir = vUv - uCenter;
+            for (int i = 0; i < 10; i++) {
+                float scale = 1.0 - uAmount * (float(i) / 9.0);
+                sum += texture2D(uColorBuffer, uCenter + dir * scale);
+            }
+            gl_FragColor = sum / 10.0;
+        }
+      `,
+      WGSL_VERTEX,
+      `
+        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
+        @group(0) @binding(1) var uColorBufferSampler: sampler;
+        uniform uAmount: f32;
+        uniform uCenter: vec2<f32>;
+
+        @fragment
+        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+            let dim = textureDimensions(uColorBuffer);
+            let uv = fragCoord.xy / vec2<f32>(f32(dim.x), f32(dim.y));
+            var sum = vec4<f32>(0.0);
+            let dir = uv - uCenter;
+            for (var i = 0; i < 10; i = i + 1) {
+                let scale = 1.0 - uAmount * (f32(i) / 9.0);
+                sum = sum + textureSample(uColorBuffer, uColorBufferSampler, uCenter + dir * scale);
+            }
+            return sum / 10.0;
+        }
+      `,
+    );
+
+    // ---- 跃迁扭曲 (Jump Distortion) ----
+    this.jumpDistortionShader = this.createShader(
+      'jumpDistortion',
+      GLSL_VERTEX,
+      `
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D uColorBuffer;
+        uniform float uAmount;
+        
+        void main(void) {
+            vec2 center = vec2(0.5, 0.5);
+            vec2 dir = vUv - center;
+            float dist = length(dir);
+            
+            // 简单的桶形扭曲，uAmount 越大扭曲越强
+            vec2 uv = center + dir * (1.0 + uAmount * dist * dist);
+            
+            // 超出范围回落黑色
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            } else {
+                gl_FragColor = texture2D(uColorBuffer, uv);
+            }
+        }
+      `,
+      WGSL_VERTEX,
+      `
+        @group(0) @binding(0) var uColorBuffer: texture_2d<f32>;
+        @group(0) @binding(1) var uColorBufferSampler: sampler;
+        uniform uAmount: f32;
+
+        @fragment
+        fn mainFragment(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+            let dim = textureDimensions(uColorBuffer);
+            let uv_orig = fragCoord.xy / vec2<f32>(f32(dim.x), f32(dim.y));
+            let center = vec2<f32>(0.5, 0.5);
+            let dir = uv_orig - center;
+            let dist = length(dir);
+            
+            let uv = center + dir * (1.0 + uAmount * dist * dist);
+            
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+                return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+            }
+            return textureSample(uColorBuffer, uColorBufferSampler, uv);
         }
       `,
     );
@@ -629,9 +754,22 @@ export class VisualEffectSystem {
     }
 
     if (this.colorCorrectionEffect) {
+      const tint = this.config.colorCorrectionTint;
       this.colorCorrectionEffect.setUniform('uSaturation', this.config.colorCorrectionSaturation);
       this.colorCorrectionEffect.setUniform('uContrast', this.config.colorCorrectionContrast);
       this.colorCorrectionEffect.setUniform('uExposure', this.config.colorCorrectionExposure);
+      this.colorCorrectionEffect.setUniform('uTint', [tint.r, tint.g, tint.b]);
+      this.colorCorrectionEffect.setUniform('uTintAmount', this.config.colorCorrectionTintAmount);
+    }
+
+    if (this.radialBlurEffect) {
+      const center = this.config.radialBlurCenter;
+      this.radialBlurEffect.setUniform('uAmount', this.config.radialBlurAmount);
+      this.radialBlurEffect.setUniform('uCenter', [center.x, center.y]);
+    }
+
+    if (this.jumpDistortionEffect) {
+      this.jumpDistortionEffect.setUniform('uAmount', this.config.jumpDistortionAmount);
     }
   }
 
@@ -729,6 +867,23 @@ export class VisualEffectSystem {
     this.config.colorCorrectionEnabled = false;
   }
 
+  public enableRadialBlur(): void {
+    if (!this.radialBlurEffect && this.radialBlurShader) {
+      this.radialBlurEffect = new ShaderPostEffect(this.app.graphicsDevice, this.radialBlurShader);
+      this.queue.addEffect(this.radialBlurEffect);
+    }
+    this.config.radialBlurEnabled = true;
+    this.updateEffects();
+  }
+
+  public disableRadialBlur(): void {
+    if (this.radialBlurEffect) {
+      this.queue.removeEffect(this.radialBlurEffect);
+      this.radialBlurEffect = null;
+    }
+    this.config.radialBlurEnabled = false;
+  }
+
   public setBloomThreshold(value: number): void {
     this.config.bloomThreshold = value;
     this.updateEffects();
@@ -767,6 +922,58 @@ export class VisualEffectSystem {
   public setExposure(value: number): void {
     this.config.colorCorrectionExposure = value;
     this.updateEffects();
+  }
+
+  public enableJumpDistortion(): void {
+    if (!this.jumpDistortionEffect && this.jumpDistortionShader) {
+      this.jumpDistortionEffect = new ShaderPostEffect(
+        this.app.graphicsDevice,
+        this.jumpDistortionShader,
+      );
+      this.queue.addEffect(this.jumpDistortionEffect);
+    }
+    this.config.jumpDistortionEnabled = true;
+    this.updateEffects();
+  }
+
+  public disableJumpDistortion(): void {
+    if (this.jumpDistortionEffect) {
+      this.queue.removeEffect(this.jumpDistortionEffect);
+      this.jumpDistortionEffect = null;
+    }
+    this.config.jumpDistortionEnabled = false;
+  }
+
+  public setJumpDistortionAmount(value: number): void {
+    this.config.jumpDistortionAmount = value;
+    this.updateEffects();
+  }
+
+  /**
+   * 触发空间折跃视觉效果（用于援军进场或跨星区跳转）
+   */
+  public triggerJumpEffect(duration: number = 1000): void {
+    this.enableJumpDistortion();
+    
+    const startTime = Date.now();
+    const update = () => {
+      const elapsed = Date.now() - startTime;
+      const t = elapsed / duration;
+      
+      if (t >= 1) {
+        this.setJumpDistortionAmount(0);
+        this.disableJumpDistortion();
+        return;
+      }
+      
+      // 先增强后减弱的波峰效果
+      const amount = Math.sin(t * Math.PI) * 0.5;
+      this.setJumpDistortionAmount(amount);
+      
+      requestAnimationFrame(update);
+    };
+    
+    update();
   }
 
   public applyPreset(preset: 'cinematic' | 'vibrant' | 'realistic' | 'retro'): void {
@@ -847,6 +1054,114 @@ export class VisualEffectSystem {
   }
 
   /**
+   * 应用技能视觉效果。
+   * @param type 技能类型
+   * @param active 是否激活
+   */
+  public applySkillEffect(type: SkillType, active: boolean): void {
+    if (active) {
+      this.activeSkillEffects.add(type);
+      // 激活时，如果还没有备份原始配置，则备份一份
+      if (!this.originalConfig) {
+        this.originalConfig = JSON.parse(JSON.stringify(this.config));
+        // pc.Color 需要手动处理，因为 JSON.stringify 不会正确序列化它
+        this.originalConfig!.vignetteColor = this.config.vignetteColor.clone();
+        this.originalConfig!.colorCorrectionTint = this.config.colorCorrectionTint.clone();
+      }
+
+      switch (type) {
+        case SkillType.TIME_SLOW:
+          this.config.colorCorrectionSaturation = 0.5;
+          this.config.colorCorrectionTint = new pc.Color(0.5, 0.7, 1.0); // 淡蓝色
+          this.config.colorCorrectionTintAmount = 0.5;
+          this.enableRadialBlur();
+          this.config.radialBlurAmount = 0.05;
+          break;
+
+        case SkillType.OVERDRIVE:
+          this.config.bloomStrength = 3.0;
+          this.config.vignetteIntensity = 0.5;
+          this.enableBloom();
+          this.enableVignette();
+          break;
+      }
+    } else {
+      this.activeSkillEffects.delete(type);
+      // 只有当所有技能效果都关闭时，才恢复备份的配置
+      if (this.activeSkillEffects.size === 0 && this.originalConfig) {
+        // 恢复所有配置
+        const old = this.originalConfig;
+        
+        // 恢复 bloom
+        this.config.bloomStrength = old.bloomStrength;
+        if (!old.bloomEnabled) this.disableBloom();
+        
+        // 恢复 vignette
+        this.config.vignetteIntensity = old.vignetteIntensity;
+        if (!old.vignetteEnabled) this.disableVignette();
+        
+        // 恢复 color correction
+        this.config.colorCorrectionSaturation = old.colorCorrectionSaturation;
+        this.config.colorCorrectionTint = old.colorCorrectionTint.clone();
+        this.config.colorCorrectionTintAmount = old.colorCorrectionTintAmount;
+        
+        // 恢复 radial blur
+        if (!old.radialBlurEnabled) this.disableRadialBlur();
+        
+        this.originalConfig = null;
+      }
+    }
+
+    this.updateEffects();
+  }
+
+  /**
+   * 触发建设光束视觉效果 (2026 Tech: Dyson Swarm VFX)
+   */
+  public triggerConstructionBeam(from: pc.Vec3, to: pc.Vec3, color: pc.Color = new pc.Color(1, 0.8, 0)): void {
+    const beam = new pc.Entity('construction_beam');
+    const dist = from.distance(to);
+    
+    beam.addComponent('model', { type: 'cylinder' });
+    beam.setLocalScale(0.5, dist, 0.5);
+    
+    // 位置设在两点中点
+    const mid = new pc.Vec3().add2(from, to).scale(0.5);
+    beam.setPosition(mid);
+    
+    // 旋转：让圆柱体指向目标 (cylinder 默认向上 Y 轴)
+    beam.lookAt(to);
+    beam.rotateLocal(90, 0, 0); // 修正 cylinder 的原始朝向
+    
+    const mat = new pc.StandardMaterial();
+    mat.emissive = color;
+    mat.emissiveIntensity = 5.0;
+    mat.opacity = 0.6;
+    mat.blendType = pc.BLEND_ADDITIVEALPHA;
+    mat.depthWrite = false;
+    mat.update();
+    
+    if (beam.model) beam.model.material = mat;
+    
+    this.app.root.addChild(beam);
+    
+    // 自动销毁
+    let timer = 0;
+    const duration = 0.2;
+    const update = (dt: number) => {
+      timer += dt;
+      if (timer >= duration) {
+        beam.destroy();
+        this.app.off('update', update);
+        return;
+      }
+      mat.opacity = 0.6 * (1 - timer / duration);
+      mat.update();
+    };
+    this.app.on('update', update);
+  }
+
+  /**
    * 摘掉自己加进相机队列的效果并把相机的渲染目标还原。
    *
    * 刻意**不**调用 queue.destroy()：那是相机自己的队列，且 disable() 会顺带
@@ -860,6 +1175,8 @@ export class VisualEffectSystem {
     this.disableVignette();
     this.disableChromaticAberration();
     this.disableColorCorrection();
+    this.disableRadialBlur();
+    this.disableJumpDistortion();
 
     this.bloomBrightShader?.destroy();
     this.bloomBlurShader?.destroy();
@@ -867,6 +1184,8 @@ export class VisualEffectSystem {
     this.vignetteShader?.destroy();
     this.chromaticAberrationShader?.destroy();
     this.colorCorrectionShader?.destroy();
+    this.radialBlurShader?.destroy();
+    this.jumpDistortionShader?.destroy();
 
     this.bloomBrightShader = null;
     this.bloomBlurShader = null;
@@ -874,5 +1193,7 @@ export class VisualEffectSystem {
     this.vignetteShader = null;
     this.chromaticAberrationShader = null;
     this.colorCorrectionShader = null;
+    this.radialBlurShader = null;
+    this.jumpDistortionShader = null;
   }
 }

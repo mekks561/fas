@@ -108,8 +108,8 @@ describe('ENEMY_TYPE_TO_LUA_AI 换算表', () => {
     }
   });
 
-  it('只用 enemy-ai.lua 里真实存在的四种 AI 类型', () => {
-    const valid = ['PATROL', 'AGGRESSIVE', 'SNIPER', 'BOSS'];
+  it('只用 enemy-ai.lua 里真实存在的六种 AI 类型', () => {
+    const valid = ['PATROL', 'AGGRESSIVE', 'SNIPER', 'BOSS', 'ASSAULT', 'SWARM'];
     for (const [type, aiType] of Object.entries(ENEMY_TYPE_TO_LUA_AI)) {
       expect(valid, `${type} 映射到了未知类型 ${aiType}`).toContain(aiType);
     }

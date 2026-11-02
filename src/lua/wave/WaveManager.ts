@@ -82,18 +82,15 @@ export class WaveManager {
     await luaEngine.initialize();
 
     const waveScript = await this.loadWaveScript();
-    luaEngine.registerModule({ name: 'wave_manager', script: waveScript, host: true });
+    luaEngine.registerModule({ name: 'wave_manager', script: waveScript, host: false });
 
     this.initialized = true;
     console.log('[WaveManager] Initialized');
   }
 
   private async loadWaveScript(): Promise<string> {
-    if (waveManagerScript) {
-      return `
-${waveManagerScript}
-
-local WaveManager = require("wave_manager_module")
+    return `
+local WaveManager = require("wave/wave-manager")
 
 function getWaveState()
   return WaveManager.getWaveState().state
@@ -259,121 +256,7 @@ function getWaveScoreMultiplier()
   end
   return 1.0
 end
-      `;
-    }
-
-    console.warn('[WaveManager] Failed to load lua file, using fallback');
-    return `
-WaveManager = {
-  waveNumber = 1,
-  maxWaves = 10,
-  state = "waiting",
-  enemiesSpawned = 0,
-  enemiesDefeated = 0,
-  enemiesRemaining = 0,
-  elapsedTime = 0,
-  difficulty = "normal",
-  isBossWave = false,
-  isEliteWave = false
-}
-
-function getWaveState()
-  return WaveManager
-end
-
-function setDifficulty(difficulty)
-  WaveManager.difficulty = difficulty
-  return true
-end
-
-function setMaxWaves(maxWaves)
-  WaveManager.maxWaves = maxWaves
-  return true
-end
-
-function calculateEnemyCount(waveNumber)
-  local baseCount = 5
-  local growthFactor = 1.1
-  return math.floor(baseCount * math.pow(growthFactor, waveNumber - 1))
-end
-
-function isBossWave(waveNumber)
-  return waveNumber % 5 == 0
-end
-
-function isEliteWave(waveNumber)
-  return waveNumber % 3 == 0 and not isBossWave(waveNumber)
-end
-
-function generateEnemyTypes(waveNumber)
-  local types = {}
-  local count = calculateEnemyCount(waveNumber)
-  for i = 1, count do
-    types[i] = "basic"
-  end
-  return types
-end
-
-function getEnemyConfig(enemyType)
-  return { type = enemyType, health = 50, damage = 10, speed = 2.0, score = 100, isBoss = false, isElite = false }
-end
-
-function startWave(waveNumber)
-  WaveManager.waveNumber = waveNumber
-  WaveManager.state = "active"
-  WaveManager.enemiesSpawned = 0
-  WaveManager.enemiesDefeated = 0
-  WaveManager.enemiesRemaining = calculateEnemyCount(waveNumber)
-  WaveManager.isBossWave = isBossWave(waveNumber)
-  WaveManager.isEliteWave = isEliteWave(waveNumber)
-  WaveManager.enemyTypes = generateEnemyTypes(waveNumber)
-  return { success = true, waveNumber = waveNumber, enemyCount = WaveManager.enemiesRemaining, isBossWave = WaveManager.isBossWave, isEliteWave = WaveManager.isEliteWave, enemyTypes = WaveManager.enemyTypes }
-end
-
-function spawnNextEnemy()
-  if WaveManager.enemiesSpawned >= WaveManager.enemiesRemaining then
-    return { success = false }
-  end
-  WaveManager.enemiesSpawned = WaveManager.enemiesSpawned + 1
-  return { success = true, enemy = getEnemyConfig("basic"), spawnIndex = WaveManager.enemiesSpawned }
-end
-
-function onEnemyDefeated(enemyType)
-  WaveManager.enemiesDefeated = WaveManager.enemiesDefeated + 1
-  WaveManager.enemiesRemaining = WaveManager.enemiesRemaining - 1
-  return { success = true, isWaveComplete = WaveManager.enemiesRemaining <= 0 }
-end
-
-function pauseWave()
-  WaveManager.state = "paused"
-  return true
-end
-
-function resumeWave()
-  WaveManager.state = "active"
-  return true
-end
-
-function updateWave(deltaTime)
-  if WaveManager.state == "active" then
-    WaveManager.elapsedTime = WaveManager.elapsedTime + deltaTime
-  end
-  return { elapsedTime = WaveManager.elapsedTime, state = WaveManager.state, enemiesRemaining = WaveManager.enemiesRemaining }
-end
-
-function resetWaveManager()
-  WaveManager = { waveNumber = 1, maxWaves = 10, state = "waiting", enemiesSpawned = 0, enemiesDefeated = 0, enemiesRemaining = 0, elapsedTime = 0, difficulty = "normal" }
-  return true
-end
-
-function getNextWaveNumber()
-  return WaveManager.waveNumber + 1
-end
-
-function getWaveScoreMultiplier()
-  return 1.0 + WaveManager.waveNumber * 0.1
-end
-      `;
+`;
   }
 
   // -------------------------------------------------------------------------

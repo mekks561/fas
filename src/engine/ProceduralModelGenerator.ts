@@ -17,11 +17,13 @@ export type EnemyModelType =
   | 'drone'
   | 'corvette'
   | 'destroyer'
+  | 'cruiser'
   | 'boss_sentinel'
   | 'boss_overlord';
 
 export type StructureModelType =
-  'space_station' | 'asteroid' | 'debris' | 'satellite' | 'mining_rig' | 'defense_platform';
+  'space_station' | 'asteroid' | 'debris' | 'satellite' | 'mining_rig' | 'defense_platform' |
+  'station' | 'crystal' | 'anomaly';
 
 export interface ModelOptions {
   primaryColor?: [number, number, number];
@@ -319,6 +321,8 @@ export class ProceduralModelGenerator {
         return this.createEnemyCorvette(options);
       case 'destroyer':
         return this.createEnemyDestroyer(options);
+      case 'cruiser':
+        return this.createCruiserShip(options);
       case 'boss_sentinel':
         return this.createBossSentinel(options);
       case 'boss_overlord':

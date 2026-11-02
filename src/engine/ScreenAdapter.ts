@@ -89,9 +89,17 @@ export class ScreenAdapter {
     this.metrics = this.calculateMetrics();
     this.applyConfig();
 
-    window.addEventListener('resize', this.onResize.bind(this));
-    window.addEventListener('orientationchange', this.onOrientationChange.bind(this));
+    window.addEventListener('resize', this.handleResize);
+    window.addEventListener('orientationchange', this.handleOrientationChange);
   }
+
+  private handleResize = (): void => {
+    this.onResize();
+  };
+
+  private handleOrientationChange = (): void => {
+    this.onOrientationChange();
+  };
 
   private calculateMetrics(): ScreenMetrics {
     const width = window.innerWidth;
@@ -270,8 +278,8 @@ export class ScreenAdapter {
   }
 
   public destroy(): void {
-    window.removeEventListener('resize', this.onResize.bind(this));
-    window.removeEventListener('orientationchange', this.onOrientationChange.bind(this));
+    window.removeEventListener('resize', this.handleResize);
+    window.removeEventListener('orientationchange', this.handleOrientationChange);
 
     if (this.resizeTimeout) {
       clearTimeout(this.resizeTimeout);
@@ -290,8 +298,12 @@ export class ResponsiveUI {
     this.baseWidth = baseWidth;
     this.baseHeight = baseHeight;
 
-    window.addEventListener('resize', this.onResize.bind(this));
+    window.addEventListener('resize', this.handleResize);
   }
+
+  private handleResize = (): void => {
+    this.onResize();
+  };
 
   private onResize(): void {
     this.notifyListeners();
@@ -331,7 +343,7 @@ export class ResponsiveUI {
   }
 
   public destroy(): void {
-    window.removeEventListener('resize', this.onResize.bind(this));
+    window.removeEventListener('resize', this.handleResize);
     this.listeners.clear();
   }
 }

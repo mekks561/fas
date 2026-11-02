@@ -19,15 +19,17 @@
 import { luaEngine } from '../LuaEngine';
 import type { AIConfig } from '../types';
 
-export type AIType = 'PATROL' | 'AGGRESSIVE' | 'SNIPER' | 'BOSS';
+export type AIType = 'PATROL' | 'AGGRESSIVE' | 'SNIPER' | 'BOSS' | 'ASSAULT' | 'SWARM';
 
 /** 一帧的 Lua 决策结果 */
 export interface LuaAIStepResult {
-  /** Lua 侧的 X（映射到世界 X） */
+  /** Lua 侧的 X */
   x: number;
-  /** Lua 侧的 Y（映射到世界 Z） */
+  /** Lua 侧的 Y */
+  y: number;
+  /** Lua 侧的 Z */
   z: number;
-  /** Lua 状态机状态：idle / patrolling / chasing / attacking / aiming / shooting / aggressive / retreating */
+  /** Lua 状态机状态 */
   state: string;
   behavior: string;
   /** 本帧动作：melee / shoot / ranged，未触发则为 null */
@@ -36,6 +38,7 @@ export interface LuaAIStepResult {
   damage: number;
   /** 动作的方向向量（Lua 坐标系） */
   dirX: number;
+  dirY: number;
   dirZ: number;
 }
 
@@ -83,14 +86,10 @@ function __aiProbe()
 end
 
 --[[ 生成敌机 AI 实例，返回整数句柄（<1 表示失败）
-
-  detectRange 由宿主注入：enemy-ai.lua 是"通用行为模板"，它自带的 detectRange
-  （20/25/30）是模块示例值，小于本作的刷怪半径（20~30），直接用会让敌机在出生点
-  原地发呆。感知范围属于"敌人属性"，应当由宿主按实际数值给。
 ]]
-function __aiSpawn(typeKey, x, z, health, maxHealth, detectRange)
+function __aiSpawn(typeKey, x, y, z, health, maxHealth, detectRange)
   if __forceError then error("forced error (__aiSpawn)") end
-  local r = EnemyAI.createEnemyAI(typeKey, x, z)
+  local r = EnemyAI.createEnemyAI(typeKey, x, y, z)
   if not r.success then return -1 end
   local e = r.enemy
   if type(health) == "number" and health > 0 then
@@ -105,35 +104,38 @@ function __aiSpawn(typeKey, x, z, health, maxHealth, detectRange)
   return __nextId
 end
 
---[[ 把宿主侧的真值（实体位置 / 当前血量）同步进 Lua，Lua 的积分因此只是"本帧位移" ]]
-function __aiSync(id, x, z, health)
+--[[ 把宿主侧的真值（实体位置 / 当前血量）同步进 Lua ]]
+function __aiSync(id, x, y, z, health)
   local e = __registry[id]
   if not e then return false end
   e.x = x
-  e.y = z
+  e.y = y
+  e.z = z
   if type(health) == "number" then e.health = health end
   return true
 end
 
 --[[ 推进一帧。返回扁平表（只含数字/字符串，跨边界安全） ]]
-function __aiStep(id, px, pz, dt)
+function __aiStep(id, px, py, pz, dt)
   if __forceError then error("forced error (__aiStep)") end
   local e = __registry[id]
   if not e then return nil end
 
-  local r = EnemyAI.updateAI(e, px, pz, dt)
+  local r = EnemyAI.updateAI(e, px, py, pz, dt)
   if not r.success then return nil end
 
   local a = r.action
   return {
     x = e.x,
-    z = e.y,
+    y = e.y,
+    z = e.z,
     state = e.state,
     behavior = e.behavior,
     action = a and a.action or false,
     damage = (a and a.damage) or 0,
     dirX = (a and a.x) or 0,
-    dirZ = (a and a.y) or 0
+    dirY = (a and a.y) or 0,
+    dirZ = (a and a.z) or 0
   }
 end
 
@@ -158,12 +160,14 @@ end
 
 interface RawStepResult {
   x?: number;
+  y?: number;
   z?: number;
   state?: string;
   behavior?: string;
   action?: string | boolean;
   damage?: number;
   dirX?: number;
+  dirY?: number;
   dirZ?: number;
 }
 
@@ -223,12 +227,13 @@ export class EnemyAIManager {
   spawn(
     type: AIType,
     x: number,
+    y: number,
     z: number,
     health: number,
     maxHealth: number,
     detectRange: number,
   ): number {
-    const id = luaEngine.call<number>('__aiSpawn', type, x, z, health, maxHealth, detectRange);
+    const id = luaEngine.call<number>('__aiSpawn', type, x, y, z, health, maxHealth, detectRange);
     if (typeof id !== 'number' || id < 1) {
       this.stats.errors += 1;
       this.stats.lastError = 'spawn failed';
@@ -239,20 +244,27 @@ export class EnemyAIManager {
   }
 
   /** 把实体真值同步进 Lua（位置 + 当前血量） */
-  sync(id: number, x: number, z: number, health: number): boolean {
-    return luaEngine.call<boolean>('__aiSync', id, x, z, health) === true;
+  sync(id: number, x: number, y: number, z: number, health: number): boolean {
+    return luaEngine.call<boolean>('__aiSync', id, x, y, z, health) === true;
   }
 
   /** 推进一帧；返回 null 表示本帧不可用（调用方应回落 TS 行为） */
-  step(id: number, playerX: number, playerZ: number, deltaTime: number): LuaAIStepResult | null {
+  step(
+    id: number,
+    playerX: number,
+    playerY: number,
+    playerZ: number,
+    deltaTime: number,
+  ): LuaAIStepResult | null {
     const raw = luaEngine.call<RawStepResult | undefined>(
       '__aiStep',
       id,
       playerX,
+      playerY,
       playerZ,
       deltaTime,
     );
-    if (!raw || typeof raw.x !== 'number' || typeof raw.z !== 'number') {
+    if (!raw || typeof raw.x !== 'number' || typeof raw.y !== 'number' || typeof raw.z !== 'number') {
       this.stats.notFound += 1;
       return null;
     }
@@ -263,12 +275,14 @@ export class EnemyAIManager {
 
     return {
       x: raw.x,
+      y: raw.y,
       z: raw.z,
       state: typeof raw.state === 'string' ? raw.state : 'idle',
       behavior: typeof raw.behavior === 'string' ? raw.behavior : 'unknown',
       action,
       damage: typeof raw.damage === 'number' ? raw.damage : 0,
       dirX: typeof raw.dirX === 'number' ? raw.dirX : 0,
+      dirY: typeof raw.dirY === 'number' ? raw.dirY : 0,
       dirZ: typeof raw.dirZ === 'number' ? raw.dirZ : 0,
     };
   }
