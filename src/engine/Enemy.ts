@@ -1,4 +1,4 @@
-import * as pc from 'playcanvas';
+﻿import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { EnemyAI, EnemyAIFactory, AIState, StatusEffect } from './EnemyAI';
@@ -142,7 +142,7 @@ export class Enemy {
     this.attackCooldown = stats.attackCooldown;
     this.lastAttackTime = 0;
 
-    this.modelGenerator = new ProceduralModelGenerator(this.engine.getApp());
+    this.modelGenerator = new ProceduralModelGenerator();
     this.entity = this.createEnemy(config.position);
     this.ai = EnemyAIFactory.createAI(config.type, this.entity, config.player, config.position);
     // 同步 AI attackRadius 与 Enemy attackRange，确保 ATTACK 状态下能触发攻击
@@ -739,7 +739,7 @@ export class FactionOutpost extends Enemy {
       new pc.Vec3(4, 2, 4),
       new pc.Vec3(-4, 2, 4),
       new pc.Vec3(4, 2, -4),
-      new pc.Vec3(-4, 2, -4)
+      new pc.Vec3(-4, 2, -4),
     ];
 
     turretOffsets.forEach((offset, i) => {
@@ -755,14 +755,14 @@ export class FactionOutpost extends Enemy {
     this.shieldEntity = new pc.Entity('outpost_shield');
     this.shieldEntity.addComponent('model', { type: 'sphere' });
     this.shieldEntity.setLocalScale(25, 25, 25);
-    
+
     const mat = new pc.StandardMaterial();
     mat.diffuse.set(0, 0.5, 1);
     mat.opacity = 0.2;
     mat.blendType = pc.BLEND_NORMAL;
     mat.useLighting = false;
     mat.update();
-    
+
     if (this.shieldEntity.model) this.shieldEntity.model.material = mat;
     this.entity.addChild(this.shieldEntity);
   }
@@ -778,7 +778,7 @@ export class FactionOutpost extends Enemy {
     if (dist < 30) {
       const now = Date.now();
       if (now - this.lastTurretFire > 1500) {
-        this.turretEntities.forEach(turret => {
+        this.turretEntities.forEach((turret) => {
           turret.lookAt(playerPos);
           this.fireTurret(turret);
         });
@@ -817,7 +817,7 @@ export class CapitalShip extends Enemy {
 
   private setupDamageSystem(): void {
     const app = this.engine.getApp();
-    this.damageSystem = (app as any)._webgpuDamageSystem;
+    this.damageSystem = (app as any)['webgpuDamageSystem'];
     if (this.damageSystem) {
       this.meshTearing = new MeshTearingSystem(app, this.damageSystem);
       this.meshTearing.applyToEntity(this.entity);
@@ -826,7 +826,7 @@ export class CapitalShip extends Enemy {
 
   private checkPhaseTransition(): void {
     const hpPct = this.health / this.maxHealth;
-    const destroyedParts = Array.from(this.parts.values()).filter(p => p.isDestroyed).length;
+    const destroyedParts = Array.from(this.parts.values()).filter((p) => p.isDestroyed).length;
     const totalParts = this.parts.size;
     const partDestructionPct = destroyedParts / totalParts;
 
@@ -845,7 +845,7 @@ export class CapitalShip extends Enemy {
 
   private enterPhase(phase: CapitalShipPhase): void {
     if (this.phaseAlertTriggered.has(phase)) return;
-    
+
     this.currentPhase = phase;
     this.phaseAlertTriggered.add(phase);
 
@@ -862,22 +862,19 @@ export class CapitalShip extends Enemy {
         alertMsg = `[DANGER] 敌方母舰进入狂暴模式：能量溢出，武器系统超频！请求紧急支援！`;
         this.setReactorGlow(5.0);
         // 触发全局抖动
-        (this.engine.getApp() as any)._vfxSystem?.triggerShake(1.5, 0.4);
+        (this.engine.getApp() as any)['vfxSystem']?.triggerShake(1.5, 0.4);
         // 触发敌方援军
-        const reinforcement = (this.engine.getApp() as any)._reinforcementSystem;
+        const reinforcement = (this.engine.getApp() as any)['reinforcementSystem'];
         if (reinforcement) {
           // 强制触发一次入侵级援军
-          reinforcement.evaluateBattleSituation?.(true); 
+          reinforcement.evaluateBattleSituation?.(true);
         }
         break;
     }
 
     if (alertMsg) {
       store.updateGalacticStatus({
-        intelligenceFeed: [
-          ...store.galacticStatus.intelligenceFeed.slice(-4),
-          alertMsg
-        ]
+        intelligenceFeed: [...store.galacticStatus.intelligenceFeed.slice(-4), alertMsg],
       });
     }
   }
@@ -886,8 +883,8 @@ export class CapitalShip extends Enemy {
     const reactor = this.parts.get('reactor_core');
     if (reactor && !reactor.isDestroyed) {
       const renders = reactor.entity.findComponents('render') as pc.RenderComponent[];
-      renders.forEach(r => {
-        r.meshInstances.forEach(mi => {
+      renders.forEach((r) => {
+        r.meshInstances.forEach((mi) => {
           const mat = mi.material as pc.StandardMaterial;
           if (mat) {
             mat.emissiveIntensity = intensity;
@@ -901,29 +898,29 @@ export class CapitalShip extends Enemy {
   private setupCapitalShipParts(): void {
     // 2026 Tech: 模块化巨型舰船构造
     this.addPart('reactor_core', '聚变反应堆', 1200, 'reactor', new pc.Vec3(0, 0, 0));
-    
+
     this.addPart('turret_heavy_main', '主能量炮', 600, 'turret', new pc.Vec3(0, 3, 8), {
       shootInterval: 4000,
       weaponType: 'heavy_beam',
-      rotationSpeed: 20
+      rotationSpeed: 20,
     });
 
     this.addPart('turret_l_1', '左舷激光阵列', 350, 'turret', new pc.Vec3(-5, 1, 4), {
       shootInterval: 1200,
       weaponType: 'laser',
-      rotationSpeed: 60
+      rotationSpeed: 60,
     });
 
     this.addPart('turret_r_1', '右舷激光阵列', 350, 'turret', new pc.Vec3(5, 1, 4), {
       shootInterval: 1200,
       weaponType: 'laser',
-      rotationSpeed: 60
+      rotationSpeed: 60,
     });
 
     this.addPart('turret_rear', '后置导弹仓', 400, 'turret', new pc.Vec3(0, 2, -5), {
       shootInterval: 3000,
       weaponType: 'missile',
-      rotationSpeed: 45
+      rotationSpeed: 45,
     });
 
     this.addPart('hangar_bay', '无人机机库', 900, 'hangar', new pc.Vec3(0, -2, -2));
@@ -937,7 +934,11 @@ export class CapitalShip extends Enemy {
     health: number,
     type: CapitalShipPart['type'],
     offset: pc.Vec3,
-    turretConfig?: { shootInterval: number; weaponType: CapitalShipPart['weaponType']; rotationSpeed: number },
+    turretConfig?: {
+      shootInterval: number;
+      weaponType: CapitalShipPart['weaponType'];
+      rotationSpeed: number;
+    },
   ): void {
     const partEntity = new pc.Entity(name);
     this.entity.addChild(partEntity);
@@ -948,17 +949,17 @@ export class CapitalShip extends Enemy {
     let modelType: string = 'box';
     let scale = new pc.Vec3(2, 2, 2);
 
-    switch(type) {
-      case 'turret': 
-        modelType = 'cylinder'; 
+    switch (type) {
+      case 'turret':
+        modelType = 'cylinder';
         scale.set(1, 2, 1);
         break;
-      case 'reactor': 
-        modelType = 'sphere'; 
+      case 'reactor':
+        modelType = 'sphere';
         scale.set(3, 3, 3);
         break;
-      case 'hangar': 
-        modelType = 'box'; 
+      case 'hangar':
+        modelType = 'box';
         scale.set(4, 1, 4);
         break;
       case 'engine':
@@ -967,15 +968,22 @@ export class CapitalShip extends Enemy {
         break;
     }
 
-    model.addComponent('model', { type: modelType as 'box' | 'sphere' | 'cylinder' | 'cone' | 'capsule' | 'plane' | 'torus' | 'asset' });
+    model.addComponent('model', {
+      type: modelType as
+        'box' | 'sphere' | 'cylinder' | 'cone' | 'capsule' | 'plane' | 'torus' | 'asset',
+    });
     model.setLocalScale(scale);
     partEntity.addChild(model);
 
     // 为不同部位设置不同颜色
     if (model.model) {
       const mat = new pc.StandardMaterial();
-      const color = type === 'reactor' ? [0.2, 0.8, 1.0] : 
-                    type === 'turret' ? [0.8, 0.2, 0.2] : [0.5, 0.5, 0.5];
+      const color =
+        type === 'reactor'
+          ? [0.2, 0.8, 1.0]
+          : type === 'turret'
+            ? [0.8, 0.2, 0.2]
+            : [0.5, 0.5, 0.5];
       mat.diffuse.set(color[0], color[1], color[2]);
       mat.emissive.set(color[0] * 0.5, color[1] * 0.5, color[2] * 0.5);
       mat.update();
@@ -993,7 +1001,7 @@ export class CapitalShip extends Enemy {
       lastShootTime: 0,
       shootInterval: turretConfig?.shootInterval,
       weaponType: turretConfig?.weaponType,
-      rotationSpeed: turretConfig?.rotationSpeed || 30
+      rotationSpeed: turretConfig?.rotationSpeed || 30,
     };
 
     this.parts.set(id, part);
@@ -1006,20 +1014,25 @@ export class CapitalShip extends Enemy {
     // 2026 Tech: WebGPU 损毁计算集成
     if (this.damageSystem) {
       // 计算碰撞点（简化为实体位置加一点偏移）
-      const hitPos = this.entity.getPosition().clone().add(new pc.Vec3(
-        (Math.random() - 0.5) * 5,
-        (Math.random() - 0.5) * 5,
-        (Math.random() - 0.5) * 5
-      ));
+      const hitPos = this.entity
+        .getPosition()
+        .clone()
+        .add(
+          new pc.Vec3(
+            (Math.random() - 0.5) * 5,
+            (Math.random() - 0.5) * 5,
+            (Math.random() - 0.5) * 5,
+          ),
+        );
       const force = new pc.Vec3(amount * 0.1, amount * 0.1, amount * 0.1);
       this.damageSystem.applyDamage(hitPos, force);
     }
 
     // 2026 Tech: 智能损伤分配
-    const partsArray = Array.from(this.parts.values()).filter(p => !p.isDestroyed);
-    
+    const partsArray = Array.from(this.parts.values()).filter((p) => !p.isDestroyed);
+
     // 找出炮塔
-    const turrets = partsArray.filter(p => p.type === 'turret');
+    const turrets = partsArray.filter((p) => p.type === 'turret');
     if (turrets.length > 0 && Math.random() > 0.4) {
       const target = turrets[Math.floor(Math.random() * turrets.length)];
       this.damagePart(target.id, amount);
@@ -1041,7 +1054,7 @@ export class CapitalShip extends Enemy {
     if (!part || part.isDestroyed) return;
 
     part.health -= amount;
-    
+
     // 触发局部受损特效（火花）
     this.engine.createExplosion?.(part.entity.getPosition(), 0.5);
 
@@ -1056,11 +1069,11 @@ export class CapitalShip extends Enemy {
 
     part.isDestroyed = true;
     part.health = 0;
-    
+
     // 视觉反馈：变黑
     const renders = part.entity.findComponents('render') as pc.RenderComponent[];
-    renders.forEach(r => {
-      r.meshInstances.forEach(mi => {
+    renders.forEach((r) => {
+      r.meshInstances.forEach((mi) => {
         const mat = mi.material as pc.StandardMaterial;
         if (mat) {
           mat.diffuse.set(0.1, 0.1, 0.1);
@@ -1077,30 +1090,30 @@ export class CapitalShip extends Enemy {
     store.updateGalacticStatus({
       intelligenceFeed: [
         ...store.galacticStatus.intelligenceFeed.slice(-4),
-        `[TACTICAL] 敌方巡洋舰部件已毁: ${part.name}`
-      ]
+        `[TACTICAL] 敌方巡洋舰部件已毁: ${part.name}`,
+      ],
     });
 
     // 2026 Tech: 功能性损毁逻辑
-    switch(part.type) {
+    switch (part.type) {
       case 'reactor':
-        console.log("CRITICAL: REACTOR MELTDOWN!");
+        console.log('CRITICAL: REACTOR MELTDOWN!');
         this.triggerMeltdownEffect(part.entity.getPosition());
         setTimeout(() => this.startDeath(), 1500); // 延迟爆炸，增加压迫感
         break;
       case 'engine':
         this.speed *= 0.3;
         this.triggerEngineFailureEffect(part.entity.getPosition());
-        console.log("Engines disabled.");
+        console.log('Engines disabled.');
         break;
       case 'bridge':
         this.ai.addStatusEffect('stun', 10000, 1);
         this.triggerBridgeDamageEffect(part.entity.getPosition());
-        console.log("Command bridge destroyed, AI confusion.");
+        console.log('Command bridge destroyed, AI confusion.');
         break;
       case 'hangar':
         this.triggerHangarDestructionEffect(part.entity.getPosition());
-        console.log("Hangar bay destroyed, drone deployment halted.");
+        console.log('Hangar bay destroyed, drone deployment halted.');
         break;
     }
   }
@@ -1112,13 +1125,17 @@ export class CapitalShip extends Enemy {
       lifetime: 2.0,
       numParticles: 200,
       initialVelocity: 15,
-      colorGraph: new pc.CurveSet([[0.2, 0.8, 1], [1, 0.5, 0], [0, 0, 0]]),
-      scaleGraph: new pc.Curve([0, 5, 10, 0])
+      colorGraph: new pc.CurveSet([
+        [0.2, 0.8, 1],
+        [1, 0.5, 0],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0, 5, 10, 0]),
     });
     this.engine.addToScene(meltdown);
-    
+
     // 强烈的全屏抖动
-    (this.engine.getApp() as any)._vfxSystem?.triggerShake(2.0, 0.5);
+    (this.engine.getApp() as any)['vfxSystem']?.triggerShake(2.0, 0.5);
   }
 
   private triggerEngineFailureEffect(pos: pc.Vec3): void {
@@ -1128,8 +1145,12 @@ export class CapitalShip extends Enemy {
       lifetime: 3.0,
       numParticles: 100,
       initialVelocity: 2,
-      colorGraph: new pc.CurveSet([[0.2, 0.2, 0.2], [0.1, 0.1, 0.1], [0, 0, 0]]),
-      scaleGraph: new pc.Curve([0.5, 2.0, 4.0])
+      colorGraph: new pc.CurveSet([
+        [0.2, 0.2, 0.2],
+        [0.1, 0.1, 0.1],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.5, 2.0, 4.0]),
     });
     this.engine.addToScene(smoke);
   }
@@ -1142,8 +1163,12 @@ export class CapitalShip extends Enemy {
       lifetime: 0.5,
       numParticles: 30,
       initialVelocity: 8,
-      colorGraph: new pc.CurveSet([[1, 1, 1], [0.5, 0.8, 1], [0, 0, 0]]),
-      scaleGraph: new pc.Curve([0.1, 0.2, 0])
+      colorGraph: new pc.CurveSet([
+        [1, 1, 1],
+        [0.5, 0.8, 1],
+        [0, 0, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.1, 0.2, 0]),
     });
     this.engine.addToScene(sparks);
   }
@@ -1157,8 +1182,11 @@ export class CapitalShip extends Enemy {
       lifetime: 1.5,
       numParticles: 40,
       initialVelocity: 12,
-      colorGraph: new pc.CurveSet([[0.4, 0.4, 0.45], [0.2, 0.2, 0.2]]),
-      scaleGraph: new pc.Curve([0.2, 0.4, 0.1])
+      colorGraph: new pc.CurveSet([
+        [0.4, 0.4, 0.45],
+        [0.2, 0.2, 0.2],
+      ]),
+      scaleGraph: new pc.Curve([0.2, 0.4, 0.1]),
     });
     this.engine.addToScene(debris);
   }
@@ -1194,26 +1222,37 @@ export class CapitalShip extends Enemy {
     }
 
     // 2026 Tech: 独立炮塔瞄准系统
-    this.parts.forEach(part => {
+    this.parts.forEach((part) => {
       if (part.type === 'turret' && !part.isDestroyed) {
         // 决定当前瞄准目标
-        const targetPos = part.target instanceof pc.Entity ? part.target.getPosition() : 
-                         (part.target instanceof PlayerShip ? part.target.getPosition() : playerPos);
+        const targetPos =
+          part.target instanceof pc.Entity
+            ? part.target.getPosition()
+            : part.target instanceof PlayerShip
+              ? part.target.getPosition()
+              : playerPos;
 
         // 缓慢转向目标
         const currentRot = part.entity.getRotation();
         part.entity.lookAt(targetPos);
         const targetRot = part.entity.getRotation();
-        
+
         // 插值旋转以实现平滑追踪 (2026 拟真度)
-        const slerpRot = new pc.Quat().slerp(currentRot, targetRot, (part.rotationSpeed || 30) * dt * 0.01);
+        const slerpRot = new pc.Quat().slerp(
+          currentRot,
+          targetRot,
+          (part.rotationSpeed || 30) * dt * 0.01,
+        );
         part.entity.setRotation(slerpRot);
 
         // 射击判定：仅当目标在视野范围内
-        const angle = part.entity.forward.dot(targetPos.clone().sub(part.entity.getPosition()).normalize());
-        if (angle > 0.8) { // 约 36 度角
+        const angle = part.entity.forward.dot(
+          targetPos.clone().sub(part.entity.getPosition()).normalize(),
+        );
+        if (angle > 0.8) {
+          // 约 36 度角
           let shootInterval = part.shootInterval || 4000;
-          
+
           // 2026 Tech: 阶段倍率缩放
           if (this.currentPhase === CapitalShipPhase.PHASE_3) {
             shootInterval *= 0.5; // 射速翻倍
@@ -1230,11 +1269,11 @@ export class CapitalShip extends Enemy {
       if (part.type === 'hangar' && !part.isDestroyed) {
         this.spawnDroneTimer += dt;
         let deployInterval = 12.0;
-        
+
         if (this.currentPhase === CapitalShipPhase.PHASE_2) deployInterval = 6.0;
         if (this.currentPhase === CapitalShipPhase.PHASE_3) deployInterval = 3.0;
 
-        if (this.spawnDroneTimer > deployInterval) { 
+        if (this.spawnDroneTimer > deployInterval) {
           this.deployDrone(part.entity.getPosition());
           this.spawnDroneTimer = 0;
         }
@@ -1243,19 +1282,19 @@ export class CapitalShip extends Enemy {
   }
 
   private scanForTargets(): void {
-    const npcs = (this.engine.getApp() as any)._npcManager?.getNPCs() || [];
+    const npcs = (this.engine.getApp() as any)['npcManager']?.getNPCs() || [];
     const myPos = this.entity.getPosition();
-    
+
     // 2026 Tech: 智能多目标锁定
     // 巨型舰船会扫描周围的单位，根据威胁度和距离分配目标
-    this.parts.forEach(part => {
+    this.parts.forEach((part) => {
       if (part.type === 'turret' && !part.isDestroyed) {
         // 70% 概率锁定玩家（主要威胁），30% 概率锁定最近的友军 NPC（分散火力）
         if (Math.random() > 0.7 && npcs.length > 0) {
           // 找到最近的 NPC
           let nearestNPC = npcs[0];
           let minDist = nearestNPC.getPosition().distance(myPos);
-          
+
           for (let i = 1; i < npcs.length; i++) {
             const dist = npcs[i].getPosition().distance(myPos);
             if (dist < minDist) {
@@ -1263,7 +1302,7 @@ export class CapitalShip extends Enemy {
               nearestNPC = npcs[i];
             }
           }
-          
+
           // 如果 NPC 在 50m 范围内，则锁定它
           if (minDist < 50) {
             part.target = (nearestNPC as any).entity;
@@ -1285,7 +1324,7 @@ export class CapitalShip extends Enemy {
     let damage = 20;
     let color = new pc.Color(1, 0.5, 0);
 
-    switch(part.weaponType) {
+    switch (part.weaponType) {
       case 'laser':
         speed = 60;
         damage = 10;
@@ -1310,10 +1349,13 @@ export class CapitalShip extends Enemy {
     mat.emissiveIntensity = 2.0;
     mat.update();
 
-    projectileEntity.addComponent('model', { type: part.weaponType === 'heavy_beam' ? 'cylinder' : 'sphere' });
+    projectileEntity.addComponent('model', {
+      type: part.weaponType === 'heavy_beam' ? 'cylinder' : 'sphere',
+    });
     if (projectileEntity.model) projectileEntity.model.material = mat;
-    
-    const scale = part.weaponType === 'heavy_beam' ? new pc.Vec3(0.5, 2, 0.5) : new pc.Vec3(0.4, 0.4, 0.4);
+
+    const scale =
+      part.weaponType === 'heavy_beam' ? new pc.Vec3(0.5, 2, 0.5) : new pc.Vec3(0.4, 0.4, 0.4);
     projectileEntity.setLocalScale(scale);
     projectileEntity.setPosition(spawnPos);
     projectileEntity.lookAt(targetPos);
@@ -1333,8 +1375,11 @@ export class CapitalShip extends Enemy {
       lifetime: 0.15,
       numParticles: 10,
       initialVelocity: 5,
-      colorGraph: new pc.CurveSet([[1, 0.8, 0], [0.5, 0.2, 0]]),
-      scaleGraph: new pc.Curve([0.1, 0.5, 0])
+      colorGraph: new pc.CurveSet([
+        [1, 0.8, 0],
+        [0.5, 0.2, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.1, 0.5, 0]),
     });
     this.engine.addToScene(flash);
     setTimeout(() => flash.destroy(), 200);
@@ -1347,8 +1392,11 @@ export class CapitalShip extends Enemy {
       lifetime: 0.8,
       numParticles: 50,
       initialVelocity: 10,
-      colorGraph: new pc.CurveSet([[1, 0.5, 0.2], [0.2, 0.1, 0]]),
-      scaleGraph: new pc.Curve([0.5, 1.2, 0])
+      colorGraph: new pc.CurveSet([
+        [1, 0.5, 0.2],
+        [0.2, 0.1, 0],
+      ]),
+      scaleGraph: new pc.Curve([0.5, 1.2, 0]),
     });
     this.engine.addToScene(explosion);
     setTimeout(() => explosion.destroy(), 1000);
@@ -1360,12 +1408,12 @@ export class CapitalShip extends Enemy {
    */
   private deployDrone(position: pc.Vec3): void {
     const app = this.engine.getApp() as any;
-    const enemySystem = app._enemySystem;
+    const enemySystem = app['_enemySystem'];
     if (enemySystem) {
       // 2026 Tech: 部署一架无人机
       enemySystem.spawnEnemyInstance(EnemyType.DRONE, position.clone());
       console.log(`[CapitalShip] ${this.type} deployed a drone at ${position}`);
-      
+
       // 触发部署特效（简单的光效）
       const deployEffect = new pc.Entity('deploy_effect');
       deployEffect.setPosition(position);
@@ -1373,8 +1421,11 @@ export class CapitalShip extends Enemy {
         lifetime: 0.5,
         numParticles: 20,
         initialVelocity: 2,
-        colorGraph: new pc.CurveSet([[0.2, 0.8, 1], [0, 0.2, 0.5]]),
-        scaleGraph: new pc.Curve([0.1, 0.3, 0])
+        colorGraph: new pc.CurveSet([
+          [0.2, 0.8, 1],
+          [0, 0.2, 0.5],
+        ]),
+        scaleGraph: new pc.Curve([0.1, 0.3, 0]),
       });
       this.engine.addToScene(deployEffect);
       setTimeout(() => deployEffect.destroy(), 600);

@@ -113,6 +113,7 @@ describe('LuaEngine 运行时', () => {
   it('宿主模块在两种模式下都取得到（既有剩余管理器的取数路径）', async () => {
     for (const forceStub of [true, false]) {
       const engine = new LuaEngine({ forceStub });
+      // oxlint-disable-next-line no-await-in-loop
       await engine.initialize();
 
       const combatStatsModule = engine.getStubModule('combat_stats_module') as

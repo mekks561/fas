@@ -1,5 +1,4 @@
-﻿import * as pc from 'playcanvas';
-import { PluginContext } from './PluginSystem';
+﻿import { PluginContext } from './PluginSystem';
 import { useGameStore } from '../store/useGameStore';
 
 export interface Commodity {
@@ -38,7 +37,7 @@ export class TradeManager {
       basePrice: 50,
       currentPrice: 50,
       volatility: 0.05,
-      category: 'mineral'
+      category: 'mineral',
     });
     this.commodities.set('plasma', {
       id: 'plasma',
@@ -46,7 +45,7 @@ export class TradeManager {
       basePrice: 200,
       currentPrice: 200,
       volatility: 0.15,
-      category: 'technology'
+      category: 'technology',
     });
     this.commodities.set('neural_link', {
       id: 'neural_link',
@@ -54,7 +53,7 @@ export class TradeManager {
       basePrice: 1500,
       currentPrice: 1500,
       volatility: 0.25,
-      category: 'technology'
+      category: 'technology',
     });
     this.commodities.set('space_wine', {
       id: 'space_wine',
@@ -62,11 +61,11 @@ export class TradeManager {
       basePrice: 500,
       currentPrice: 500,
       volatility: 0.3,
-      category: 'luxury'
+      category: 'luxury',
     });
   }
 
-  public onUpdate(dt: number): void {
+  public onUpdate(_dt: number): void {
     const now = Date.now();
     if (now - this.lastUpdate > this.updateInterval * 1000) {
       this.simulateMarketFluctuation();
@@ -76,13 +75,13 @@ export class TradeManager {
 
   private simulateMarketFluctuation(): void {
     const app = this.context?.app as any;
-    const galaxyManager = app?._galaxyManager;
+    const galaxyManager = app?.['galaxyManager'];
     const currentSectorId = galaxyManager?.getCurrentSector()?.id;
     const activeEvents = galaxyManager?.getStrategicAI?.()?.getActiveEvents() || [];
 
-    this.commodities.forEach(c => {
+    this.commodities.forEach((c) => {
       let eventMultiplier = 1.0;
-      
+
       // 2026 Tech: 战略事件对价格的宏观影响
       activeEvents.forEach((e: any) => {
         if (e.targetSectorId === currentSectorId) {
@@ -97,7 +96,7 @@ export class TradeManager {
       const change = (Math.random() - 0.5) * 2 * c.volatility * c.basePrice;
       c.currentPrice = Math.max(c.basePrice * 0.5, (c.currentPrice + change) * eventMultiplier);
     });
-    
+
     console.log('[TradeManager] Market prices updated with strategic awareness.');
   }
 
@@ -109,8 +108,12 @@ export class TradeManager {
 
     // 2026 Tech: 派系声望影响价格
     const app = this.context?.app;
-    const sectorManager = (app as any)?._sectorManager as import('./SectorManager').SectorManager;
-    const factionManager = (app as any)?._factionManager as import('./FactionManager').FactionManager;
+    const sectorManager = (app as any)?.[
+      'sectorManager'
+    ] as import('./SectorManager').SectorManager;
+    const factionManager = (app as any)?.[
+      'factionManager'
+    ] as import('./FactionManager').FactionManager;
 
     if (sectorManager && factionManager) {
       const currentSector = sectorManager.getCurrentSector();
@@ -144,7 +147,7 @@ export class TradeManager {
     const totalEarning = Math.floor(commodity.currentPrice * count);
     store.removeItem(id, count);
     store.addCurrency(totalEarning);
-    
+
     console.log(`[TradeManager] Sold ${count}x ${commodity.name} for ${totalEarning} credits.`);
     return true;
   }

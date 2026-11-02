@@ -222,6 +222,7 @@ export class GameDatabase extends Dexie {
     const cutoff = Date.now() - maxAge;
     const oldResources = await this.resources.where('timestamp').below(cutoff).toArray();
     for (const resource of oldResources) {
+      // oxlint-disable-next-line no-await-in-loop
       await this.resources.delete(resource.id);
     }
   }

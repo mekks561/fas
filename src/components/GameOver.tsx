@@ -91,7 +91,7 @@ export const GameOver: React.FC<GameOverProps> = ({
   const [showAnimation, setShowAnimation] = useState(false);
   const [animateStats, setAnimateStats] = useState(false);
   const [submittedScore, setSubmittedScore] = useState(false);
-  const [rank, setRank] = useState<number | null>(null);
+  const [playerRank, setRank] = useState<number | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { t } = useTranslation();
   const submitMutation = useSubmitScore();
@@ -288,10 +288,10 @@ export const GameOver: React.FC<GameOverProps> = ({
                   <span className="text-sm font-bold">提交异常: {submitError}</span>
                 </div>
               )}
-              {submittedScore && !submitError && rank !== null && (
+              {submittedScore && !submitError && playerRank !== null && (
                 <div className="flex items-center justify-center gap-2 text-blue-400 mb-3">
                   <Medal className="w-4 h-4" />
-                  <span className="text-sm font-bold">排名: #{rank}</span>
+                  <span className="text-sm font-bold">排名: #{playerRank}</span>
                 </div>
               )}
               <div className="space-y-2">

@@ -73,7 +73,7 @@ export class ObjectPool<T> {
    * 释放对象回池
    */
   public release(instance: T): void {
-    const item = this.pool.find((item) => item.instance === instance);
+    const item = this.pool.find((poolItem) => poolItem.instance === instance);
 
     if (item) {
       item.active = false;

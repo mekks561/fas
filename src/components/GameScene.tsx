@@ -1,6 +1,5 @@
-import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
+﻿import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import type { PlayerControls } from '../engine/PlayerShip';
-import type { Dialogue } from '../engine/StoryMissionManager';
 import { useGameStore } from '../store/useGameStore';
 import { GameHUD } from './GameHUD';
 import { LoadingOverlay } from './LoadingOverlay';
@@ -10,7 +9,6 @@ import { DialogueSystem } from './DialogueSystem';
 import { QuestTracker } from './QuestTracker';
 import { UpgradeChoiceOverlay } from './UpgradeChoiceOverlay';
 import { StationTradePanel } from './StationTradePanel';
-import StarMap from './StarMap';
 import { gameplayManager } from '../engine/GameplayManager';
 import type { GameplayEvents } from '../engine/GameplayManager';
 import { luaEngine } from '../lua/LuaEngine';
@@ -358,8 +356,8 @@ export const GameScene: React.FC<{
     const timer = setInterval(() => {
       const sectorManager = SectorManager.getInstance();
       const currentSector = sectorManager.getCurrentSector();
-      const factionManager = (engineRef.current?.getApp() as any)?._factionManager;
-      
+      const factionManager = (engineRef.current?.getApp() as any)?.['factionManager'];
+
       if (currentSector && factionManager) {
         const dominant = factionManager.getDominantFaction(currentSector.config.id);
         const safety = factionManager.getSectorSafety(currentSector.config.id);
@@ -484,10 +482,10 @@ export const GameScene: React.FC<{
   const handleTradeBuy = useCallback((upgradeId: string, price: number) => {
     const store = useGameStore.getState();
     if (store.currency < price) return;
-    
+
     store.addCurrency(-price);
     buildSystemRef.current?.selectUpgrade(upgradeId);
-    
+
     // 刷新已购列表
     const build = buildSystemRef.current?.getActiveBuild();
     if (build) {
@@ -502,12 +500,12 @@ export const GameScene: React.FC<{
         buildSystemRef.current?.getActiveResonanceNames() || [],
       );
     }
-    
+
     // 购买后关闭面板
     store.setTradePanelVisible(false);
     store.setGamePaused(false);
     store.setPendingTradeChoices(null);
-    
+
     globalAudio.playCue('uiLevelUp');
   }, []);
 
@@ -567,13 +565,13 @@ export const GameScene: React.FC<{
       const [
         pcModule,
         { PlayCanvasGameEngine },
-        { PlayerShip },
-        { EnemySystem },
-        { WeaponSystem },
-        { SkillSystem },
-        { StoryMissionManager },
+        ,
+        ,
+        ,
+        ,
+        ,
         { AudioManager },
-        { PowerupSpawner, PowerupType: EnginePowerupType },
+        { PowerupType: EnginePowerupType },
       ] = await Promise.all([
         import('playcanvas'),
         import('../engine/PlayCanvasEngine'),
@@ -598,7 +596,7 @@ export const GameScene: React.FC<{
       });
       engineRef.current = engine;
       // 2026 Tech: 暴露引擎实例到 window 以供 UI (如 StarMap) 访问
-      (window as any)._gameEngine = engine;
+      (window as any)['gameEngine'] = engine;
       console.log('[GameScene] PlayCanvas engine created');
 
       useGameStore.getState().setLoadingProgress(50);
@@ -611,7 +609,6 @@ export const GameScene: React.FC<{
       } catch (pluginError) {
         console.error('[GameScene] Failed to load engine plugins:', pluginError);
       }
-
 
       AudioManager.initialize(engine.getApp());
       // 音乐不在这里起：改由 globalAudio 按界面统一驱动（App 的 gameState 变化时切歌），
@@ -705,7 +702,7 @@ export const GameScene: React.FC<{
       // 空间站和卫星作为远处空间参照物（createStructure 返回的 entity 未 addToScene，需手动添加）
       const { ProceduralModelGenerator: ModelGen } =
         await import('../engine/ProceduralModelGenerator');
-      const modelGen = new ModelGen(engine.getApp());
+      const modelGen = new ModelGen();
       // 空间站和卫星作为远处空间参照物。
       // 与飞船同款做法：包一层 holder 承载位置，内部程序化模型先顶上，
       // GLB 加载好后异步替换；任何失败都保留程序化模型，不影响开局。
@@ -775,7 +772,7 @@ export const GameScene: React.FC<{
         const vfxSystem = new VFXClass(engine.getApp(), engine.getCamera());
         vfxSystem.applyPreset('cinematic');
         vfxSystemRef.current = vfxSystem;
-        (engine.getApp() as any)._vfxSystem = vfxSystem;
+        (engine.getApp() as any)['vfxSystem'] = vfxSystem;
         console.log('[GameScene] Visual effect system initialized (cinematic preset)');
       } catch (vfxError) {
         console.warn(
@@ -809,8 +806,9 @@ export const GameScene: React.FC<{
       // 所以「机库显示可选」与「真的能开」永远一致；已授予但存档写了个不可用舰体时
       // 也会回落到初始舰体。
       const selectedHull = getSelectedHull(unlockSnapshot.granted);
-      
-      const { StoryMissionManager: StoryMissionManagerClass } = await import('../engine/StoryMissionManager');
+
+      const { StoryMissionManager: StoryMissionManagerClass } =
+        await import('../engine/StoryMissionManager');
       const storyMgr = new StoryMissionManagerClass();
       storyManagerRef.current = storyMgr;
       setStoryManager(storyMgr);
@@ -825,7 +823,7 @@ export const GameScene: React.FC<{
         tint: hullTint ?? undefined,
       });
       playerRef.current = player;
-      (engine.getApp() as any)._player = player;
+      (engine.getApp() as any)['player'] = player;
       console.log(
         `[GameScene] Player created at position (0, 0, 0)，舰体 ${HULL_DEFS[selectedHull].name}` +
           `（${selectedHull}）`,
@@ -849,7 +847,7 @@ export const GameScene: React.FC<{
       const { AsteroidSystem: AsteroidSystemClass } = await import('../engine/AsteroidSystem');
       const asteroidSystem = new AsteroidSystemClass(player, engine);
       asteroidSystemRef.current = asteroidSystem;
-      (engine.getApp() as any)._asteroidSystem = asteroidSystem;
+      (engine.getApp() as any)['asteroidSystem'] = asteroidSystem;
       console.log('[GameScene] Asteroid collision system created');
 
       const resourceSystem = engine.getPlugin<ResourceSystem>('ResourceSystem');
@@ -861,13 +859,18 @@ export const GameScene: React.FC<{
       const { NPCManager: NPCManagerClass } = await import('../engine/NPCManager');
       const npcManager = new NPCManagerClass(engine, player);
       npcManagerRef.current = npcManager;
-      (engine.getApp() as any)._npcManager = npcManager;
+      (engine.getApp() as any)['npcManager'] = npcManager;
       console.log('[GameScene] NPC system created');
 
       const { EnemySystem: EnemySystemClass } = await import('../engine/EnemySystem');
-      const enemySystem = new EnemySystemClass(engine, player, gameplayManager.getWaveManager() || undefined, storyMgr);
+      const enemySystem = new EnemySystemClass(
+        engine,
+        player,
+        gameplayManager.getWaveManager() || undefined,
+        storyMgr,
+      );
       enemySystemRef.current = enemySystem;
-      (engine.getApp() as any)._enemySystem = enemySystem;
+      (engine.getApp() as any)['enemySystem'] = enemySystem;
       console.log('[GameScene] Enemy system created');
 
       const { WeaponSystem: WeaponSystemClass } = await import('../engine/WeaponSystem');
@@ -879,7 +882,7 @@ export const GameScene: React.FC<{
       const { BuildSystem: BuildSystemClass } = await import('../engine/BuildSystem');
       const buildSystem = new BuildSystemClass();
       buildSystemRef.current = buildSystem;
-      (engine.getApp() as any)._buildSystem = buildSystem;
+      (engine.getApp() as any)['buildSystem'] = buildSystem;
       console.log('[GameScene] Build system created');
 
       // 摄像机跟随系统：平滑追踪玩家位置和姿态
@@ -895,9 +898,9 @@ export const GameScene: React.FC<{
       cameraSystem.setRollStabilized(true);
       cameraSystemRef.current = cameraSystem;
       // 2026 Tech: 将相机系统挂载到 app，方便 SectorManager 等外部系统在星区跳转时重置相机
-      (engine.getApp() as any)._cameraSystem = cameraSystem;
-      (engine.getApp() as any)._engine = engine;
-      
+      (engine.getApp() as any)['cameraSystem'] = cameraSystem;
+      (engine.getApp() as any)['engine'] = engine;
+
       console.log(
         '[GameScene] Camera follow system created (offset: 0,8,15, followSpeed: 0.15, rollStabilized)',
       );
@@ -943,13 +946,9 @@ export const GameScene: React.FC<{
       // v2.7 星区系统初始化
       try {
         const sectorManager = SectorManager.getInstance();
-        (engine.getApp() as any)._sectorManager = sectorManager;
+        (engine.getApp() as any)['sectorManager'] = sectorManager;
 
-        if (
-          asteroidSystemRef.current &&
-          npcManagerRef.current &&
-          storyMgr
-        ) {
+        if (asteroidSystemRef.current && npcManagerRef.current && storyMgr) {
           sectorManager.init(
             engine,
             player,
@@ -957,7 +956,7 @@ export const GameScene: React.FC<{
             resourceSystemRef.current!, // resourceSystem might be null but SectorManager handles it
             npcManagerRef.current,
             storyMgr,
-            vfxSystemRef.current! // vfxSystem might be null but SectorManager handles it
+            vfxSystemRef.current!, // vfxSystem might be null but SectorManager handles it
           );
           await sectorManager.enterInitialSector();
           console.log('[GameScene] Sector system initialized');
@@ -1061,8 +1060,8 @@ export const GameScene: React.FC<{
           } else {
             // 最后一波清空：不再排下一波，标记「末波已清空」，
             // 交由 update 循环在同一帧触发关卡完成结算。
-            const totalWaves = enemySystemRef.current?.getTotalWaves() ?? 10;
-            if (waveNumber >= totalWaves) {
+            const waves = enemySystemRef.current?.getTotalWaves() ?? 10;
+            if (waveNumber >= waves) {
               waveTransitionRef.current.nextWave = null;
               finalWaveClearedRef.current = true;
               return;
@@ -1348,7 +1347,8 @@ export const GameScene: React.FC<{
             levelCompleteFired: levelCompleteFiredRef.current,
             finalWaveCleared: finalWaveClearedRef.current,
             raf:
-              (window as unknown as { __rafProbeCount?: () => number }).__rafProbeCount?.() ?? -1,
+              (window as unknown as { __rafProbeCount?: () => number })['__rafProbeCount']?.() ??
+              -1,
             diag: { ...diag },
             enemyInternals: (() => {
               const es = enemySystemRef.current as unknown as Record<string, unknown> | null;
@@ -1558,24 +1558,24 @@ export const GameScene: React.FC<{
         };
 
         // 粒子贴图观测钩子：报告 7 张贴图的就绪状态与引擎缓存数量（只读生产对象）
-        const engine = engineRef.current;
-        if (engine) {
+        const eng = engineRef.current;
+        if (eng) {
           (window as unknown as Record<string, unknown>)['__particleDebug'] = {
             status: () =>
               PlayCanvasGameEngine.ALL_PARTICLE_TEXTURE_URLS.map((url) => ({
                 url: url.replace('/assets/textures/particles/', ''),
-                ready: !!engine.getParticleTexture(url),
+                ready: !!eng.getParticleTexture(url),
               })),
             readyCount: () =>
               PlayCanvasGameEngine.ALL_PARTICLE_TEXTURE_URLS.filter((u) =>
-                engine.getParticleTexture(u),
+                eng.getParticleTexture(u),
               ).length,
             /** 常驻尾焰的 colorMap 是否已回填（验证 pending 补设路径） */
             trailColorMapSet: () => {
-              const player = playerRef.current as unknown as {
+              const p = playerRef.current as unknown as {
                 engineTrail?: { particlesystem?: { colorMap?: unknown } } | null;
               } | null;
-              return !!player?.engineTrail?.particlesystem?.colorMap;
+              return !!p?.engineTrail?.particlesystem?.colorMap;
             },
           };
 
@@ -1585,7 +1585,7 @@ export const GameScene: React.FC<{
               let pbrMeshes = 0;
               let totalMeshes = 0;
               const sets = new Set<string>();
-              engine.getApp().root.forEach((node: pc.GraphNode) => {
+              eng.getApp().root.forEach((node: pc.GraphNode) => {
                 const render = (node as pc.Entity).render;
                 if (!render) return;
                 for (const mi of render.meshInstances) {
@@ -1621,10 +1621,10 @@ export const GameScene: React.FC<{
               maxWaves: enemySystemRef.current?.getTotalWaves() ?? -1,
               wavePlans: gameplayManager.getWaveManager()?.getWavePlanCount() ?? 0,
               enemies: enemySystemRef.current?.getEnemies().length ?? -1,
-              asteroidCount: engine.getApp().root.findByName('asteroidField')?.children.length ?? 0,
+              asteroidCount: eng.getApp().root.findByName('asteroidField')?.children.length ?? 0,
               credits: getCredits(),
               // 画质：环境光照（IBL）与色调映射的实际生效值（现读 scene，非影子状态）
-              environment: engine.getEnvironmentLightingState(),
+              environment: eng.getEnvironmentLightingState(),
             }),
             levelConfig,
           };
@@ -1638,7 +1638,7 @@ export const GameScene: React.FC<{
             /** 当前敌机 AI 后端（ts 原生 / lua 模块） */
             getMode: () => getEnemyAIMode(),
             /** 切换后端：只影响之后生成的敌机（已生成的不换脑） */
-            setMode: (mode: 'ts' | 'lua') => setEnemyAIMode(mode),
+            setMode: (m: 'ts' | 'lua') => setEnemyAIMode(m),
             /** 桥接统计（句柄数 / 步进 / 动作 / 错误 / 兜底） */
             stats: () => ({
               ...enemyAIManager.getStats(),
@@ -1681,9 +1681,9 @@ export const GameScene: React.FC<{
              */
             pushEnemiesAway: (radius: number = 26) => {
               const system = enemySystemRef.current;
-              const player = playerRef.current;
-              if (!system || !player) return 0;
-              const center = player.getPosition();
+              const p = playerRef.current;
+              if (!system || !p) return 0;
+              const center = p.getPosition();
               const list = system.getEnemies().filter((e) => e.isAlive());
               list.forEach((enemy, i) => {
                 const angle = (i / Math.max(1, list.length)) * Math.PI * 2;
@@ -1710,7 +1710,7 @@ export const GameScene: React.FC<{
             effectCount: () => vfxSystemRef.current?.getEffectCount() ?? 0,
             config: () => vfxSystemRef.current?.getConfig() ?? null,
             /** 相机是否已把渲染目标切到后处理的离屏缓冲（= 后处理真的接管了渲染） */
-            cameraPostProcessed: () => !!engine.getCamera().camera?.renderTarget,
+            cameraPostProcessed: () => !!eng.getCamera().camera?.renderTarget,
             setBloom: (on: boolean) => {
               if (on) vfxSystemRef.current?.enableBloom();
               else vfxSystemRef.current?.disableBloom();
@@ -1774,13 +1774,13 @@ export const GameScene: React.FC<{
       let lastFpsUpdate = Date.now();
 
       engine.setUpdateCallback((dt: number) => {
-        const gameState = useGameStore.getState();
+        const gs = useGameStore.getState();
         if (import.meta.env.DEV) {
           const d = (
             window as unknown as {
               __waveDiag?: { ticks: number; logicTicks: number; enemyUpdates: number };
             }
-          ).__waveDiag;
+          )['__waveDiag'];
           if (d) d.ticks++;
         }
 
@@ -1836,30 +1836,30 @@ export const GameScene: React.FC<{
           }
         }
 
-        if (!gameState.isGamePaused && gameState.isSceneReady && playerRef.current) {
+        if (!gs.isGamePaused && gs.isSceneReady && playerRef.current) {
           if (import.meta.env.DEV) {
             const d = (
               window as unknown as {
                 __waveDiag?: { ticks: number; logicTicks: number; enemyUpdates: number };
               }
-            ).__waveDiag;
+            )['__waveDiag'];
             if (d) d.logicTicks++;
 
             // 2026 Tech: 每 180 帧 (约 3s) 输出一次渲染诊断，排查黑屏
-            if ((window as any)._logicTicks % 180 === 0) {
+            if ((window as any)['logicTicks'] % 180 === 0) {
               const cam = engineRef.current?.getCamera();
               const p = playerRef.current?.getEntity();
               console.log('[diag] Scene Update Tick:', {
-                ticks: (window as any)._logicTicks,
+                ticks: (window as any)['logicTicks'],
                 playerPos: p?.getPosition().toString(),
                 cameraPos: cam?.getPosition().toString(),
                 cameraFar: cam?.camera?.farClip,
                 fogDensity: engineRef.current?.getApp().scene.fog.density,
-                isPaused: gameState.isGamePaused,
-                isReady: gameState.isSceneReady
+                isPaused: gs.isGamePaused,
+                isReady: gs.isSceneReady,
               });
             }
-            (window as any)._logicTicks = ((window as any)._logicTicks || 0) + 1;
+            (window as any)['logicTicks'] = ((window as any)['logicTicks'] || 0) + 1;
           }
 
           playerRef.current.update(dt, controlsRef.current);
@@ -1889,14 +1889,14 @@ export const GameScene: React.FC<{
           npcManagerRef.current?.update(dt);
 
           // 每 60 帧更新一次 WebGPU 性能数据到 Store
-          if (engineRef.current && (window as any)._frameCount % 60 === 0) {
+          if (engineRef.current && (window as any)['frameCount'] % 60 === 0) {
             const damageSystem = engineRef.current.getPlugin<any>('WebGPUDamageSystem');
             if (damageSystem) {
               const profilerData = damageSystem.getProfilerData();
               useGameStore.getState().setWebGPUProfiler(profilerData);
             }
           }
-          (window as any)._frameCount = ((window as any)._frameCount || 0) + 1;
+          (window as any)['frameCount'] = ((window as any)['frameCount'] || 0) + 1;
 
           // 摄像机跟随更新（在玩家位置更新之后，确保追踪最新位置）
           if (cameraSystemRef.current) {
@@ -1922,7 +1922,7 @@ export const GameScene: React.FC<{
                 window as unknown as {
                   __waveDiag?: { ticks: number; logicTicks: number; enemyUpdates: number };
                 }
-              ).__waveDiag;
+              )['__waveDiag'];
               if (d) d.enemyUpdates++;
             }
           }
@@ -2014,9 +2014,9 @@ export const GameScene: React.FC<{
 
           if (gameplayManagerRef.current && gameplayManagerRef.current.isRunning()) {
             gameplayManagerRef.current.update(dt);
-            const activePowerups = gameplayManagerRef.current.getActivePowerups();
-            if (activePowerups.length > 0) {
-              const storePowerups = activePowerups.map((p) => ({
+            const powerups = gameplayManagerRef.current.getActivePowerups();
+            if (powerups.length > 0) {
+              const storePowerups = powerups.map((p) => ({
                 type: p.type,
                 name: p.displayName || p.type,
                 remainingTime: p.remainingDuration,
@@ -2278,7 +2278,7 @@ export const GameScene: React.FC<{
         if (engineRef.current) {
           engineRef.current.destroy();
           engineRef.current = null;
-          (window as any)._gameEngine = null;
+          (window as any)['gameEngine'] = null;
         }
       };
     } catch (error) {
@@ -2317,7 +2317,7 @@ export const GameScene: React.FC<{
   // 独立的键盘事件处理，确保在整个游戏期间都有效
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      (window as any).__lastKeyDown = e.code;
+      (window as any)['_lastKeyDown'] = e.code;
       if (import.meta.env.DEV) {
         console.log('[GameScene] KeyDown:', e.code, e.key);
       }

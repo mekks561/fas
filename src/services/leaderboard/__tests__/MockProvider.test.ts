@@ -109,6 +109,7 @@ describe('MockProvider', () => {
   it('不同 difficulty list 查询不抛错', async () => {
     const p = new MockProvider();
     for (const d of ['easy', 'normal', 'hard', 'expert'] as const) {
+      // oxlint-disable-next-line no-await-in-loop
       const r = await p.list({ limit: 10, filter: 'all', difficulty: d });
       expect(Array.isArray(r)).toBe(true);
     }

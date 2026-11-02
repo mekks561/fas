@@ -160,7 +160,7 @@ export class PlayerShip {
       this.meshTearing = new MeshTearingSystem(this.engine.getApp(), this.damageSystem);
     }
 
-    this.modelGenerator = new ProceduralModelGenerator(this.engine.getApp());
+    this.modelGenerator = new ProceduralModelGenerator();
     this.entity = this.createPlayerShip(config.initialPosition || new pc.Vec3(0, 0, 0));
   }
 
@@ -204,7 +204,7 @@ export class PlayerShip {
         onReplaced: (instance) => {
           // 叠上真 PBR 材质（金属），配合 faction tint 着色
           this.engine.applyPbrMaterialWhenReady(instance, 'metal', this.hullTint);
-          
+
           // 2026 Tech: 应用网格撕裂着色器
           if (this.meshTearing) {
             this.meshTearing.applyToEntity(player);
@@ -295,11 +295,7 @@ export class PlayerShip {
    */
   private applyRotation(angVel: pc.Vec3, dt: number): void {
     // 将角速度应用到实体
-    this.entity.rotateLocal(
-      angVel.x * dt,
-      angVel.y * dt,
-      angVel.z * dt
-    );
+    this.entity.rotateLocal(angVel.x * dt, angVel.y * dt, angVel.z * dt);
 
     // 同步视觉状态 (用于尾焰等)
     this.angularVelocity.pitch = angVel.x;
@@ -373,14 +369,14 @@ export class PlayerShip {
 
   public update(dt: number, controls: PlayerControls): void {
     this.latestControls = controls;
-    const sectorManager = (this.engine.getApp() as any)._sectorManager;
+    const sectorManager = (this.engine.getApp() as any)['sectorManager'];
     const inNebula = sectorManager?.isInNebula() || false;
-    
+
     // 2026 Tech: 星云环境影响 (Tactical Volumetric Nebula)
     // 1. 推进器过热：能量消耗增加
     // 2. 制动失效：阻力减小，惯性增加
-    const nebulaHeatMult = inNebula ? 2.5 : 1.0; 
-    const nebulaDecelMult = inNebula ? 0.3 : 1.0; 
+    const nebulaHeatMult = inNebula ? 2.5 : 1.0;
+    const nebulaDecelMult = inNebula ? 0.3 : 1.0;
     const nebulaMaxSpeedMult = inNebula ? 0.8 : 1.0; // 阻力导致最高速度下降
 
     if (import.meta.env.DEV && (controls.up || controls.down || controls.left || controls.right)) {
@@ -397,10 +393,10 @@ export class PlayerShip {
       0,
       this.shieldRechargeDelay + this.buildMods.shieldRechargeDelayBonusMs,
     );
-    
+
     // 2026 Tech: 应用全局增益 (护盾恢复)
     const globalModifiers = useGameStore.getState().globalModifiers || [];
-    const shieldRegenMod = globalModifiers.find(m => m.type === 'shield_regen')?.value || 1.0;
+    const shieldRegenMod = globalModifiers.find((m) => m.type === 'shield_regen')?.value || 1.0;
 
     const effectiveShieldRate =
       this.shieldRechargeRate * this.buildMods.shieldRechargeRateMultiplier * shieldRegenMod;
@@ -409,11 +405,17 @@ export class PlayerShip {
     }
 
     // 应用 Build 修饰符与 Overdrive：速度/加速度
-    const speedMod = globalModifiers.find(m => m.type === 'speed')?.value || 1.0;
+    const speedMod = globalModifiers.find((m) => m.type === 'speed')?.value || 1.0;
     const overdriveMult = this.isOverdriveActive ? this.overdriveSpeedMult : 1;
-    const effectiveMaxSpeed = this.maxSpeed * this.buildMods.maxSpeedMultiplier * overdriveMult * nebulaMaxSpeedMult * speedMod;
+    const effectiveMaxSpeed =
+      this.maxSpeed *
+      this.buildMods.maxSpeedMultiplier *
+      overdriveMult *
+      nebulaMaxSpeedMult *
+      speedMod;
     const effectiveAccel = this.acceleration * overdriveMult;
-    const effectiveDecel = this.deceleration * this.buildMods.decelerationMultiplier * nebulaDecelMult;
+    const effectiveDecel =
+      this.deceleration * this.buildMods.decelerationMultiplier * nebulaDecelMult;
 
     if (controls.up) {
       this.speed = Math.min(this.speed + effectiveAccel * dt, effectiveMaxSpeed);
@@ -430,11 +432,13 @@ export class PlayerShip {
     const canBoost = controls.boost && this.speed > 0 && this.boostEnergy > 0;
 
     if (canBoost) {
-      this.boostEnergy = Math.max(0, this.boostEnergy - this.boostEnergyConsumptionRate * dt * nebulaHeatMult);
+      this.boostEnergy = Math.max(
+        0,
+        this.boostEnergy - this.boostEnergyConsumptionRate * dt * nebulaHeatMult,
+      );
     } else if (!controls.boost && this.boostEnergy < this.maxBoostEnergy) {
       // 2026 Tech: 应用全局增益 (如戴森云提供的能量恢复加成)
-      const globalModifiers = useGameStore.getState().globalModifiers || [];
-      const energyRegenMod = globalModifiers.find(m => m.type === 'energy_regen')?.value || 1.0;
+      const energyRegenMod = globalModifiers.find((m) => m.type === 'energy_regen')?.value || 1.0;
 
       const effectiveBoostRecharge =
         this.boostEnergyRechargeRate *
@@ -461,10 +465,10 @@ export class PlayerShip {
     if (this.damageSystem) {
       const com = this.damageSystem.calculateCenterOfMass();
       this.physicsKernel.setCenterOfMass(com);
-      
+
       // 2026 Tech: 几何形变视觉反馈 (Geometric Distortion)
       this.updateDamageVisuals();
-      
+
       // 2026 Tech: 更新网格撕裂着色器参数
       if (this.meshTearing) {
         this.meshTearing.update(this.entity);
@@ -473,26 +477,28 @@ export class PlayerShip {
 
     // 1. 获取控制扭矩 (由用户输入产生)
     const controlTorques = this.getControlTorques(controls);
-    
+
     // 2. 获取推进力 (主引擎推力)
-    const physicsForces = this.externalForces.map(f => ({ 
-      force: f, 
-      position: new pc.Vec3(0, 0, 0) // 外部力场默认作用于中心
+    const physicsForces = this.externalForces.map((f) => ({
+      force: f,
+      position: new pc.Vec3(0, 0, 0), // 外部力场默认作用于中心
     }));
-    
+
     if (this.speed !== 0) {
       // 推进力作用于飞船尾部。如果 CoM 偏移，这会产生真实的偏转力矩。
-      const thrustForce = this.entity.forward.clone().scale(this.acceleration * this.physicsKernel.getMass() * (this.speed > 0 ? 1 : -0.5));
+      const thrustForce = this.entity.forward
+        .clone()
+        .scale(this.acceleration * this.physicsKernel.getMass() * (this.speed > 0 ? 1 : -0.5));
       physicsForces.push({
         force: thrustForce,
-        position: new pc.Vec3(0, 0, 1.2) // Kenney 飞船尾部位置
+        position: new pc.Vec3(0, 0, 1.2), // Kenney 飞船尾部位置
       });
     }
 
     // 3. 步进物理内核
     this.physicsKernel.step(dt, physicsForces, [controlTorques]);
     this.externalForces = []; // 清空累加力
-    
+
     const physicsVel = this.physicsKernel.getVelocity();
     const physicsAngVel = this.physicsKernel.getAngularVelocity();
 
@@ -503,7 +509,7 @@ export class PlayerShip {
       const forward = this.entity.forward.clone().scale(finalSpeed * dt);
       // Engine 2 的 getPosition() 返回 Readonly<Vec3>，clone() 出一份可写副本再就地钳位
       const currentPos = this.entity.getPosition().clone();
-      
+
       // 叠加基础移动与物理偏移
       currentPos.add(forward);
       currentPos.add(physicsVel.clone().scale(dt));
@@ -525,7 +531,7 @@ export class PlayerShip {
     const pos = this.entity.getPosition();
     const rot = this.entity.getEulerAngles();
 
-    (window as any).__playerDebug = {
+    (window as any)['_playerDebug'] = {
       position: { x: pos.x, y: pos.y, z: pos.z },
       rotation: { x: rot.x, y: rot.y, z: rot.z },
       speed: this.speed,
@@ -573,7 +579,7 @@ export class PlayerShip {
       const localHitPos = new pc.Vec3(
         (Math.random() - 0.5) * 4,
         (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 4
+        (Math.random() - 0.5) * 4,
       );
       this.damageSystem.applyDamage(localHitPos, new pc.Vec3(0, 0, 1).scale(amount));
     }
@@ -768,7 +774,7 @@ export class PlayerShip {
    */
   private updateDamageVisuals(): void {
     if (!this.damageSystem || !this.entity.model) return;
-    
+
     const healthRatio = this.health / this.maxHealth;
     if (healthRatio > 0.95) return;
 
@@ -779,17 +785,17 @@ export class PlayerShip {
       modelRoot.setLocalPosition(
         (Math.random() - 0.5) * jitter,
         (Math.random() - 0.5) * jitter,
-        (Math.random() - 0.5) * jitter
+        (Math.random() - 0.5) * jitter,
       );
     }
 
     // 2. 局部发红 (模拟热损伤/漏电)
-    this.entity.model.meshInstances?.forEach(mi => {
+    this.entity.model.meshInstances?.forEach((mi) => {
       if (mi.material instanceof pc.StandardMaterial) {
         const mat = mi.material;
         const damageColor = new pc.Color(1, 0.2, 0);
         const intensity = (1.0 - healthRatio) * 0.5;
-        
+
         mat.emissive.lerp(mat.emissive, damageColor, 0.1);
         mat.emissiveIntensity = 1.0 + intensity * 5;
         mat.update();
@@ -810,7 +816,7 @@ export class PlayerShip {
 
   private createDamageSmoke(name: string, localPos: pc.Vec3): void {
     if (this.entity.findByName(name)) return;
-    
+
     const smoke = new pc.Entity(name);
     smoke.setLocalPosition(localPos);
     this.engine.addParticleSystem(smoke, {
@@ -818,9 +824,13 @@ export class PlayerShip {
       lifetime: 1.0,
       rate: 10,
       initialVelocity: 2,
-      colorGraph: new pc.CurveSet([[0.2, 0.2, 0.2], [0.1, 0.1, 0.1], [0, 0, 0]]),
+      colorGraph: new pc.CurveSet([
+        [0.2, 0.2, 0.2],
+        [0.1, 0.1, 0.1],
+        [0, 0, 0],
+      ]),
       scaleGraph: new pc.Curve([0.1, 0.5]),
-      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.engineFlame
+      colorMapUrl: PlayCanvasGameEngine.PARTICLE_TEXTURES.engineFlame,
     });
     this.entity.addChild(smoke);
   }

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+﻿import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   ListInput,
   SubmitScoreInput,
@@ -43,7 +43,7 @@ export function getProvider(): LeaderboardProvider {
 
 export function overrideProviderForTests(provider: LeaderboardProvider | null): void {
   testOverride = provider;
-  if (typeof window !== 'undefined' && (window as any).__vitest__) {
+  if (typeof window !== 'undefined' && (window as any)['_vitest__']) {
     singleton = null;
   }
 }

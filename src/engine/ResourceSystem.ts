@@ -6,7 +6,7 @@ export enum ResourceType {
   GOLD = 'gold',
   CRYSTAL = 'crystal',
   PLASMA = 'plasma',
-  ANCIENT_TECH = 'ancient_tech'
+  ANCIENT_TECH = 'ancient_tech',
 }
 
 export interface ResourceItem {
@@ -26,12 +26,10 @@ export class ResourceSystem {
   private cargo: Map<ResourceType, number> = new Map();
   private maxCargoCapacity: number = 1000;
   private currentCargoVolume: number = 0;
-  
+
   private marketPrices: Map<ResourceType, number> = new Map();
   private context: PluginContext | null = null;
   private resources: pc.Entity[] = [];
-
-  constructor() {}
 
   public init(context: PluginContext): void {
     this.context = context;
@@ -47,34 +45,40 @@ export class ResourceSystem {
   public update(dt: number): void {
     // 自动吸取靠近玩家的资源水晶
     if (!this.context || this.resources.length === 0) return;
-    
-    const player = (this.context.app as any)._player as import('./PlayerShip').PlayerShip;
+
+    const player = (this.context.app as any)['player'] as import('./PlayerShip').PlayerShip;
     if (!player) return;
 
     const playerPos = player.getPosition();
-    
-    this.resources = this.resources.filter(entity => {
+
+    this.resources = this.resources.filter((entity) => {
       if (!entity.parent) return false;
 
       const pos = entity.getPosition();
       const dist = pos.distance(playerPos);
 
-      if (dist < 10.0) { // 吸取半径
+      if (dist < 10.0) {
+        // 吸取半径
         const dir = playerPos.clone().sub(pos).normalize();
         pos.add(dir.scale(20.0 * dt)); // 吸取速度
         entity.setPosition(pos);
 
-        if (dist < 2.0) { // 采集半径
+        if (dist < 2.0) {
+          // 采集半径
           const data = (entity as any).userData;
           if (data && data.resourceType) {
             this.addResource(data.resourceType, data.amount || 10);
-            
+
             // 播放采集音效与特效
-            const engine = (this.context?.app as any)._engine;
+            const engine = (this.context?.app as any)?.['engine'];
             engine?.addParticleSystem(entity.clone(), {
               lifetime: 0.5,
               numParticles: 10,
-              colorGraph: new pc.CurveSet([[1,1,0], [0.5,0.5,0], [0,0,0]])
+              colorGraph: new pc.CurveSet([
+                [1, 1, 0],
+                [0.5, 0.5, 0],
+                [0, 0, 0],
+              ]),
             });
           }
           entity.destroy();
@@ -102,7 +106,7 @@ export class ResourceSystem {
     const current = this.cargo.get(type) || 0;
     this.cargo.set(type, current + amount);
     this.currentCargoVolume += amount;
-    
+
     this.notifyUI();
     return true;
   }
@@ -121,7 +125,7 @@ export class ResourceSystem {
   public sellResource(type: ResourceType, amount: number): number {
     const current = this.cargo.get(type) || 0;
     const sellAmount = Math.min(current, amount);
-    
+
     if (sellAmount <= 0) return 0;
 
     const price = this.getMarketPrice(type);
@@ -138,7 +142,7 @@ export class ResourceSystem {
     } else {
       console.warn('[ResourceSystem] useGameStore not found, credits not added.');
     }
-    
+
     this.notifyUI();
     return totalGold;
   }
@@ -148,7 +152,7 @@ export class ResourceSystem {
     this.context.app.fire('ui:cargoUpdated', {
       cargo: Array.from(this.cargo.entries()),
       volume: this.currentCargoVolume,
-      capacity: this.maxCargoCapacity
+      capacity: this.maxCargoCapacity,
     });
   }
 
@@ -156,7 +160,7 @@ export class ResourceSystem {
     return {
       volume: this.currentCargoVolume,
       capacity: this.maxCargoCapacity,
-      items: Array.from(this.cargo.entries())
+      items: Array.from(this.cargo.entries()),
     };
   }
 }

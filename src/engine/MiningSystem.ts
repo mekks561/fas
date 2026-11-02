@@ -33,67 +33,67 @@ export class MiningSystem {
 
   private createMiningLaser(): void {
     if (!this.context) return;
-    
+
     this.miningLaser = new pc.Entity('mining_laser');
     const model = new pc.Entity();
     model.addComponent('model', { type: 'cylinder' });
     model.setLocalScale(0.05, 1, 0.05);
     model.setLocalEulerAngles(90, 0, 0);
-    
+
     const mat = new pc.StandardMaterial();
     mat.emissive = new pc.Color(0, 1, 1); // 青色采矿光束
     mat.opacity = 0.5;
     mat.blendType = pc.BLEND_ADDITIVE;
     mat.update();
-    
+
     if (model.model) model.model.material = mat;
     this.miningLaser.addChild(model);
     this.miningLaser.enabled = false;
-    
+
     this.context.app.root.addChild(this.miningLaser);
   }
 
   private createHeatPoint(): void {
     if (!this.context) return;
-    
+
     // 2026 Tech: 采矿热力点视觉效果
     this.heatPoint = new pc.Entity('mining_heat_point');
     const model = new pc.Entity();
     model.addComponent('model', { type: 'sphere' });
     model.setLocalScale(0.5, 0.5, 0.5);
-    
+
     const mat = new pc.StandardMaterial();
     mat.emissive = new pc.Color(1, 0.3, 0); // 橙红色热量感
     mat.update();
-    
+
     if (model.model) model.model.material = mat;
     this.heatPoint.addChild(model);
-    
+
     // 添加点光源增强效果
     this.heatLight = new pc.Entity('mining_heat_light');
     this.heatLight.addComponent('light', {
       type: 'point',
       color: new pc.Color(1, 0.2, 0),
       range: 5,
-      intensity: 2
+      intensity: 2,
     });
     this.heatPoint.addChild(this.heatLight);
-    
+
     this.heatPoint.enabled = false;
     this.context.app.root.addChild(this.heatPoint);
   }
 
   public onUpdate(dt: number): void {
     if (!this.context) return;
-    
-    this.player = (this.context.app as any)._player;
-    this.asteroidSystem = (this.context.app as any)._asteroidSystem;
-    this.resourceSystem = (this.context.app as any)._resourceSystem;
+
+    this.player = (this.context.app as any)['player'];
+    this.asteroidSystem = (this.context.app as any)['asteroidSystem'];
+    this.resourceSystem = (this.context.app as any)['resourceSystem'];
 
     if (!this.player) return;
 
     // 2026 Tech: 获取实时控制输入
-    const controls = (window as any).__playerControls || this.player.getLatestControls();
+    const controls = (window as any)['_playerControls'] || this.player.getLatestControls();
     const wantToMine = controls?.interact || false;
 
     if (wantToMine) {
@@ -115,7 +115,7 @@ export class MiningSystem {
     const halfRange = this.miningRange * 0.5;
     this.miningLaser.setPosition(startPos.clone().add(forward.clone().scale(halfRange)));
     this.miningLaser.lookAt(endPos);
-    
+
     // 2026 Tech: 动态调整激光长度以匹配射程
     const model = this.miningLaser.children[0];
     if (model) {
@@ -129,7 +129,7 @@ export class MiningSystem {
     if (hit) {
       this.isMining = true;
       this.extractResource(hit.asteroid, dt);
-      
+
       // 2026 Tech: 采矿时的物理反馈（轻微反作用力）
       const recoil = forward.clone().scale(-0.5);
       this.player.applyExternalForce(recoil);
@@ -142,7 +142,7 @@ export class MiningSystem {
     }
   }
 
-  private updateMiningVFX(pos: pc.Vec3, dt: number): void {
+  private updateMiningVFX(pos: pc.Vec3, _dt: number): void {
     // 1. 火花粒子
     this.createMiningSparks(pos);
 
@@ -150,7 +150,7 @@ export class MiningSystem {
     if (this.heatPoint) {
       this.heatPoint.enabled = true;
       this.heatPoint.setPosition(pos);
-      
+
       // 热力随时间增强（模拟发红）
       if (this.heatLight && this.heatLight.light) {
         const pulse = Math.sin(Date.now() * 0.01) * 0.5 + 1.5;
@@ -163,12 +163,12 @@ export class MiningSystem {
     if (this.heatPoint) this.heatPoint.enabled = false;
   }
 
-  private checkAsteroidHit(ray: pc.Ray): { asteroid: pc.Entity, point: pc.Vec3 } | null {
+  private checkAsteroidHit(ray: pc.Ray): { asteroid: pc.Entity; point: pc.Vec3 } | null {
     if (!this.asteroidSystem) return null;
 
     // 简单遍历所有小行星进行球体碰撞检测（射线-球体）
     const asteroids = (this.asteroidSystem as any).asteroids as pc.Entity[];
-    let closestHit: { asteroid: pc.Entity, point: pc.Vec3, dist: number } | null = null;
+    let closestHit: { asteroid: pc.Entity; point: pc.Vec3; dist: number } | null = null;
 
     for (const asteroid of asteroids) {
       const pos = asteroid.getPosition();
@@ -182,7 +182,7 @@ export class MiningSystem {
       const r2 = radius * radius;
 
       if (s < 0 && l2 > r2) continue;
-      
+
       const m2 = l2 - s * s;
       if (m2 > r2) continue;
 
@@ -194,7 +194,7 @@ export class MiningSystem {
           closestHit = {
             asteroid,
             point: ray.origin.clone().add(ray.direction.clone().scale(t)),
-            dist: t
+            dist: t,
           };
         }
       }
@@ -212,7 +212,7 @@ export class MiningSystem {
       meta = {
         health: 100,
         type: this.getRandomResourceType(),
-        yield: 50 + Math.random() * 150
+        yield: 50 + Math.random() * 150,
       };
       (asteroid as any).miningMeta = meta;
     }
@@ -220,7 +220,7 @@ export class MiningSystem {
     if (meta.health > 0) {
       const extraction = this.miningRate * dt;
       meta.health -= extraction;
-      
+
       const amount = (meta.yield / 100) * extraction;
       this.resourceSystem.addResource(meta.type, amount);
 
@@ -240,22 +240,22 @@ export class MiningSystem {
 
   private destroyAsteroid(asteroid: pc.Entity): void {
     // 触发爆炸特效
-    const engine = this.context?.app ? (this.context.app as any)._engine : null;
+    const engine = this.context?.app ? (this.context.app as any)['engine'] : null;
     if (engine) {
       const pos = asteroid.getPosition();
       engine.createExplosion?.(pos, 2.0);
     }
-    
+
     // 从 AsteroidSystem 的列表中移除
     if (this.asteroidSystem) {
       this.asteroidSystem.removeAsteroid(asteroid);
     }
-    
+
     asteroid.destroy();
   }
 
   private createMiningSparks(pos: pc.Vec3): void {
-    const engine = this.context?.app ? (this.context.app as any)._engine : null;
+    const engine = this.context?.app ? (this.context.app as any)['engine'] : null;
     if (engine) {
       const sparks = new pc.Entity('mining_sparks');
       sparks.setPosition(pos);
@@ -266,7 +266,7 @@ export class MiningSystem {
         colorGraph: new pc.CurveSet([
           [1, 1, 0.5],
           [1, 0.5, 0],
-          [0, 0, 0]
+          [0, 0, 0],
         ]),
         scaleGraph: new pc.Curve([0.1, 0.3, 0]),
       });

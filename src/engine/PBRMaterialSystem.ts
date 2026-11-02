@@ -18,8 +18,6 @@ export interface MaterialConfig {
 export class PBRMaterialSystem {
   private materials: Map<string, pc.StandardMaterial> = new Map();
 
-  constructor(_app: pc.Application) {}
-
   public createMaterial(
     name: string,
     type: MaterialType,
@@ -69,7 +67,8 @@ export class PBRMaterialSystem {
     );
 
     if (config?.emissiveIntensity !== undefined) {
-      (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config.emissiveIntensity;
+      (material as unknown as { emissiveIntensity: number }).emissiveIntensity =
+        config.emissiveIntensity;
     }
   }
 
@@ -85,7 +84,8 @@ export class PBRMaterialSystem {
       config?.emissive?.g || 0.7,
       config?.emissive?.b || 1.0,
     );
-    (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config?.emissiveIntensity || 2.0;
+    (material as unknown as { emissiveIntensity: number }).emissiveIntensity =
+      config?.emissiveIntensity || 2.0;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }
 
@@ -128,7 +128,8 @@ export class PBRMaterialSystem {
       config?.emissive?.g || 0.8,
       config?.emissive?.b || 0.2,
     );
-    (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config?.emissiveIntensity || 3.0;
+    (material as unknown as { emissiveIntensity: number }).emissiveIntensity =
+      config?.emissiveIntensity || 3.0;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }
 
@@ -145,7 +146,8 @@ export class PBRMaterialSystem {
       config?.emissive?.g || 0.6,
       config?.emissive?.b || 1.0,
     );
-    (material as unknown as { emissiveIntensity: number }).emissiveIntensity = config?.emissiveIntensity || 1.5;
+    (material as unknown as { emissiveIntensity: number }).emissiveIntensity =
+      config?.emissiveIntensity || 1.5;
     material.cull = pc.CULLFACE_NONE;
     material.blendType = pc.BLEND_ADDITIVEALPHA;
   }

@@ -8,11 +8,11 @@ import { WebGPUDamageSystem } from './WebGPUDamageSystem';
 export class MeshTearingSystem {
   private app: pc.Application;
   private damageSystem: WebGPUDamageSystem;
-  
+
   // 用于传递给着色器的损毁数据 (平铺的 Float32Array)
   private damagePosBuffer: Float32Array;
   private damageOffsetBuffer: Float32Array;
-  
+
   constructor(app: pc.Application, damageSystem: WebGPUDamageSystem) {
     this.app = app;
     this.damageSystem = damageSystem;
@@ -26,8 +26,8 @@ export class MeshTearingSystem {
   public applyToEntity(entity: pc.Entity): void {
     if (!entity.model) return;
 
-    entity.model.meshInstances?.forEach(mi => {
-      const mat = mi.material as pc.StandardMaterial;
+    entity.model.meshInstances?.forEach((_mi) => {
+      const mat = _mi.material as pc.StandardMaterial;
       if (!mat) return;
 
       // 注入自定义顶点着色器片段
@@ -82,17 +82,17 @@ export class MeshTearingSystem {
     for (let i = 0; i < 32; i++) {
       const pos = this.damageSystem.getComponentInitialPos(i); // 需要新增此方法
       const offset = this.damageSystem.getComponentOffset(i);
-      
+
       this.damagePosBuffer[i * 3 + 0] = pos.x;
       this.damagePosBuffer[i * 3 + 1] = pos.y;
       this.damagePosBuffer[i * 3 + 2] = pos.z;
-      
+
       this.damageOffsetBuffer[i * 3 + 0] = offset.x;
       this.damageOffsetBuffer[i * 3 + 1] = offset.y;
       this.damageOffsetBuffer[i * 3 + 2] = offset.z;
     }
 
-    entity.model.meshInstances?.forEach(mi => {
+    entity.model.meshInstances?.forEach((_mi) => {
       const device = this.app.graphicsDevice;
       const scope = device.scope;
       scope.resolve('uDamagePos[0]').setValue(this.damagePosBuffer);

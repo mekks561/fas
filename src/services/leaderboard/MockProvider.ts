@@ -188,7 +188,7 @@ export class MockProvider implements LeaderboardProvider {
     this.persist();
 
     const rank = this.entries.findIndex((e) => e.playerId === input.playerId) + 1;
-    const e = this.entries.find((e) => e.playerId === input.playerId)!;
+    const e = this.entries.find((en) => en.playerId === input.playerId)!;
     return { rank, entry: e };
   }
 

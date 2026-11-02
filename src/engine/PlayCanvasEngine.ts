@@ -1,4 +1,4 @@
-import * as pc from 'playcanvas';
+﻿import * as pc from 'playcanvas';
 import { InstancedRenderer } from './InstancedRenderer';
 import { GameEngineConfig, LightConfig, CameraConfig, GameEngine } from './GameEngine';
 import { PluginSystem, Plugin, PluginConfig } from './PluginSystem';
@@ -167,18 +167,18 @@ export class PlayCanvasGameEngine implements GameEngine {
     this.pluginSystem.register(dysonSwarmSystem);
 
     // 将核心管理器挂载到 app 供插件跨系统访问 (2026 插件解耦架构)
-    (this.app as any)._factionManager = factionManager;
-    (this.app as any)._tradeManager = tradeManager;
-    (this.app as any)._damageSystem = damageSystem;
-    (this.app as any)._galaxyManager = galaxyManager;
-    (this.app as any)._reinforcementSystem = reinforcementSystem;
-    (this.app as any)._resourceSystem = resourceSystem;
-    (this.app as any)._miningSystem = miningSystem;
-    (this.app as any)._blackHoleSystem = blackHoleSystem;
-    (this.app as any)._dimensionalShiftSystem = dimensionalShiftSystem;
-    (this.app as any)._fleetManager = fleetManager;
-    (this.app as any)._dysonSwarmSystem = dysonSwarmSystem;
-    (this.app as any)._engine = this;
+    (this.app as any)['factionManager'] = factionManager;
+    (this.app as any)['tradeManager'] = tradeManager;
+    (this.app as any)['damageSystem'] = damageSystem;
+    (this.app as any)['galaxyManager'] = galaxyManager;
+    (this.app as any)['reinforcementSystem'] = reinforcementSystem;
+    (this.app as any)['resourceSystem'] = resourceSystem;
+    (this.app as any)['miningSystem'] = miningSystem;
+    (this.app as any)['blackHoleSystem'] = blackHoleSystem;
+    (this.app as any)['dimensionalShiftSystem'] = dimensionalShiftSystem;
+    (this.app as any)['fleetManager'] = fleetManager;
+    (this.app as any)['dysonSwarmSystem'] = dysonSwarmSystem;
+    (this.app as any)['engine'] = this;
 
     console.log('[PlayCanvasEngine] Engine initialization complete');
   }
@@ -390,7 +390,7 @@ export class PlayCanvasGameEngine implements GameEngine {
 
   public createNebula(position: pc.Vec3, scale: number = 30, color?: pc.Color): pc.Entity {
     const nebulaColor = color || new pc.Color(0.3, 0.1, 0.5);
-    
+
     // 2026 Tech: 改进的星云材质，使用噪声调制模拟体积感
     const nebulaMaterial = this.createMaterial('nebulaMaterial', {
       diffuse: new pc.Color(0, 0, 0),
@@ -416,9 +416,9 @@ export class PlayCanvasGameEngine implements GameEngine {
     if (this.graphicsQuality === 'high') layers = 4;
 
     for (let i = 1; i <= layers; i++) {
-      const layerScale = 1.0 - (i * 0.15);
+      const layerScale = 1.0 - i * 0.15;
       const layerOpacity = 0.08 / i;
-      
+
       const innerNebula = new pc.Entity(`nebula_layer_${i}`);
       innerNebula.addComponent('render', { type: 'sphere' });
       const innerMat = nebulaMaterial.clone();
@@ -519,7 +519,7 @@ export class PlayCanvasGameEngine implements GameEngine {
     sizeScale: number = 1,
   ): pc.Entity {
     const container = new pc.Entity('asteroidField');
-    const modelGen = new ProceduralModelGenerator(this.app);
+    const modelGen = new ProceduralModelGenerator();
 
     for (let i = 0; i < count; i++) {
       // 球面均匀分布
@@ -708,10 +708,10 @@ export class PlayCanvasGameEngine implements GameEngine {
    * （单测、工具脚本、循环依赖链）都会因为这个大依赖尚未就绪而直接崩在 import 上。
    * 惰性求值把这份耦合推迟到真正要设置色调映射的时候。
    */
-  private static _tonemapModes: Record<string, number> | null = null;
+  private static tonemapModes: Record<string, number> | null = null;
   public static get TONEMAP_MODES(): Record<string, number> {
-    if (!PlayCanvasGameEngine._tonemapModes) {
-      PlayCanvasGameEngine._tonemapModes = {
+    if (!PlayCanvasGameEngine.tonemapModes) {
+      PlayCanvasGameEngine.tonemapModes = {
         linear: pc.TONEMAP_LINEAR,
         filmic: pc.TONEMAP_FILMIC,
         hejl: pc.TONEMAP_HEJL,
@@ -721,7 +721,7 @@ export class PlayCanvasGameEngine implements GameEngine {
         none: pc.TONEMAP_NONE,
       };
     }
-    return PlayCanvasGameEngine._tonemapModes;
+    return PlayCanvasGameEngine.tonemapModes;
   }
 
   /**
@@ -876,11 +876,7 @@ export class PlayCanvasGameEngine implements GameEngine {
    * @param tint 派系着色。若提供，则将其作为漫反射乘数应用到材质上。
    * @returns 是否真正应用了（false = 贴图未就绪或无网格）
    */
-  public applyPbrMaterial(
-    root: pc.Entity,
-    set: string,
-    tint?: [number, number, number],
-  ): boolean {
+  public applyPbrMaterial(root: pc.Entity, set: string, tint?: [number, number, number]): boolean {
     const def = PlayCanvasGameEngine.PBR_SETS[set];
     if (!def) return false;
     const diffuse = this.getPbrTexture(def.diffuseMap);
@@ -1020,7 +1016,7 @@ export class PlayCanvasGameEngine implements GameEngine {
   private loadHdrTexture(url: string): Promise<pc.Texture> {
     return new Promise((resolve, reject) => {
       const asset = new pc.Asset(`envHdr:${url}`, 'texture', { url });
-      
+
       // 2026 Tech: 增加加载超时保护 (15s)
       const timeout = setTimeout(() => {
         if (!asset.loaded) {
@@ -1124,14 +1120,14 @@ export class PlayCanvasGameEngine implements GameEngine {
       // 2026 Tech: 音频射线追踪更新 (Throttled to 10Hz)
       const now = Date.now();
       if (this.audioRaytracer && now - this.lastAudioUpdate > 100) {
-        const sectorManager = (this.app as any)._sectorManager;
+        const sectorManager = (this.app as any)['sectorManager'];
         const obstacles = sectorManager ? sectorManager.getSectorEntities() : [];
         this.audioRaytracer.update(dt, obstacles);
         this.lastAudioUpdate = now;
       }
 
       callback(dt);
-      
+
       // 2026 Tech: 插件系统每帧更新
       this.pluginSystem?.update(dt);
     });
@@ -1157,7 +1153,7 @@ export class PlayCanvasGameEngine implements GameEngine {
    */
   public async getAsteroidBatch(assetPath: string): Promise<string | null> {
     if (!this.instancedRenderer) return null;
-    
+
     const batchId = `asteroid_batch_${assetPath.replace(/\//g, '_')}`;
     const existing = this.instancedRenderer.getBatchStats(batchId);
     if (existing) return batchId;
@@ -1189,7 +1185,7 @@ export class PlayCanvasGameEngine implements GameEngine {
       id: batchId,
       meshAssetId: meshAsset.id.toString(),
       materialAssetId: matAsset.id.toString(),
-      maxInstances: 20000
+      maxInstances: 20000,
     });
 
     return batchId;
@@ -1220,7 +1216,7 @@ export class PlayCanvasGameEngine implements GameEngine {
   }
 
   public getPlugin<T = unknown>(name: string): T | null {
-    return this.pluginSystem?.getPlugin(name) as T || null;
+    return (this.pluginSystem?.getPlugin(name) as T) || null;
   }
 
   public setCamera(config: CameraConfig): void {

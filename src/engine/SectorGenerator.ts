@@ -162,7 +162,7 @@ export class SectorGenerator {
     const x = rng.range(-50, 50) * ARENA_SCALE;
     const y = rng.range(-20, 20) * ARENA_SCALE;
     const z = rng.range(-50, 50) * ARENA_SCALE;
-    
+
     // 恒星颜色随星区类型变化
     let starColor = [1.0, 0.9, 0.5]; // 默认黄白
     if (config.type === 'hostile') starColor = [1.0, 0.3, 0.1]; // 红巨星
@@ -176,8 +176,8 @@ export class SectorGenerator {
       scale: rng.range(15, 25) * ARENA_SCALE,
       data: {
         color: starColor,
-        intensity: rng.range(2.0, 4.0)
-      }
+        intensity: rng.range(2.0, 4.0),
+      },
     });
   }
 
@@ -206,7 +206,7 @@ export class SectorGenerator {
     }
   }
 
-  private generateResources(rng: Random, objects: SectorObject[], config: SectorConfig) {
+  private generateResources(rng: Random, objects: SectorObject[], _config: SectorConfig) {
     const resourceCount = Math.floor(rng.range(5, 15));
     for (let i = 0; i < resourceCount; i++) {
       const radius = rng.range(50, 100) * ARENA_SCALE;
@@ -222,8 +222,8 @@ export class SectorGenerator {
         scale: rng.range(0.8, 2.0) * ARENA_SCALE,
         data: {
           resourceType: rng.next() > 0.7 ? 'plasma' : 'iron',
-          value: Math.floor(rng.range(100, 500))
-        }
+          value: Math.floor(rng.range(100, 500)),
+        },
       });
     }
   }
@@ -245,13 +245,13 @@ export class SectorGenerator {
         data: {
           anomalyType: rng.next() > 0.5 ? 'wormhole_fragment' : 'energy_rift',
           dangerLevel: config.difficulty * 1.5,
-          rewardFactor: rng.range(2, 5)
-        }
+          rewardFactor: rng.range(2, 5),
+        },
       });
     }
   }
 
-  private generateBlackHoles(rng: Random, objects: SectorObject[], config: SectorConfig) {
+  private generateBlackHoles(rng: Random, objects: SectorObject[], _config: SectorConfig) {
     // 黑洞通常位于星区中心附近，且一个星区最多一个
     objects.push({
       type: 'black_hole',
@@ -260,20 +260,20 @@ export class SectorGenerator {
       scale: 1.0, // 内部逻辑处理实际物理半径
       data: {
         mass: rng.range(500, 2000),
-        rotationSpeed: rng.range(0.1, 0.5)
-      }
+        rotationSpeed: rng.range(0.1, 0.5),
+      },
     });
   }
 
-  private generateAncientRuins(rng: Random, objects: SectorObject[], config: SectorConfig) {
+  private generateAncientRuins(rng: Random, objects: SectorObject[], _config: SectorConfig) {
     objects.push({
       type: 'ancient_ruins',
       position: [rng.range(-150, 150), rng.range(-30, 30), rng.range(-150, 150)],
       rotation: [0, rng.next() * Math.PI, 0, 1],
       scale: 1.0,
       data: {
-        complexity: Math.floor(rng.range(1, 4))
-      }
+        complexity: Math.floor(rng.range(1, 4)),
+      },
     });
   }
 
@@ -285,16 +285,16 @@ export class SectorGenerator {
         const radius = rng.range(60, 150) * ARENA_SCALE;
         const angle = rng.next() * Math.PI * 2;
         const leaderPos = [Math.cos(angle) * radius, rng.range(-10, 10), Math.sin(angle) * radius];
-        
+
         objects.push({
           type: 'npc_squad',
           position: leaderPos as [number, number, number],
           rotation: [0, 0, 0, 1],
           scale: 1.0 * ARENA_SCALE,
-          data: { 
+          data: {
             factionId: faction,
-            memberCount: Math.floor(rng.range(2, 4))
-          }
+            memberCount: Math.floor(rng.range(2, 4)),
+          },
         });
       }
     }
@@ -309,11 +309,11 @@ export class SectorGenerator {
       const angle = (i / gateCount) * Math.PI * 2 + rng.range(-0.5, 0.5);
       gates.push({
         targetSectorId: `next-${config.id}-${i}`, // 占位符 ID，由 SectorManager 填充
-        position: [
-          Math.cos(angle) * radius,
-          rng.range(-20, 20),
-          Math.sin(angle) * radius,
-        ] as [number, number, number],
+        position: [Math.cos(angle) * radius, rng.range(-20, 20), Math.sin(angle) * radius] as [
+          number,
+          number,
+          number,
+        ],
       });
     }
     return gates;

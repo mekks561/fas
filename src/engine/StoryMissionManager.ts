@@ -148,8 +148,10 @@ export class StoryMissionManager {
     for (let i = 1; i <= 5; i++) {
       const id = `story-chapter-${String(i).padStart(2, '0')}`;
       try {
+        // oxlint-disable-next-line no-await-in-loop
         const resp = await fetch(`/assets/story/${id}.json`);
         if (resp.ok) {
+          // oxlint-disable-next-line no-await-in-loop
           const chapter: StoryChapter = await resp.json();
           this.chapters.set(chapter.id, chapter);
         }
@@ -163,8 +165,10 @@ export class StoryMissionManager {
     for (let i = 1; i <= 20; i++) {
       const id = `mission-${String(i).padStart(2, '0')}`;
       try {
+        // oxlint-disable-next-line no-await-in-loop
         const resp = await fetch(`/assets/missions/${id}.json`);
         if (resp.ok) {
+          // oxlint-disable-next-line no-await-in-loop
           const mission: Mission = await resp.json();
           this.missions.set(mission.id, mission);
           this.missionStates.set(mission.id, {
@@ -183,8 +187,10 @@ export class StoryMissionManager {
     for (let i = 1; i <= 10; i++) {
       const id = `dialogue-${String(i).padStart(2, '0')}`;
       try {
+        // oxlint-disable-next-line no-await-in-loop
         const resp = await fetch(`/assets/dialogues/${id}.json`);
         if (resp.ok) {
+          // oxlint-disable-next-line no-await-in-loop
           const dialogue: Dialogue = await resp.json();
           this.dialogues.set(dialogue.id, dialogue);
         }
@@ -370,7 +376,7 @@ export class StoryMissionManager {
       status: 'available',
       objectives: mission.objectives.map((o) => ({ ...o, completed: false })),
     });
-    
+
     this.notify();
     console.log(`[StoryMissionManager] Dynamic mission added: ${mission.name}`);
   }

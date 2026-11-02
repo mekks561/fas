@@ -1,5 +1,4 @@
-﻿import * as pc from 'playcanvas';
-import { PluginContext } from './PluginSystem';
+﻿import { PluginContext } from './PluginSystem';
 import { NPC, NPCBehavior } from './NPCManager';
 import { PlayerShip } from './PlayerShip';
 
@@ -31,7 +30,7 @@ export class FleetManager {
       this.wingmen.push(npc);
       npc.setBehavior(NPCBehavior.FOLLOW);
       console.log(`[FleetManager] NPC recruited. Total wingmen: ${this.wingmen.length}`);
-      
+
       // 同步到 UI Store
       this.updateStore();
       return true;
@@ -41,9 +40,9 @@ export class FleetManager {
 
   public issueCommand(command: 'follow' | 'attack' | 'guard' | 'wait'): void {
     console.log(`[FleetManager] Issuing fleet command: ${command}`);
-    
-    this.wingmen.forEach(npc => {
-      switch(command) {
+
+    this.wingmen.forEach((npc) => {
+      switch (command) {
         case 'follow':
           npc.setBehavior(NPCBehavior.FOLLOW);
           break;
@@ -64,21 +63,23 @@ export class FleetManager {
   private updateStore(): void {
     const store = (window as any).useGameStore?.getState();
     if (store) {
-      store.setPlayerFleet?.(this.wingmen.map(w => ({
-        id: (w as any).id || Math.random().toString(),
-        faction: (w as any).factionId,
-        health: 100 // 简化
-      })));
+      store.setPlayerFleet?.(
+        this.wingmen.map((w) => ({
+          id: (w as any).id || Math.random().toString(),
+          faction: (w as any).factionId,
+          health: 100, // 简化
+        })),
+      );
     }
   }
 
-  public onUpdate(dt: number): void {
+  public onUpdate(_dt: number): void {
     if (!this.player && this.context?.app) {
-      this.player = (this.context.app as any)._player;
+      this.player = (this.context.app as any)['player'];
     }
 
     // 移除已阵亡的随从
-    const aliveWingmen = this.wingmen.filter(w => (w as any).isAlive?.() !== false);
+    const aliveWingmen = this.wingmen.filter((w) => (w as any).isAlive?.() !== false);
     if (aliveWingmen.length !== this.wingmen.length) {
       this.wingmen = aliveWingmen;
       this.updateStore();

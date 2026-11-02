@@ -22,8 +22,15 @@ export type EnemyModelType =
   | 'boss_overlord';
 
 export type StructureModelType =
-  'space_station' | 'asteroid' | 'debris' | 'satellite' | 'mining_rig' | 'defense_platform' |
-  'station' | 'crystal' | 'anomaly';
+  | 'space_station'
+  | 'asteroid'
+  | 'debris'
+  | 'satellite'
+  | 'mining_rig'
+  | 'defense_platform'
+  | 'station'
+  | 'crystal'
+  | 'anomaly';
 
 export interface ModelOptions {
   primaryColor?: [number, number, number];
@@ -33,8 +40,6 @@ export interface ModelOptions {
 }
 
 export class ProceduralModelGenerator {
-  constructor(_app: pc.Application) {}
-
   // ============ 飞船模型 ============
 
   public createFighterShip(options: ModelOptions = {}): pc.Entity {

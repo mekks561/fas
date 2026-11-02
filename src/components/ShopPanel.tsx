@@ -233,8 +233,12 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
       for (let i = 1; i <= 20; i++) {
         const id = `shop-item-${String(i).padStart(2, '0')}`;
         try {
+          // oxlint-disable-next-line no-await-in-loop
           const resp = await fetch(`/assets/shop/${id}.json`);
-          if (resp.ok) loaded.push(await resp.json());
+          if (resp.ok) {
+            // oxlint-disable-next-line no-await-in-loop
+            loaded.push(await resp.json());
+          }
         } catch {
           /* skip */
         }
@@ -415,11 +419,7 @@ export const ShopPanel: React.FC<ShopPanelProps> = ({ onBack }) => {
               </div>
               <div className="shop-card-footer">
                 <div className="shop-card-level">
-                  {gate.reason && (
-                    <span data-testid={`shop-req-${item.id}`}>
-                      {gate.reason}
-                    </span>
-                  )}
+                  {gate.reason && <span data-testid={`shop-req-${item.id}`}>{gate.reason}</span>}
                 </div>
                 <div className="shop-card-action">
                   {isPurchased ? (

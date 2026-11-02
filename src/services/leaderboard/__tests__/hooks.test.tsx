@@ -186,7 +186,7 @@ describe('leaderboard hooks (integration)', () => {
     const { result } = renderHook(() => useMyRank(''), { wrapper });
     await new Promise((r) => setTimeout(r, 200));
     expect(result.current.isFetching).toBe(false);
-    expect(spy._calls['myRankCalled']).toBe(0);
+    expect(spy['_calls']['myRankCalled']).toBe(0);
   });
 
   it('useMyRank: 有 playerId 时正常查询', async () => {

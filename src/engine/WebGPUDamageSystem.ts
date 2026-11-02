@@ -15,7 +15,7 @@ export class WebGPUDamageSystem {
   private componentBuffer: GPUBuffer | null = null;
   private collisionUniformBuffer: GPUBuffer | null = null;
   private readbackBuffer: GPUBuffer | null = null;
-  
+
   private components: Float32Array | null = null;
   private maxComponents = 1024;
   private componentStride = 12; // vec3 pos (3) + float health (1) + float mass (1) + vec3 offset (3) + 4 padding = 12 floats (48 bytes)
@@ -34,7 +34,7 @@ export class WebGPUDamageSystem {
     WEAPON_L: { start: 400, end: 449, name: 'Left Hardpoint' },
     WEAPON_R: { start: 450, end: 499, name: 'Right Hardpoint' },
   };
-  
+
   // 缓存用于同步回 PlayCanvas 的数据
   private healthData: Float32Array = new Float32Array(0);
   private offsetData: Float32Array = new Float32Array(0);
@@ -43,7 +43,7 @@ export class WebGPUDamageSystem {
   private profiler = {
     computePassTimeMs: 0,
     dispatchCount: 0,
-    isSupported: false
+    isSupported: false,
   };
   private querySet: GPUQuerySet | null = null;
   private queryResolveBuffer: GPUBuffer | null = null;
@@ -51,10 +51,12 @@ export class WebGPUDamageSystem {
 
   public async init(context: PluginContext): Promise<void> {
     const graphicsDevice = context.app.graphicsDevice;
-    
+
     // 检查是否为 WebGPU 设备
     if (graphicsDevice.deviceType !== pc.DEVICETYPE_WEBGPU) {
-      console.warn('[WebGPUDamageSystem] WebGPU not active, damage system will run in CPU fallback mode.');
+      console.warn(
+        '[WebGPUDamageSystem] WebGPU not active, damage system will run in CPU fallback mode.',
+      );
       return;
     }
 
@@ -66,7 +68,7 @@ export class WebGPUDamageSystem {
     await this.setupPipeline();
     await this.setupBuffers();
     await this.setupProfiler();
-    
+
     console.log('[WebGPUDamageSystem] WebGPU Damage Pipeline initialized.');
   }
 
@@ -76,22 +78,22 @@ export class WebGPUDamageSystem {
     // 检查是否支持时间戳查询 (Timestamp Query)
     if (this.device.features.has('timestamp-query')) {
       this.profiler.isSupported = true;
-      
+
       this.querySet = this.device.createQuerySet({
         type: 'timestamp',
-        count: 2
+        count: 2,
       });
 
       this.queryResolveBuffer = this.device.createBuffer({
         size: 2 * 8, // 两个 64 位时间戳
-        usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC
+        usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
       });
 
       this.queryReadbackBuffer = this.device.createBuffer({
         size: 2 * 8,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
       });
-      
+
       console.log('[WebGPUDamageSystem] Compute Pass Profiler enabled.');
     }
   }
@@ -101,7 +103,7 @@ export class WebGPUDamageSystem {
 
     const shaderModule = this.device.createShaderModule({
       label: 'Damage Compute Shader',
-      code: damageShader
+      code: damageShader,
     });
 
     this.pipeline = this.device.createComputePipeline({
@@ -109,8 +111,8 @@ export class WebGPUDamageSystem {
       layout: 'auto',
       compute: {
         module: shaderModule,
-        entryPoint: 'main'
-      }
+        entryPoint: 'main',
+      },
     });
   }
 
@@ -119,7 +121,7 @@ export class WebGPUDamageSystem {
 
     // 2026 Tech: 按预定义的物理布局初始化组件
     this.components = new Float32Array(this.maxComponents * this.componentStride);
-    
+
     const initPart = (start: number, end: number, center: pc.Vec3, spread: pc.Vec3) => {
       for (let i = start; i <= end; i++) {
         const offset = i * this.componentStride;
@@ -127,7 +129,7 @@ export class WebGPUDamageSystem {
         this.components![offset + 1] = center.y + (Math.random() - 0.5) * spread.y;
         this.components![offset + 2] = center.z + (Math.random() - 0.5) * spread.z;
         this.components![offset + 3] = 100.0; // Health
-        this.components![offset + 4] = 1.0;   // Mass
+        this.components![offset + 4] = 1.0; // Mass
       }
     };
 
@@ -142,7 +144,7 @@ export class WebGPUDamageSystem {
     this.componentBuffer = this.device.createBuffer({
       label: 'Ship Components Buffer',
       size: this.components.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
 
     this.device.queue.writeBuffer(this.componentBuffer, 0, this.components);
@@ -150,15 +152,15 @@ export class WebGPUDamageSystem {
     this.collisionUniformBuffer = this.device.createBuffer({
       label: 'Collision Uniform Buffer',
       size: 16, // vec3 + padding
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
     this.readbackBuffer = this.device.createBuffer({
       label: 'Damage Readback Buffer',
       size: this.components.byteLength,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
-    
+
     this.healthData = new Float32Array(this.maxComponents);
     this.offsetData = new Float32Array(this.maxComponents * 3);
   }
@@ -182,12 +184,12 @@ export class WebGPUDamageSystem {
       layout: this.pipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: this.componentBuffer } },
-        { binding: 1, resource: { buffer: this.collisionUniformBuffer } }
-      ]
+        { binding: 1, resource: { buffer: this.collisionUniformBuffer } },
+      ],
     });
 
     const commandEncoder = this.device.createCommandEncoder();
-    
+
     // 如果支持时间戳，则开始性能分析
     if (this.querySet) {
       (commandEncoder as any).writeTimestamp(this.querySet, 0);
@@ -202,16 +204,22 @@ export class WebGPUDamageSystem {
     if (this.querySet) {
       (commandEncoder as any).writeTimestamp(this.querySet, 1);
       commandEncoder.resolveQuerySet(this.querySet, 0, 2, this.queryResolveBuffer!, 0);
-      commandEncoder.copyBufferToBuffer(this.queryResolveBuffer!, 0, this.queryReadbackBuffer!, 0, 16);
+      commandEncoder.copyBufferToBuffer(
+        this.queryResolveBuffer!,
+        0,
+        this.queryReadbackBuffer!,
+        0,
+        16,
+      );
     }
 
     this.device.queue.submit([commandEncoder.finish()]);
-    
+
     this.profiler.dispatchCount++;
     if (this.profiler.isSupported) {
       this.readbackProfilerData();
     }
-    
+
     // 标记需要同步
     this.needsSync = true;
   }
@@ -221,11 +229,11 @@ export class WebGPUDamageSystem {
 
     await this.queryReadbackBuffer.mapAsync(GPUMapMode.READ);
     const result = new BigUint64Array(this.queryReadbackBuffer.getMappedRange());
-    
+
     // 计算耗时 (单位：纳秒)
     const durationNanoseconds = result[1] - result[0];
     this.profiler.computePassTimeMs = Number(durationNanoseconds) / 1000000;
-    
+
     this.queryReadbackBuffer.unmap();
   }
 
@@ -234,18 +242,24 @@ export class WebGPUDamageSystem {
 
     this.isSyncing = true;
     const commandEncoder = this.device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(this.componentBuffer, 0, this.readbackBuffer, 0, this.readbackBuffer.size);
+    commandEncoder.copyBufferToBuffer(
+      this.componentBuffer,
+      0,
+      this.readbackBuffer,
+      0,
+      this.readbackBuffer.size,
+    );
     this.device.queue.submit([commandEncoder.finish()]);
 
     try {
       await this.readbackBuffer.mapAsync(GPUMapMode.READ);
       const arrayBuffer = this.readbackBuffer.getMappedRange();
       const result = new Float32Array(arrayBuffer);
-      
+
       if (this.components) {
         this.components.set(result);
       }
-      
+
       this.readbackBuffer.unmap();
       this.needsSync = false;
       this.lastSyncTime = Date.now();
@@ -258,17 +272,21 @@ export class WebGPUDamageSystem {
 
   private applyDamageFallback(position: pc.Vec3, force: pc.Vec3): void {
     if (!this.components) return;
-    
+
     // CPU 降级逻辑，模拟 WGSL 行为
     for (let i = 0; i < this.maxComponents; i++) {
       const offset = i * this.componentStride;
-      const compPos = new pc.Vec3(this.components[offset], this.components[offset+1], this.components[offset+2]);
+      const compPos = new pc.Vec3(
+        this.components[offset],
+        this.components[offset + 1],
+        this.components[offset + 2],
+      );
       const dist = compPos.distance(position);
-      
+
       if (dist < 5.0) {
         const damage = (5.0 - dist) * force.length() * 0.1;
         this.components![offset + 3] -= damage;
-        
+
         const dir = new pc.Vec3().sub2(compPos, position).normalize();
         this.components[offset + 5] += dir.x * damage * 0.01;
         this.components[offset + 6] += dir.y * damage * 0.01;
@@ -277,7 +295,7 @@ export class WebGPUDamageSystem {
     }
   }
 
-  public onUpdate(dt: number): void {
+  public onUpdate(_dt: number): void {
     // 2026 Tech: 脏区节流同步
     if (this.needsSync && !this.isSyncing) {
       const now = Date.now();
@@ -314,16 +332,16 @@ export class WebGPUDamageSystem {
    */
   public isComponentFunctional(type: keyof typeof WebGPUDamageSystem.COMPONENT_MAP): boolean {
     if (!this.components) return true;
-    
+
     const map = WebGPUDamageSystem.COMPONENT_MAP[type];
     let totalHealth = 0;
     let count = 0;
-    
+
     for (let i = map.start; i <= map.end; i++) {
       totalHealth += this.components[i * this.componentStride + 3];
       count++;
     }
-    
+
     const avgHealth = totalHealth / count;
     return avgHealth > 20.0;
   }

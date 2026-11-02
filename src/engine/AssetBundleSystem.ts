@@ -81,6 +81,7 @@ export class AssetBundleSystem {
     const dependencies = this.manifest?.dependencies.get(bundleId) || [];
     for (const depId of dependencies) {
       if (!this.loadedBundles.has(depId)) {
+        // oxlint-disable-next-line no-await-in-loop
         await this.loadBundle(depId, { priority: options.priority });
       }
     }
@@ -115,6 +116,7 @@ export class AssetBundleSystem {
 
     for (const asset of bundle.assets) {
       try {
+        // oxlint-disable-next-line no-await-in-loop
         const data = await this.loadAsset(asset);
         assets.set(asset.id, data);
         loadedSize += asset.size;

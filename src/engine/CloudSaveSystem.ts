@@ -433,6 +433,7 @@ export class CloudSaveSystem {
       const item = this.saveQueue[0];
 
       try {
+        // oxlint-disable-next-line no-await-in-loop
         await this.saveToCloud(item.data);
         this.saveQueue.shift();
         this.lastSyncTime = Date.now();
@@ -441,6 +442,7 @@ export class CloudSaveSystem {
         if (item.retries >= this.cloudConfig.retryAttempts) {
           this.saveQueue.shift();
         } else {
+          // oxlint-disable-next-line no-await-in-loop
           await this.delay(this.cloudConfig.retryDelay * item.retries);
         }
       }

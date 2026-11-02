@@ -33,7 +33,11 @@ export class FactionManager {
    * 2026 Neural AI: 模拟派系决策。
    * 根据玩家声望和星区资源流向动态调整派系行为。
    */
-  public simulateFactionDecisions(playerActions: { type: string; targetFaction?: FactionId; sectorId: string }): void {
+  public simulateFactionDecisions(playerActions: {
+    type: string;
+    targetFaction?: FactionId;
+    sectorId: string;
+  }): void {
     // 简单的神经网络启发式模拟
     const { type, targetFaction, sectorId } = playerActions;
 
@@ -55,13 +59,14 @@ export class FactionManager {
     if (targetFaction) {
       const currentInf = sectorMap.get(targetFaction) || 0;
       sectorMap.set(targetFaction, currentInf - 1); // 派系力量减弱
-      
+
       // 2026 Tech: 同步更新到银河管理器与战略 AI
-      const galaxyManager = (this.context?.app as any)?._galaxyManager;
+      const galaxyManager = (this.context?.app as any)?.['galaxyManager'];
       if (galaxyManager) {
         galaxyManager.updateInfluence(sectorId, targetFaction, -1);
         // 激励敌对派系
-        if (targetFaction === 'trade_union') galaxyManager.updateInfluence(sectorId, 'scavengers', 0.5);
+        if (targetFaction === 'trade_union')
+          galaxyManager.updateInfluence(sectorId, 'scavengers', 0.5);
 
         // 报告星区波动，触发神经网络重规划
         const aiCore = galaxyManager.getStrategicAI?.();
@@ -86,28 +91,28 @@ export class FactionManager {
       name: '贸易联盟',
       reputation: 10,
       color: [0.2, 0.6, 1.0],
-      isAggressive: false
+      isAggressive: false,
     });
     this.factions.set('scavengers', {
       id: 'scavengers',
       name: '拾荒者',
       reputation: -20,
       color: [1.0, 0.6, 0.2],
-      isAggressive: true
+      isAggressive: true,
     });
     this.factions.set('imperial_guard', {
       id: 'imperial_guard',
       name: '帝国卫队',
       reputation: 0,
       color: [1.0, 0.2, 0.2],
-      isAggressive: false
+      isAggressive: false,
     });
     this.factions.set('void_cult', {
       id: 'void_cult',
       name: '虚空教派',
       reputation: -50,
       color: [0.6, 0.2, 0.8],
-      isAggressive: true
+      isAggressive: true,
     });
   }
 
@@ -118,7 +123,7 @@ export class FactionManager {
   public getReputationMultiplier(id: FactionId): number {
     const faction = this.factions.get(id);
     if (!faction) return 1.0;
-    
+
     // 声望越高，买卖价格越优惠 (100 声望 = 20% 优惠)
     if (faction.reputation > 0) {
       return 1.0 + (faction.reputation / 100) * 0.2;
@@ -132,8 +137,10 @@ export class FactionManager {
     const faction = this.factions.get(id);
     if (faction) {
       faction.reputation = pc.math.clamp(faction.reputation + amount, -100, 100);
-      console.log(`[FactionManager] Reputation with ${faction.name} changed to ${faction.reputation}`);
-      
+      console.log(
+        `[FactionManager] Reputation with ${faction.name} changed to ${faction.reputation}`,
+      );
+
       // 触发 UI 更新或游戏逻辑变化
       this.checkReputationMilestones(faction);
     }

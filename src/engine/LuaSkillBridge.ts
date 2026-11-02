@@ -25,8 +25,6 @@ import type { CastResult } from '../lua';
 export class LuaSkillBridge {
   private initialized = false;
 
-  constructor() {}
-
   /**
    * 初始化 Lua 技能系统
    */

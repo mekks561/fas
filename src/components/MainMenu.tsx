@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button } from './ui/shadcn';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from './ui/shadcn';
 import {
-  LucideLayoutDashboard,
   LucideGlobe,
   LucideBox,
   LucideZap,
@@ -12,7 +10,7 @@ import {
   LucideTrendingUp,
   LucideTrophy,
   LucideUsers,
-  LucideInfo
+  LucideInfo,
 } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { globalAudio } from '../engine/GlobalAudio';
@@ -36,7 +34,6 @@ interface MainMenuProps {
 
 export const MainMenu: React.FC<MainMenuProps> = ({
   onStartGame,
-  onContinueGame,
   onSettings,
   onAchievements,
   onShop,
@@ -44,15 +41,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onSkillTree,
   onSurvival,
   onLeaderboard,
-  onFriends,
 }) => {
   const [showAnimation, setShowAnimation] = useState(false);
-  const { t } = useTranslation();
-  
+  useTranslation();
+
   const playerScore = useGameStore((state) => state.player.score);
   const playerLevel = useGameStore((state) => state.player.level);
   const galacticStatus = useGameStore((state) => state.galacticStatus);
-  const setStarMapVisible = useGameStore((state) => state.setStarMapVisible);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowAnimation(true), 0);
@@ -75,7 +70,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       scavengers: '拾荒者',
       imperial_guard: '帝国卫队',
       void_cult: '虚空教派',
-      neutral: '中立势力'
+      neutral: '中立势力',
     };
     return names[id] || id;
   };
@@ -86,7 +81,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       scavengers: 'orange',
       imperial_guard: 'red',
       void_cult: 'purple',
-      neutral: 'gray'
+      neutral: 'gray',
     };
     return colors[id] || 'blue';
   };
@@ -103,7 +98,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       <header className="command-header">
         <div className="header-left">
           <LucideActivity className="w-5 h-5 text-blue-400 animate-pulse" />
-          <span className="text-xs tracking-[0.3em] font-bold text-blue-300">SYSTEM STATUS: OPTIMAL</span>
+          <span className="text-xs tracking-[0.3em] font-bold text-blue-300">
+            SYSTEM STATUS: OPTIMAL
+          </span>
         </div>
         <div className="header-center">
           <h1 className="game-title-v3">GALACTIC COMMAND</h1>
@@ -117,7 +114,9 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             <div className="w-px h-6 bg-white/10"></div>
             <div className="text-right">
               <div className="text-[10px] text-white/40 uppercase">Total Credits</div>
-              <div className="text-sm font-bold text-yellow-400">{playerScore.toLocaleString()}</div>
+              <div className="text-sm font-bold text-yellow-400">
+                {playerScore.toLocaleString()}
+              </div>
             </div>
           </div>
         </div>
@@ -130,18 +129,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           <Card className="glass-panel h-full border-none">
             <CardContent className="p-6 space-y-8">
               <div>
-                <h3 className="panel-title"><LucideTrendingUp className="w-4 h-4" /> 银河动态指标</h3>
+                <h3 className="panel-title">
+                  <LucideTrendingUp className="w-4 h-4" /> 银河动态指标
+                </h3>
                 <div className="mt-4 space-y-4">
                   <div className="stat-item">
                     <div className="flex justify-between text-[10px] mb-1">
                       <span>冲突指数</span>
-                      <span className={galacticStatus.conflictIndex > 0.7 ? 'text-red-400' : 'text-yellow-400'}>
+                      <span
+                        className={
+                          galacticStatus.conflictIndex > 0.7 ? 'text-red-400' : 'text-yellow-400'
+                        }
+                      >
                         {galacticStatus.conflictIndex > 0.7 ? 'HIGH' : 'STABLE'}
                       </span>
                     </div>
                     <div className="progress-bar-v3">
-                      <div 
-                        className={`fill ${galacticStatus.conflictIndex > 0.7 ? 'bg-red-500' : 'bg-yellow-500'}`} 
+                      <div
+                        className={`fill ${galacticStatus.conflictIndex > 0.7 ? 'bg-red-500' : 'bg-yellow-500'}`}
                         style={{ width: `${galacticStatus.conflictIndex * 100}%` }}
                       ></div>
                     </div>
@@ -149,17 +154,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   <div className="stat-item">
                     <div className="flex justify-between text-[10px] mb-1">
                       <span>贸易活跃度</span>
-                      <span className="text-blue-400">{galacticStatus.tradeActivity > 0.6 ? 'BOOMING' : 'NORMAL'}</span>
+                      <span className="text-blue-400">
+                        {galacticStatus.tradeActivity > 0.6 ? 'BOOMING' : 'NORMAL'}
+                      </span>
                     </div>
                     <div className="progress-bar-v3">
-                      <div className="fill bg-blue-500" style={{ width: `${galacticStatus.tradeActivity * 100}%` }}></div>
+                      <div
+                        className="fill bg-blue-500"
+                        style={{ width: `${galacticStatus.tradeActivity * 100}%` }}
+                      ></div>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="panel-title"><LucideUsers className="w-4 h-4" /> 派系影响力</h3>
+                <h3 className="panel-title">
+                  <LucideUsers className="w-4 h-4" /> 派系影响力
+                </h3>
                 <div className="mt-4 space-y-2">
                   {Object.entries(galacticStatus.factionInfluence).map(([faction, value]) => (
                     <div key={faction} className="faction-dot-item">
@@ -181,7 +193,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               <div className="circle-scanner"></div>
               <div className="ship-wireframe"></div>
             </div>
-            
+
             <div className="primary-actions">
               <button className="btn-v3-primary" onClick={handleStartStrategic}>
                 <LucideGlobe className="w-6 h-6" />
@@ -190,7 +202,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   <div className="text-[10px] opacity-60">ENTER STAR MAP & SECTORS</div>
                 </div>
               </button>
-              
+
               <div className="secondary-grid">
                 <button className="btn-v3-secondary" onClick={() => handleAction(onHangar)}>
                   <LucideBox className="w-5 h-5" />
@@ -229,7 +241,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               <span>系统配置</span>
             </button>
           </div>
-          
+
           <div className="mt-auto p-4 glass-panel rounded-lg">
             <div className="flex items-center gap-2 mb-2 text-white/40">
               <LucideInfo className="w-4 h-4" />
@@ -237,7 +249,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
             <div className="space-y-1">
               {galacticStatus.intelligenceFeed.map((feed, index) => (
-                <p key={index} className="text-[10px] leading-relaxed text-blue-200/60 border-l border-blue-500/30 pl-2">
+                <p
+                  key={index}
+                  className="text-[10px] leading-relaxed text-blue-200/60 border-l border-blue-500/30 pl-2"
+                >
                   {feed}
                 </p>
               ))}

@@ -582,6 +582,7 @@ export class ResourceManager {
         if (!resourceId) continue;
 
         try {
+          // oxlint-disable-next-line no-await-in-loop
           await this.loadResource(resourceId);
           totalLoaded++;
         } catch {}

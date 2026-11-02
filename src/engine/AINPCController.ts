@@ -42,7 +42,10 @@ interface ONNXSessionLike {
 
 interface ONNXRuntimeLike {
   InferenceSession: {
-    create: (data: Uint8Array, options: { executionProviders: string[] }) => Promise<ONNXSessionLike>;
+    create: (
+      data: Uint8Array,
+      options: { executionProviders: string[] },
+    ) => Promise<ONNXSessionLike>;
   };
   Tensor: new (type: string, data: number[], dims: number[]) => ONNXTensorLike;
 }
@@ -108,7 +111,8 @@ export class AINPCController {
       script.async = true;
 
       return new Promise((resolve, reject) => {
-        script.onload = () => resolve((window as unknown as { onnx?: ONNXRuntimeLike }).onnx ?? null);
+        script.onload = () =>
+          resolve((window as unknown as { onnx?: ONNXRuntimeLike }).onnx ?? null);
         script.onerror = () => reject(new Error('Failed to load ONNX Runtime'));
         document.head.appendChild(script);
       });
@@ -147,7 +151,9 @@ export class AINPCController {
       this.lastDecisionTime = now;
 
       for (const [npcId, state] of this.npcStates) {
-        const action = this.useAI ? this.decideWithRules(state, playerPositions) : this.decideWithRules(state, playerPositions);
+        const action = this.useAI
+          ? this.decideWithRules(state, playerPositions)
+          : this.decideWithRules(state, playerPositions);
         if (action) {
           actions.set(npcId, action);
         }
@@ -164,6 +170,7 @@ export class AINPCController {
 
     for (const [npcId, state] of this.npcStates) {
       try {
+        // oxlint-disable-next-line no-await-in-loop
         const action = await this.decideWithAI(state, playerPositions);
         if (action) {
           const actionMap = new Map<string, NPCAction>();
@@ -175,14 +182,21 @@ export class AINPCController {
     }
   }
 
-  private async decideWithAI(state: NPCState, playerPositions: Map<string, pc.Vec3>): Promise<NPCAction | null> {
+  private async decideWithAI(
+    state: NPCState,
+    playerPositions: Map<string, pc.Vec3>,
+  ): Promise<NPCAction | null> {
     if (!this.modelLoaded || !this.session) {
       return this.decideWithRules(state, playerPositions);
     }
 
     try {
       const inputData = this.prepareInput(state, playerPositions);
-      const tensor = new (window as unknown as { onnx: ONNXRuntimeLike }).onnx.Tensor('float32', inputData, [1, this.config.inputSize]);
+      const tensor = new (window as unknown as { onnx: ONNXRuntimeLike }).onnx.Tensor(
+        'float32',
+        inputData,
+        [1, this.config.inputSize],
+      );
 
       const start = performance.now();
       const results = await this.session.run({ input: tensor });
@@ -198,22 +212,24 @@ export class AINPCController {
       }
 
       const actionIndex = this.argMax(output);
-      
+
       const nearestPlayer = this.findNearestPlayer(state.position, playerPositions);
       if (nearestPlayer) {
         const distance = state.position.distance(nearestPlayer.position);
         const healthRatio = state.health / state.maxHealth;
-        
+
         if (distance > 25) {
           return this.getPatrolAction(state);
         }
-        
+
         if (healthRatio < 0.3) {
-          const fleeDirection = new pc.Vec3().sub2(state.position, nearestPlayer.position).normalize();
+          const fleeDirection = new pc.Vec3()
+            .sub2(state.position, nearestPlayer.position)
+            .normalize();
           return { type: 'flee', direction: fleeDirection, speed: 4 };
         }
       }
-      
+
       return this.convertOutputToAction(actionIndex, state, playerPositions);
     } catch (error) {
       console.warn('AI decision error:', error);
@@ -223,7 +239,7 @@ export class AINPCController {
 
   private decideWithRules(state: NPCState, playerPositions: Map<string, pc.Vec3>): NPCAction {
     const nearestPlayer = this.findNearestPlayer(state.position, playerPositions);
-    
+
     if (!nearestPlayer) {
       return this.getPatrolAction(state);
     }
@@ -253,13 +269,13 @@ export class AINPCController {
 
   private getPatrolAction(state: NPCState): NPCAction {
     const distanceToTarget = state.position.distance(state.targetPosition);
-    
+
     if (distanceToTarget < 2) {
       const angle = Math.random() * Math.PI * 2;
       state.targetPosition = new pc.Vec3(
         state.position.x + Math.cos(angle) * 10,
         state.position.y,
-        state.position.z + Math.sin(angle) * 10
+        state.position.z + Math.sin(angle) * 10,
       );
     }
 
@@ -309,7 +325,11 @@ export class AINPCController {
     return maxIndex;
   }
 
-  private convertOutputToAction(index: number, state: NPCState, playerPositions: Map<string, pc.Vec3>): NPCAction {
+  private convertOutputToAction(
+    index: number,
+    state: NPCState,
+    playerPositions: Map<string, pc.Vec3>,
+  ): NPCAction {
     const nearestPlayer = this.findNearestPlayer(state.position, playerPositions);
 
     switch (index) {
@@ -327,13 +347,19 @@ export class AINPCController {
         return this.getPatrolAction(state);
       case 3:
         if (nearestPlayer) {
-          const strafeDirection = new pc.Vec3(-(nearestPlayer.position.z - state.position.z), 0, nearestPlayer.position.x - state.position.x).normalize();
+          const strafeDirection = new pc.Vec3(
+            -(nearestPlayer.position.z - state.position.z),
+            0,
+            nearestPlayer.position.x - state.position.x,
+          ).normalize();
           return { type: 'strafe', direction: strafeDirection, speed: 2 };
         }
         return this.getPatrolAction(state);
       case 4:
         if (nearestPlayer) {
-          const fleeDirection = new pc.Vec3().sub2(state.position, nearestPlayer.position).normalize();
+          const fleeDirection = new pc.Vec3()
+            .sub2(state.position, nearestPlayer.position)
+            .normalize();
           return { type: 'move', direction: fleeDirection, speed: 4 };
         }
         return this.getPatrolAction(state);
@@ -342,7 +368,10 @@ export class AINPCController {
     }
   }
 
-  private findNearestPlayer(position: pc.Vec3, playerPositions: Map<string, pc.Vec3>): { id: string; position: pc.Vec3 } | null {
+  private findNearestPlayer(
+    position: pc.Vec3,
+    playerPositions: Map<string, pc.Vec3>,
+  ): { id: string; position: pc.Vec3 } | null {
     let nearest: { id: string; position: pc.Vec3; distance: number } | null = null;
 
     for (const [id, playerPos] of playerPositions) {

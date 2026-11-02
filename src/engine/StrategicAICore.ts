@@ -1,5 +1,4 @@
-import * as pc from 'playcanvas';
-import { FactionId } from './FactionManager';
+﻿import { FactionId } from './FactionManager';
 import { GalaxyManager, StarNode } from './GalaxyManager';
 
 export interface StrategicEvent {
@@ -32,23 +31,23 @@ class NeuralDecisionNetwork {
    * @param inputs 包含环境状态的输入向量
    * @returns 行动建议及其置信度
    */
-  public infer(inputs: { 
-    sectorVolatility: number; 
-    factionPower: number; 
+  public infer(inputs: {
+    sectorVolatility: number;
+    factionPower: number;
     playerRep: number;
     resourceDensity: number;
   }): { action: 'attack' | 'expand' | 'trade' | 'idle'; score: number } {
-    
     // 模拟神经元加权激活 (Simple Linear Combination + Bias)
-    const attackScore = (inputs.sectorVolatility * 0.4) + (inputs.factionPower * 0.3) - (inputs.playerRep * 0.3);
-    const expandScore = (inputs.resourceDensity * 0.5) + (inputs.factionPower * 0.4);
-    const tradeScore = (inputs.playerRep * 0.5) + (inputs.resourceDensity * 0.3);
+    const attackScore =
+      inputs.sectorVolatility * 0.4 + inputs.factionPower * 0.3 - inputs.playerRep * 0.3;
+    const expandScore = inputs.resourceDensity * 0.5 + inputs.factionPower * 0.4;
+    const tradeScore = inputs.playerRep * 0.5 + inputs.resourceDensity * 0.3;
 
     const scores = [
       { action: 'attack' as const, score: attackScore },
       { action: 'expand' as const, score: expandScore },
       { action: 'trade' as const, score: tradeScore },
-      { action: 'idle' as const, score: 0.2 }
+      { action: 'idle' as const, score: 0.2 },
     ];
 
     return scores.sort((a, b) => b.score - a.score)[0];
@@ -79,7 +78,7 @@ export class StrategicAICore {
    */
   public update(dtMs: number): void {
     this.processActiveEvents(dtMs);
-    
+
     // 随机触发新的派系决策
     if (Math.random() < 0.05) {
       this.generateFactionDecision();
@@ -89,40 +88,43 @@ export class StrategicAICore {
   private processActiveEvents(dtMs: number): void {
     const completedEvents: string[] = [];
 
-    this.activeEvents.forEach(event => {
+    this.activeEvents.forEach((event) => {
       event.progress += dtMs / event.duration;
-      
+
       if (event.progress >= 1.0) {
         this.finalizeEvent(event);
         completedEvents.push(event.id);
       }
     });
 
-    this.activeEvents = this.activeEvents.filter(e => !completedEvents.includes(e.id));
+    this.activeEvents = this.activeEvents.filter((e) => !completedEvents.includes(e.id));
   }
 
   private generateFactionDecision(): void {
     const nodes = this.galaxyManager.getAllNodes();
     const factions: FactionId[] = ['trade_union', 'scavengers', 'imperial_guard', 'void_cult'];
-    
+
     // 选出一个随机派系进行决策
     const factionId = factions[Math.floor(Math.random() * factions.length)];
-    const factionNodes = nodes.filter(n => n.dominantFactionId === factionId);
+    const factionNodes = nodes.filter((n) => n.dominantFactionId === factionId);
     if (factionNodes.length === 0) return;
 
     const origin = factionNodes[Math.floor(Math.random() * factionNodes.length)];
-    const data = this.sectorData.get(origin.id) || { activity: Math.random(), resourceFlow: Math.random() };
+    const data = this.sectorData.get(origin.id) || {
+      activity: Math.random(),
+      resourceFlow: Math.random(),
+    };
 
     // 2026 Tech: 神经网络推理
     const app = (this.galaxyManager as any).context?.app;
-    const factionManager = app?._factionManager;
+    const factionManager = app?.['factionManager'];
     const playerRep = factionManager?.getFaction(factionId)?.reputation || 0;
 
     const decision = this.brain.infer({
       sectorVolatility: data.activity,
       factionPower: factionNodes.length / nodes.length,
       playerRep: playerRep / 100,
-      resourceDensity: origin.type === 'resource' ? 1.0 : 0.4
+      resourceDensity: origin.type === 'resource' ? 1.0 : 0.4,
     });
 
     if (decision.score < 0.4) return; // 置信度不足，保持现状
@@ -130,12 +132,12 @@ export class StrategicAICore {
     // 根据推理结果执行战略行动
     if (decision.action === 'attack' || decision.action === 'expand') {
       const targets = origin.connections
-        .map(id => this.galaxyManager.getStarNode(id))
-        .filter(n => n && n.dominantFactionId !== factionId) as StarNode[];
+        .map((id) => this.galaxyManager.getStarNode(id))
+        .filter((n) => n && n.dominantFactionId !== factionId) as StarNode[];
 
       if (targets.length > 0) {
         const target = targets[Math.floor(Math.random() * targets.length)];
-        if (this.activeEvents.some(e => e.targetSectorId === target.id)) return;
+        if (this.activeEvents.some((e) => e.targetSectorId === target.id)) return;
 
         const newEvent: StrategicEvent = {
           id: `event-${Date.now()}`,
@@ -145,11 +147,13 @@ export class StrategicAICore {
           factionId,
           progress: 0,
           startTime: Date.now(),
-          duration: 300000 + Math.random() * 600000
+          duration: 300000 + Math.random() * 600000,
         };
 
         this.activeEvents.push(newEvent);
-        console.log(`[NeuralAI] Faction ${factionId} decided to ${decision.action} towards ${target.name} (Score: ${decision.score.toFixed(2)})`);
+        console.log(
+          `[NeuralAI] Faction ${factionId} decided to ${decision.action} towards ${target.name} (Score: ${decision.score.toFixed(2)})`,
+        );
       }
     } else if (decision.action === 'trade') {
       // 贸易决策：降低该星区资源价格，吸引玩家
@@ -158,7 +162,7 @@ export class StrategicAICore {
     }
   }
 
-  private optimizeTrade(sectorId: string, factionId: FactionId): void {
+  private optimizeTrade(sectorId: string, _factionId: FactionId): void {
     const galaxyManager = this.galaxyManager as any;
     if (galaxyManager.updateMarketState) {
       galaxyManager.updateMarketState(sectorId, { priceMultiplier: 0.8, supply: 1.5 });
@@ -182,7 +186,7 @@ export class StrategicAICore {
       // 2026 Tech: 侵略成功，判定是否易主
       this.galaxyManager.updateInfluence(event.targetSectorId, event.factionId, 50);
       this.galaxyManager.updateInfluence(event.targetSectorId, targetNode.dominantFactionId, -40);
-      
+
       // 检查新的统治力
       const influence = targetNode.influence;
       let newDominant = targetNode.dominantFactionId;
@@ -196,9 +200,11 @@ export class StrategicAICore {
       });
 
       if (newDominant !== targetNode.dominantFactionId) {
-        console.log(`[GalacticWar] SECTOR CONQUERED: ${targetNode.name} is now under ${newDominant} control!`);
+        console.log(
+          `[GalacticWar] SECTOR CONQUERED: ${targetNode.name} is now under ${newDominant} control!`,
+        );
         targetNode.dominantFactionId = newDominant;
-        
+
         // 触发全局通告
         const store = (window as any).useGameStore?.getState();
         store?.setActiveDialogue?.({
@@ -206,7 +212,13 @@ export class StrategicAICore {
           name: '银河战报',
           participants: [newDominant],
           trigger: { type: 'auto' },
-          lines: [{ speaker: newDominant, text: `我们已成功占领 ${targetNode.name} 星区。该区域现已纳入我们的版图。`, emotion: 'triumphant' }]
+          lines: [
+            {
+              speaker: newDominant,
+              text: `我们已成功占领 ${targetNode.name} 星区。该区域现已纳入我们的版图。`,
+              emotion: 'triumphant',
+            },
+          ],
         });
       }
     } else if (event.type === 'raid') {
@@ -221,6 +233,6 @@ export class StrategicAICore {
   }
 
   public getEventsForSector(sectorId: string): StrategicEvent[] {
-    return this.activeEvents.filter(e => e.targetSectorId === sectorId);
+    return this.activeEvents.filter((e) => e.targetSectorId === sectorId);
   }
 }

@@ -1,4 +1,4 @@
-import * as pc from 'playcanvas';
+﻿import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { Enemy, EnemyType, CapitalShip, EnemyProjectile } from './Enemy';
@@ -34,7 +34,7 @@ export class EnemySystem {
     engine: PlayCanvasGameEngine,
     player: PlayerShip,
     waveManager?: WaveManager,
-    storyManager?: StoryMissionManager
+    storyManager?: StoryMissionManager,
   ) {
     this.engine = engine;
     this.player = player;
@@ -125,7 +125,7 @@ export class EnemySystem {
       }
 
       // 2026 Tech: 敌方子弹也能误伤 NPC (Faction Conflict)
-      const npcManager = (this.engine.getApp() as any)._npcManager;
+      const npcManager = (this.engine.getApp() as any)['npcManager'];
       if (npcManager) {
         const npcs = npcManager.getNPCs();
         for (const npc of npcs) {
@@ -288,8 +288,14 @@ export class EnemySystem {
       activeMissions.forEach((m) => {
         const targetType = enemy.getType();
         // 如果任务有特定目标且匹配，或者没有特定目标（普通击杀任务）
-        const objective = m.objectives.find(o => o.type === 'destroy' && (!o.target || o.target === targetType || (o.target === 'outpost_core' && targetType === EnemyType.STATIC_OUTPOST)));
-        
+        const objective = m.objectives.find(
+          (o) =>
+            o.type === 'destroy' &&
+            (!o.target ||
+              o.target === targetType ||
+              (o.target === 'outpost_core' && targetType === EnemyType.STATIC_OUTPOST)),
+        );
+
         if (objective) {
           this.storyManager?.incrementObjective(m.mission.id, 'destroy', 1);
         }

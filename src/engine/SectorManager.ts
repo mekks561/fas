@@ -1,4 +1,4 @@
-import { ComputePCG } from './ComputePCG';
+﻿import { ComputePCG } from './ComputePCG';
 import { SectorConfig, SectorGenerator, SectorGenerationResult } from './SectorGenerator';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
@@ -25,7 +25,7 @@ export class SectorManager {
   private currentSector: SectorGenerationResult | null = null;
   private generator: SectorGenerator;
   private sectorCache: Map<string, SectorGenerationResult> = new Map();
-  
+
   private engine: PlayCanvasGameEngine | null = null;
   private player: PlayerShip | null = null;
   private asteroidSystem: AsteroidSystem | null = null;
@@ -58,8 +58,11 @@ export class SectorManager {
 
     if (!isSectorReady || !hasGalaxyMgr) {
       // 2026 Tech: 诊断日志，帮助排查初始化挂点
-      if (Math.random() > 0.95) { // 降低日志频率
-        console.log(`[SectorManager] Waiting for readiness: engine=${hasEngine}, sectorReady=${isSectorReady}, galaxyMgr=${hasGalaxyMgr}`);
+      if (Math.random() > 0.95) {
+        // 降低日志频率
+        console.log(
+          `[SectorManager] Waiting for readiness: engine=${hasEngine}, sectorReady=${isSectorReady}, galaxyMgr=${hasGalaxyMgr}`,
+        );
       }
     }
 
@@ -77,7 +80,7 @@ export class SectorManager {
     resourceSystem: ResourceSystem | null,
     npcManager: NPCManager,
     storyManager: StoryMissionManager,
-    vfxSystem: VisualEffectSystem | null
+    vfxSystem: VisualEffectSystem | null,
   ): void {
     this.engine = engine;
     this.player = player;
@@ -151,7 +154,9 @@ export class SectorManager {
     try {
       await Promise.race([
         this.applySectorToEngine(this.currentSector),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('applySectorToEngine timeout')), 15000))
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('applySectorToEngine timeout')), 15000),
+        ),
       ]);
     } catch (err) {
       console.error(`[SectorManager] Failed to apply sector ${config.id}:`, err);
@@ -166,7 +171,7 @@ export class SectorManager {
   /**
    * 执行跃迁。
    */
-  public async jumpTo(targetSectorId: string): Promise<void> {
+  public async jumpTo(_targetSectorId: string): Promise<void> {
     // 2026 Tech: 跃迁门现在触发星图选择，而非直接跳转
     useGameStore.getState().setStarMapVisible(true);
     useGameStore.getState().setGamePaused(true);
@@ -189,7 +194,7 @@ export class SectorManager {
       // 1. 获取银河系数据
       const galaxyManager = this.engine.getPlugin<any>('GalaxyManager');
       const starNode = galaxyManager?.getStarNode(sectorId);
-      
+
       if (!starNode) {
         throw new Error(`Invalid sector ID: ${sectorId}`);
       }
@@ -204,7 +209,7 @@ export class SectorManager {
       const nextConfig: SectorConfig = {
         id: starNode.id,
         name: starNode.name,
-        seed: starNode.id, 
+        seed: starNode.id,
         type: starNode.type,
         visuals: {
           skybox: 'env-debris-01',
@@ -222,17 +227,19 @@ export class SectorManager {
       // 5. 2026 Tech: 重置玩家位置到星区原点，避免因坐标漂移导致看不到物体
       if (this.player) {
         this.player.getEntity().setPosition(0, 0, 0);
-        
+
         // 强制重置相机位置，防止相机留在上个星区的远端导致黑屏
         // 2026 Tech: 改为从 app 显式读取挂载好的 _cameraSystem
-        const cameraSystem = (this.engine.getApp() as any)._cameraSystem;
+        const cameraSystem = (this.engine.getApp() as any)['cameraSystem'];
         if (cameraSystem) {
           console.log('[SectorManager] Resetting camera target and position to player ship');
           cameraSystem.setTarget(this.player.getEntity());
           const camEntity = this.engine.getCamera();
           if (camEntity) {
             // 设置一个合理的初始位置，防止 lerp 追随太慢
-            const offset = cameraSystem.getThirdPersonOffset ? cameraSystem.getThirdPersonOffset() : new pc.Vec3(0, 8, 15);
+            const offset = cameraSystem.getThirdPersonOffset
+              ? cameraSystem.getThirdPersonOffset()
+              : new pc.Vec3(0, 8, 15);
             const targetPos = this.player.getPosition();
             camEntity.setPosition(targetPos.x, targetPos.y + offset.y, targetPos.z + offset.z);
             camEntity.lookAt(targetPos);
@@ -258,12 +265,14 @@ export class SectorManager {
         };
         tick();
       }
-      
+
       console.log(`[SectorManager] Jump to ${sectorId} successful.`);
     } catch (error) {
       console.error(`[SectorManager] Jump to ${sectorId} failed:`, error);
       // 弹出错误通知 (如果 Store 支持)
-      useGameStore.getState().setError(`跃迁失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      useGameStore
+        .getState()
+        .setError(`跃迁失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       // 2026 Tech: 确保清理视觉特效，防止卡在黑屏状态
       if (this.vfxSystem) {
@@ -289,7 +298,7 @@ export class SectorManager {
 
     const types: SectorConfig['type'][] = ['neutral', 'hostile', 'trade', 'resource'];
     const type = types[Math.floor(random() * types.length)];
-    
+
     return {
       id,
       name: `星区 ${id.split('-').pop()}`,
@@ -308,22 +317,26 @@ export class SectorManager {
 
   private async applySectorToEngine(result: SectorGenerationResult) {
     if (!this.engine || !this.player) {
-      console.warn('[SectorManager] Engine or Player not initialized. Skipping visual application.');
+      console.warn(
+        '[SectorManager] Engine or Player not initialized. Skipping visual application.',
+      );
       return;
     }
 
     try {
       console.log(`[SectorManager] Applying sector: ${result.config.name} at ${Date.now()}`);
       console.log(`[SectorManager] Objects to create: ${result.objects.length}`);
-      
+
       // 1. 设置视觉环境
       const { visuals } = result.config;
-      console.log(`[SectorManager] Setting fog: color=${visuals.nebulaColor}, density=${visuals.fogDensity}`);
+      console.log(
+        `[SectorManager] Setting fog: color=${visuals.nebulaColor}, density=${visuals.fogDensity}`,
+      );
       this.engine.enableFog(
         new pc.Color(visuals.nebulaColor[0], visuals.nebulaColor[1], visuals.nebulaColor[2]),
-        visuals.fogDensity
+        visuals.fogDensity,
       );
-      
+
       // 加载环境 HDR
       console.log(`[SectorManager] Loading environment lighting: ${visuals.envHdri}`);
       void this.engine.loadEnvironmentLighting(visuals.envHdri);
@@ -331,22 +344,24 @@ export class SectorManager {
       // 2. 清理旧星区实体
       console.log('[SectorManager] Cleaning up old sector entities...');
       if (this.npcManager) this.npcManager.clear();
-      const bhSystem = (this.engine.getApp() as any)._blackHoleSystem;
+      const bhSystem = (this.engine.getApp() as any)['blackHoleSystem'];
       bhSystem?.clear();
       this.ancientRuins = [];
-      
-      this.activeJumpGates.forEach(gate => gate.destroy());
+
+      this.activeJumpGates.forEach((gate) => gate.destroy());
       this.activeJumpGates = [];
-      
+
       // 清理戴森云系统
-      const dysonSystem = (this.engine.getApp() as any)._dysonSwarmSystem as import('./DysonSwarmSystem').DysonSwarmSystem;
+      const dysonSystem = (this.engine.getApp() as any)[
+        'dysonSwarmSystem'
+      ] as import('./DysonSwarmSystem').DysonSwarmSystem;
       dysonSystem?.clear();
-      
-      this.sectorEntities.forEach(entity => entity.destroy());
+
+      this.sectorEntities.forEach((entity) => entity.destroy());
       this.sectorEntities = [];
 
       // 3. 生成跃迁门
-      result.jumpGates.forEach(gateDef => {
+      result.jumpGates.forEach((gateDef) => {
         const gate = new JumpGate({
           engine: this.engine!,
           player: this.player!,
@@ -357,33 +372,38 @@ export class SectorManager {
       });
 
       // 4. 生成星区物体 (小行星、空间站等)
-      const modelGen = new ProceduralModelGenerator(this.engine.getApp());
+      const modelGen = new ProceduralModelGenerator();
       const newAsteroids: pc.Entity[] = [];
       const newResources: pc.Entity[] = [];
-      
+
       // 2026 Tech: 如果支持 WebGPU，生成超大规模陨石群
       if (this.computePCG && result.config.difficulty > 2) {
         try {
           const massiveCount = 10000;
           const seed = Math.random() * 1000;
           const data = await this.computePCG.generateInstances(massiveCount, seed, 60, 250, 2.0);
-          
+
           const batchId = await this.engine.getAsteroidBatch('structures/meteor');
           if (batchId && this.engine.getInstancedRenderer()) {
             const renderer = this.engine.getInstancedRenderer()!;
             renderer.clearBatch(batchId);
-            
+
             for (let i = 0; i < massiveCount; i++) {
               const offset = i * 8;
               const pos = new pc.Vec3(data[offset + 0], data[offset + 1], data[offset + 2]);
               const scale = data[offset + 3];
-              const quat = new pc.Quat(data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7]);
+              const quat = new pc.Quat(
+                data[offset + 4],
+                data[offset + 5],
+                data[offset + 6],
+                data[offset + 7],
+              );
               renderer.addInstance(batchId, {
                 position: pos,
                 rotation: quat.getEulerAngles(),
                 scale: new pc.Vec3(scale, scale, scale),
                 color: new pc.Color(1, 1, 1),
-                visible: true
+                visible: true,
               });
             }
           }
@@ -395,7 +415,12 @@ export class SectorManager {
       for (const obj of result.objects) {
         const holder = new pc.Entity(obj.type);
         holder.setPosition(obj.position[0], obj.position[1], obj.position[2]);
-        const quat = new pc.Quat(obj.rotation[0], obj.rotation[1], obj.rotation[2], obj.rotation[3]);
+        const quat = new pc.Quat(
+          obj.rotation[0],
+          obj.rotation[1],
+          obj.rotation[2],
+          obj.rotation[3],
+        );
         holder.setLocalRotation(quat);
         holder.setLocalScale(obj.scale, obj.scale, obj.scale);
 
@@ -403,12 +428,12 @@ export class SectorManager {
           (holder as any).userData = {
             rotSpeed: new pc.Vec3(Math.random() * 0.2, Math.random() * 0.2, Math.random() * 0.2),
           };
-          
+
           // 2026 Tech: 为小行星注入可采矿元数据
           (holder as any).miningMeta = {
             health: 100,
             type: Math.random() > 0.8 ? 'gold' : 'iron',
-            yield: 20 + Math.random() * 80
+            yield: 20 + Math.random() * 80,
           };
           const placeholder = modelGen.createStructure('asteroid', { scale: 1.0 });
           holder.addChild(placeholder);
@@ -422,12 +447,16 @@ export class SectorManager {
                 const materialSet = PlayCanvasGameEngine.rockSetForAsteroid(assetPath);
                 this.engine.applyPbrMaterialWhenReady(instance, materialSet);
               }
-            }
+            },
           });
         } else if (obj.type === 'nebula') {
           const nebulaColor = result.config.visuals.nebulaColor;
           const color = new pc.Color(nebulaColor[0], nebulaColor[1], nebulaColor[2]);
-          const nebulaEntity = this.engine.createNebula(new pc.Vec3(...obj.position), obj.scale, color);
+          const nebulaEntity = this.engine.createNebula(
+            new pc.Vec3(...obj.position),
+            obj.scale,
+            color,
+          );
           this.sectorEntities.push(nebulaEntity);
           holder.destroy();
           continue;
@@ -438,12 +467,12 @@ export class SectorManager {
             scaleMultiplier: 1.0 * ModelAssetProvider.structureScale(),
             onReplaced: (instance) => {
               this.engine?.applyPbrMaterialWhenReady(instance, 'metalPlates');
-            }
+            },
           });
         } else if (obj.type === 'resource_crystal') {
           const placeholder = modelGen.createStructure('crystal', { scale: 0.5 });
           holder.addChild(placeholder);
-          
+
           // 注入数据供 ResourceSystem 使用
           (holder as any).userData = obj.data;
           newResources.push(holder);
@@ -453,12 +482,20 @@ export class SectorManager {
             scaleMultiplier: 0.5 * ModelAssetProvider.structureScale(),
             onReplaced: (instance) => {
               const color = obj.data?.resourceType === 'plasma' ? [0.2, 0.8, 1.0] : [0.8, 0.5, 0.2];
-              this.engine?.applyPbrMaterialWhenReady(instance, 'metal', color as [number, number, number]);
-            }
+              this.engine?.applyPbrMaterialWhenReady(
+                instance,
+                'metal',
+                color as [number, number, number],
+              );
+            },
           });
         } else if (obj.type === 'npc_squad') {
           if (this.npcManager) {
-            this.npcManager.spawnSquad(obj.data.factionId, new pc.Vec3(...obj.position), obj.data.memberCount);
+            this.npcManager.spawnSquad(
+              obj.data.factionId,
+              new pc.Vec3(...obj.position),
+              obj.data.memberCount,
+            );
           }
           holder.destroy();
           continue;
@@ -472,39 +509,54 @@ export class SectorManager {
         } else if (obj.type === 'anomaly') {
           const placeholder = modelGen.createStructure('anomaly', { scale: 1.0 });
           holder.addChild(placeholder);
-          
+
           // 注入数据
           (holder as any).userData = obj.data;
-          
+
           // 异常点视觉效果：特殊的自发光与扰动
           this.engine.getModelAssets().upgradeStructure(holder, placeholder, 'anomaly', {
             scaleMultiplier: 2.0 * ModelAssetProvider.structureScale(),
             onReplaced: (instance) => {
-              const color = obj.data?.anomalyType === 'wormhole_fragment' ? [0.6, 0.2, 1.0] : [1.0, 0.2, 0.2];
-              this.engine?.applyPbrMaterialWhenReady(instance, 'metal', color as [number, number, number]);
-            }
+              const color =
+                obj.data?.anomalyType === 'wormhole_fragment' ? [0.6, 0.2, 1.0] : [1.0, 0.2, 0.2];
+              this.engine?.applyPbrMaterialWhenReady(
+                instance,
+                'metal',
+                color as [number, number, number],
+              );
+            },
           });
         } else if (obj.type === 'black_hole') {
-          const bhSystem = (this.engine.getApp() as any)._blackHoleSystem as import('./BlackHoleSystem').BlackHoleSystem;
-          if (bhSystem) {
-            bhSystem.registerBlackHole(holder);
+          const bh = (this.engine.getApp() as any)[
+            'blackHoleSystem'
+          ] as import('./BlackHoleSystem').BlackHoleSystem;
+          if (bh) {
+            bh.registerBlackHole(holder);
           }
         } else if (obj.type === 'ancient_ruins') {
-           const ruins = new AncientRuins(this.engine.getApp(), this.player!, new pc.Vec3(...obj.position));
-           this.ancientRuins.push(ruins);
-           // 这里 ruins.entity 已经包含了结构，所以不需要另外创建 placeholder
-           this.engine.addToScene(ruins.entity);
-           holder.destroy();
-           continue;
-         } else if (obj.type === 'star') {
+          const ruins = new AncientRuins(
+            this.engine.getApp(),
+            this.player!,
+            new pc.Vec3(...obj.position),
+          );
+          this.ancientRuins.push(ruins);
+          // 这里 ruins.entity 已经包含了结构，所以不需要另外创建 placeholder
+          this.engine.addToScene(ruins.entity);
+          holder.destroy();
+          continue;
+        } else if (obj.type === 'star') {
           // 2026 Tech: 生成恒星并注册到戴森云系统
           const starColor = new pc.Color(obj.data.color[0], obj.data.color[1], obj.data.color[2]);
-          const star = this.engine.createSphere('star', obj.scale, this.engine.createMaterial('starMat', {
-            diffuse: new pc.Color(0, 0, 0),
-            emissive: starColor,
-          }));
+          const star = this.engine.createSphere(
+            'star',
+            obj.scale,
+            this.engine.createMaterial('starMat', {
+              diffuse: new pc.Color(0, 0, 0),
+              emissive: starColor,
+            }),
+          );
           star.setPosition(obj.position[0], obj.position[1], obj.position[2]);
-          
+
           // 添加日冕/光晕效果
           this.engine.addParticleSystem(star, {
             numParticles: 20,
@@ -512,15 +564,20 @@ export class SectorManager {
             rate: 5,
             initialVelocity: 0,
             scaleGraph: new pc.Curve([obj.scale * 1.2, obj.scale * 1.5]),
-            colorGraph: new pc.CurveSet([[starColor.r, starColor.g, starColor.b], [starColor.r, starColor.g, starColor.b, 0]]),
-            blendType: pc.BLEND_ADDITIVE
+            colorGraph: new pc.CurveSet([
+              [starColor.r, starColor.g, starColor.b],
+              [starColor.r, starColor.g, starColor.b, 0],
+            ]),
+            blendType: pc.BLEND_ADDITIVE,
           });
 
-          const dysonSystem = (this.engine.getApp() as any)._dysonSwarmSystem as import('./DysonSwarmSystem').DysonSwarmSystem;
-          if (dysonSystem) {
-            dysonSystem.registerStar(star);
+          const dyson = (this.engine.getApp() as any)[
+            'dysonSwarmSystem'
+          ] as import('./DysonSwarmSystem').DysonSwarmSystem;
+          if (dyson) {
+            dyson.registerStar(star);
           }
-          
+
           this.sectorEntities.push(star);
           holder.destroy();
           continue;
@@ -542,7 +599,9 @@ export class SectorManager {
       // 2026 Tech: 自动生成星区任务
       this.triggerSectorMission(result.config);
 
-      console.log(`[SectorManager] Generated ${this.sectorEntities.length} entities and ${newAsteroids.length} asteroids.`);
+      console.log(
+        `[SectorManager] Generated ${this.sectorEntities.length} entities and ${newAsteroids.length} asteroids.`,
+      );
       console.log(`[SectorManager] applySectorToEngine COMPLETED at ${Date.now()}`);
     } catch (err) {
       console.error('[SectorManager] Error applying sector to engine:', err);
@@ -551,15 +610,23 @@ export class SectorManager {
 
   private triggerSectorMission(config: SectorConfig): void {
     if (!this.engine) return;
-    const factionManager = (this.engine.getApp() as any)._factionManager as import('./FactionManager').FactionManager;
+    const factionManager = (this.engine.getApp() as any)[
+      'factionManager'
+    ] as import('./FactionManager').FactionManager;
     if (!factionManager) return;
 
     // 2026 Tech: 检查该星区是否存在战略事件（如正在进行的侵略）
-    const galaxyManager = (this.engine?.getApp() as any)._galaxyManager as import('./GalaxyManager').GalaxyManager;
+    const galaxyManager = (this.engine?.getApp() as any)?.[
+      'galaxyManager'
+    ] as import('./GalaxyManager').GalaxyManager;
     const strategicEvents = galaxyManager?.getEventsForSector(config.id) || [];
 
-    const mission = ProceduralMissionGenerator.generateMission(config, factionManager, strategicEvents);
-    
+    const mission = ProceduralMissionGenerator.generateMission(
+      config,
+      factionManager,
+      strategicEvents,
+    );
+
     if (strategicEvents.length > 0) {
       const event = strategicEvents[0];
       mission.name = `[战区] ${mission.name}`;
@@ -582,16 +649,16 @@ export class SectorManager {
         {
           speaker: 'operator',
           text: `侦测到新的星区动态：${mission.name}。${mission.description}，请知悉。`,
-          emotion: 'serious'
-        }
-      ]
+          emotion: 'serious',
+        },
+      ],
     });
-    
+
     // 实际将任务加入追踪
     if (this.storyManager) {
       this.storyManager.addProceduralMission(mission);
     }
-    
+
     console.log(`[SectorManager] Dynamic Mission Offered: ${mission.name}`);
   }
 
@@ -617,11 +684,16 @@ export class SectorManager {
       case 'destroy':
         if (mission.objectives[0].target === 'outpost_core') {
           const outpostPos = new pc.Vec3(0, 0, -150);
-          const enemySystem = (((this.engine as any).getApp() as any)?._enemySystem) as import('./EnemySystem').EnemySystem | null;
+          const enemySystem = ((this.engine as any).getApp() as any)?.['enemySystem'] as
+            import('./EnemySystem').EnemySystem | null;
           if (enemySystem) {
             enemySystem.spawnStaticTarget(EnemyType.STATIC_OUTPOST, outpostPos);
           }
-          this.npcManager.spawnSquad(dominantFaction as any, outpostPos.clone().add(new pc.Vec3(20, 0, 0)), 2);
+          this.npcManager.spawnSquad(
+            dominantFaction as any,
+            outpostPos.clone().add(new pc.Vec3(20, 0, 0)),
+            2,
+          );
         }
         break;
 
@@ -638,7 +710,7 @@ export class SectorManager {
    * 供 GameScene 每帧调用，更新跃迁门交互逻辑及星区动态事件。
    */
   public update(dt: number, controls?: import('./PlayerShip').PlayerControls): void {
-    this.activeJumpGates.forEach(gate => gate.update(dt));
+    this.activeJumpGates.forEach((gate) => gate.update(dt));
 
     // 2. 2026 Tech: 靠近空间站自动贸易结算
     this.checkStationProximity(controls);
@@ -653,31 +725,37 @@ export class SectorManager {
     this.updateFrontlineAmbience(dt);
 
     // 2026 Tech: 远古遗迹更新
-    this.ancientRuins.forEach(ruins => ruins.update(dt));
+    this.ancientRuins.forEach((ruins) => ruins.update(dt));
 
     // 2026 Tech: 维度偏移事件触发
     this.checkDimensionalShiftTrigger(dt);
   }
 
-  private checkDimensionalShiftTrigger(dt: number): void {
+  private checkDimensionalShiftTrigger(_dt: number): void {
     if (!this.currentSector || this.currentSector.config.type !== 'anomaly') return;
 
-    const dsSystem = (this.engine?.getApp() as any)._dimensionalShiftSystem as import('./DimensionalShiftSystem').DimensionalShiftSystem;
+    const dsSystem = (this.engine?.getApp() as any)?.[
+      'dimensionalShiftSystem'
+    ] as import('./DimensionalShiftSystem').DimensionalShiftSystem;
     if (!dsSystem || dsSystem.isShiftActive()) return;
 
     // 极低概率触发
     if (Math.random() > 0.9995) {
-      const types: ('gravity_invert' | 'light_slow' | 'reality_glitch')[] = ['gravity_invert', 'light_slow', 'reality_glitch'];
+      const types: ('gravity_invert' | 'light_slow' | 'reality_glitch')[] = [
+        'gravity_invert',
+        'light_slow',
+        'reality_glitch',
+      ];
       const randomType = types[Math.floor(Math.random() * types.length)];
       dsSystem.triggerShift(randomType, 15.0); // 持续 15 秒
     }
   }
 
-  private updateFrontlineAmbience(dt: number): void {
+  private updateFrontlineAmbience(_dt: number): void {
     if (!this.currentSector || !this.engine) return;
 
     // 检查当前星区是否有入侵事件
-    const galaxyManager = (this.engine.getApp() as any)._galaxyManager;
+    const galaxyManager = (this.engine.getApp() as any)['galaxyManager'];
     if (!galaxyManager) return;
 
     const events = galaxyManager.getEventsForSector(this.currentSector.config.id);
@@ -688,7 +766,7 @@ export class SectorManager {
       if (Math.random() > 0.98) {
         this.spawnDistantExplosion();
       }
-      
+
       if (Math.random() > 0.95) {
         this.spawnDistantTracer();
       }
@@ -697,21 +775,21 @@ export class SectorManager {
 
   private spawnDistantExplosion(): void {
     if (!this.engine) return;
-    
+
     // 在天空盒附近随机位置生成
     const radius = 300 + Math.random() * 200;
     const theta = Math.random() * Math.PI * 2;
     const phi = (Math.random() - 0.5) * Math.PI;
-    
+
     const pos = new pc.Vec3(
       radius * Math.cos(theta) * Math.cos(phi),
       radius * Math.sin(phi),
-      radius * Math.sin(theta) * Math.cos(phi)
+      radius * Math.sin(theta) * Math.cos(phi),
     );
-    
+
     const explosion = new pc.Entity('distant_war_flash');
     explosion.setPosition(pos);
-    
+
     // 2026 Tech: 远景次空间闪烁 (Sub-space Flash)
     this.engine.addParticleSystem(explosion, {
       numParticles: 1,
@@ -720,9 +798,9 @@ export class SectorManager {
       initialVelocity: 0,
       colorGraph: new pc.CurveSet([[1, 0.4, 0.1]]),
       scaleGraph: new pc.Curve([20, 50, 0]),
-      blendType: pc.BLEND_ADDITIVE
+      blendType: pc.BLEND_ADDITIVE,
     });
-    
+
     this.engine.addToScene(explosion);
     setTimeout(() => explosion.destroy(), 600);
   }
@@ -733,21 +811,25 @@ export class SectorManager {
     const radius = 400;
     const theta = Math.random() * Math.PI * 2;
     const phi = (Math.random() - 0.5) * Math.PI;
-    
+
     const startPos = new pc.Vec3(
       radius * Math.cos(theta) * Math.cos(phi),
       radius * Math.sin(phi),
-      radius * Math.sin(theta) * Math.cos(phi)
+      radius * Math.sin(theta) * Math.cos(phi),
     );
-    
-    const direction = new pc.Vec3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-    
+
+    const direction = new pc.Vec3(
+      Math.random() - 0.5,
+      Math.random() - 0.5,
+      Math.random() - 0.5,
+    ).normalize();
+
     const tracer = new pc.Entity('distant_tracer');
     tracer.setPosition(startPos);
     tracer.addComponent('model', { type: 'cylinder' });
     tracer.setLocalScale(0.5, 20, 0.5);
     tracer.lookAt(startPos.clone().add(direction));
-    
+
     const mat = new pc.StandardMaterial();
     mat.emissive.set(1, 0.2, 0.2);
     mat.useLighting = false;
@@ -755,9 +837,9 @@ export class SectorManager {
     mat.blendType = pc.BLEND_ADDITIVE;
     mat.update();
     if (tracer.model) tracer.model.material = mat;
-    
+
     this.engine.addToScene(tracer);
-    
+
     // 快速移动并消失
     const startTime = Date.now();
     const animate = () => {
@@ -766,7 +848,7 @@ export class SectorManager {
         tracer.destroy();
         return;
       }
-      
+
       tracer.setPosition(startPos.clone().add(direction.clone().scale(elapsed * 0.5)));
       requestAnimationFrame(animate);
     };
@@ -794,9 +876,9 @@ export class SectorManager {
 
     // 应用影响：增加雾效密度，减慢护盾回充
     // 2026 Tech: 修复 Fog API 兼容性 (PlayCanvas 2.x 使用 scene.fog.density)
-    const targetFog = inNebula ? 0.01 : this.currentSector?.config.visuals.fogDensity ?? 0.002;
+    const targetFog = inNebula ? 0.01 : (this.currentSector?.config.visuals.fogDensity ?? 0.002);
     const scene = this.engine.getApp().scene;
-    
+
     // 如果 scene.fog.density 是 NaN，重置为合理值
     const currentFog = isNaN(scene.fog.density) ? 0.002 : scene.fog.density;
     scene.fog.density = pc.math.lerp(currentFog, targetFog, 0.1);
@@ -833,19 +915,19 @@ export class SectorManager {
       if (entity.name === 'anomaly') {
         const dist = entity.getPosition().distance(playerPos);
         const data = (entity as any).userData;
-        
+
         // 2026 Tech: 引力井物理影响
         if (dist < 40.0) {
           const forceDir = entity.getPosition().clone().sub(playerPos).normalize();
           const forceMagnitude = (40.0 - dist) / 40.0;
-          
+
           // 如果是黑洞碎片，吸引玩家；如果是能量裂隙，排斥玩家
           const isAttract = data?.anomalyType === 'wormhole_fragment';
           const multiplier = isAttract ? 5.0 : -3.0;
-          
+
           const force = forceDir.scale(forceMagnitude * multiplier);
           this.player.applyExternalForce?.(force);
-          
+
           // 电磁干扰 (EMP) 视觉反馈
           if (dist < 15.0 && Math.random() > 0.95) {
             this.vfxSystem?.enableJumpDistortion();
@@ -860,9 +942,12 @@ export class SectorManager {
             // 触发奖励：增加大量经验或发现特殊图纸
             useGameStore.getState().addScore(2000);
             useGameStore.getState().addExperience?.(500);
-            
+
             // 视觉反馈：触发剧烈抖动与闪光
-            const vfx = this.engine.getPlugin<import('./VisualEffectSystem').VisualEffectSystem>('VisualEffectSystem');
+            const vfx =
+              this.engine.getPlugin<import('./VisualEffectSystem').VisualEffectSystem>(
+                'VisualEffectSystem',
+              );
             if (vfx) {
               vfx.enableJumpDistortion();
               setTimeout(() => vfx.disableJumpDistortion(), 500);
@@ -877,13 +962,15 @@ export class SectorManager {
     if (!this.player || !this.engine) return;
 
     const playerPos = this.player.getPosition();
-    const tradeManager = this.engine.getPlugin<import('./TradeManager').TradeManager>('TradeManager');
+    const tradeManager =
+      this.engine.getPlugin<import('./TradeManager').TradeManager>('TradeManager');
     if (!tradeManager) return;
 
     for (const entity of this.sectorEntities) {
       if (entity.name === 'space_station') {
         const dist = entity.getPosition().distance(playerPos);
-        if (dist < 15.0) { // 贸易范围
+        if (dist < 15.0) {
+          // 贸易范围
           // 自动出售所有矿产资源
           const store = useGameStore.getState();
           for (const [id, count] of Object.entries(store.inventory)) {
@@ -896,13 +983,15 @@ export class SectorManager {
           if (controls?.interact) {
             const currentChoices = store.pendingTradeChoices;
             if (!currentChoices) {
-              const buildSystem = (this.engine.getApp() as any)._buildSystem as import('./BuildSystem').BuildSystem;
+              const buildSystem = (this.engine.getApp() as any)[
+                'buildSystem'
+              ] as import('./BuildSystem').BuildSystem;
               if (buildSystem) {
                 // 获取当前星区主要派系的声望
                 const factionId = this.currentSector?.config.factions[0] || 'trade_union';
-                const fm = (this.engine.getApp() as any)._factionManager;
+                const fm = (this.engine.getApp() as any)['factionManager'];
                 const reputation = fm?.getFaction(factionId as any)?.reputation || 0;
-                
+
                 const choices = buildSystem.getStationTradeChoices(store.currentWave, reputation);
                 store.setPendingTradeChoices(choices);
               }

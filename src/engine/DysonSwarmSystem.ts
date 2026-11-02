@@ -13,7 +13,7 @@ export class DysonSwarmSystem {
   private constructionProgress: number = 0; // 0 to 100
   private isConstructing: boolean = false;
   private currentStar: pc.Entity | null = null;
-  
+
   // 视觉组件
   private swarmEntities: pc.Entity[] = [];
 
@@ -31,7 +31,7 @@ export class DysonSwarmSystem {
   public addProgress(amount: number): void {
     this.constructionProgress = Math.min(100, this.constructionProgress + amount);
     this.updateSwarmVisuals();
-    
+
     if (this.constructionProgress >= 100) {
       this.onConstructionComplete();
     }
@@ -42,7 +42,7 @@ export class DysonSwarmSystem {
 
     // 根据进度生成“轨道收集器”碎片
     const targetCount = Math.floor(this.constructionProgress / 5); // 每 5% 增加一个
-    
+
     while (this.swarmEntities.length < targetCount) {
       this.addSwarmCollector();
     }
@@ -59,7 +59,7 @@ export class DysonSwarmSystem {
     collector.setLocalPosition(
       radius * Math.cos(angle) * Math.cos(phi),
       radius * Math.sin(phi),
-      radius * Math.sin(angle) * Math.cos(phi)
+      radius * Math.sin(angle) * Math.cos(phi),
     );
 
     collector.addComponent('model', { type: 'box' });
@@ -79,22 +79,28 @@ export class DysonSwarmSystem {
 
   private onConstructionComplete(): void {
     console.log('[DysonSwarmSystem] Dyson Swarm online! Global energy output maximized.');
-    
+
     const store = (window as any).useGameStore?.getState();
     if (store) {
       store.addGlobalModifier?.({
         id: 'dyson_power',
         type: 'energy_regen',
         value: 1.5,
-        description: '戴森云能源：全局能量恢复速度提升 50%'
+        description: '戴森云能源：全局能量恢复速度提升 50%',
       });
-      
+
       store.setActiveDialogue?.({
         id: 'dyson_complete',
         name: '中央控制系统',
         participants: ['ai'],
         trigger: { type: 'auto' },
-        lines: [{ speaker: 'ai', text: '恒星能量捕获阵列已完全上线。能源供应已接入全局网络。', emotion: 'triumphant' }]
+        lines: [
+          {
+            speaker: 'ai',
+            text: '恒星能量捕获阵列已完全上线。能源供应已接入全局网络。',
+            emotion: 'triumphant',
+          },
+        ],
       });
     }
   }
@@ -111,25 +117,21 @@ export class DysonSwarmSystem {
         const angle = (0.1 + i * 0.01) * dt;
         const cosA = Math.cos(angle);
         const sinA = Math.sin(angle);
-        c.setPosition(
-          center.x + dx * cosA - dz * sinA,
-          pos.y,
-          center.z + dx * sinA + dz * cosA,
-        );
+        c.setPosition(center.x + dx * cosA - dz * sinA, pos.y, center.z + dx * sinA + dz * cosA);
       });
     }
 
     // 如果玩家靠近恒星且按下交互键，增加建设进度
-    const player = (this.context?.app as any)._player;
+    const player = (this.context?.app as any)?.['player'];
     if (player && this.currentStar) {
       const dist = player.getPosition().distance(this.currentStar.getPosition());
       const controls = player.getLatestControls?.();
-      
+
       if (dist < 120 && controls?.interact) {
         this.addProgress(2 * dt); // 持续按住增加进度
-        
+
         // 视觉反馈：从玩家飞船向恒星发射“建设光束”
-        const vfx = (this.context?.app as any)._vfxSystem;
+        const vfx = (this.context?.app as any)?.['vfxSystem'];
         vfx?.triggerConstructionBeam(player.getPosition(), this.currentStar.getPosition());
       }
 

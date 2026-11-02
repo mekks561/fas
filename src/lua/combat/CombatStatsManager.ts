@@ -1,8 +1,6 @@
 import { luaEngine } from '../LuaEngine';
-import { getLuaSource } from '../luaSources';
 
 // 取源码统一走 luaSources（构建期内联）——理由见 luaSources.ts 头注释。
-const combatStatsScript = getLuaSource('combat/combat-stats') ?? '';
 
 export interface CombatStatsData {
   kills: number;

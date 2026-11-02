@@ -127,8 +127,6 @@ export class EventSystem {
   private history: EventData[] = [];
   private maxHistorySize: number = 100;
 
-  constructor() {}
-
   public on(type: GameEventType, callback: EventCallback): () => void {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, []);

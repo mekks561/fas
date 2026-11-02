@@ -661,11 +661,15 @@ export class LuaEngine {
         has: activePowerups.some((p) => p.type === powerupType && p.remainingDuration > 0),
       }),
       getPowerupMultiplier: (powerupType: string) => {
-        const p = activePowerups.find((p) => p.type === powerupType && p.remainingDuration > 0);
+        const p = activePowerups.find(
+          (pwrup) => pwrup.type === powerupType && pwrup.remainingDuration > 0,
+        );
         return { success: true, multiplier: p ? p.multiplier : 1.0, stacks: p ? p.stacks : 0 };
       },
       getPowerupRemainingDuration: (powerupType: string) => {
-        const p = activePowerups.find((p) => p.type === powerupType && p.remainingDuration > 0);
+        const p = activePowerups.find(
+          (pwrup) => pwrup.type === powerupType && pwrup.remainingDuration > 0,
+        );
         if (!p) return { success: true, remainingDuration: 0, totalDuration: 0, progress: 0 };
         return {
           success: true,

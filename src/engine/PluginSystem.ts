@@ -78,6 +78,7 @@ export class PluginSystem {
     if (plugin.dependencies) {
       for (const dep of plugin.dependencies) {
         if (!this.loadedPlugins.has(dep)) {
+          // oxlint-disable-next-line no-await-in-loop
           const loaded = await this.load(dep);
           if (!loaded) {
             console.warn(`Failed to load dependency "${dep}" for plugin "${name}"`);
@@ -150,16 +151,21 @@ export class PluginSystem {
    */
   public async loadAll(): Promise<void> {
     const names = Array.from(this.plugins.keys());
-    console.log(`[PluginSystem] Starting parallel load of ${names.length} plugins: ${names.join(', ')}`);
-    
-    const loadPromises = names.map(name => this.load(name));
+    console.log(
+      `[PluginSystem] Starting parallel load of ${names.length} plugins: ${names.join(', ')}`,
+    );
+
+    const loadPromises = names.map((name) => this.load(name));
     await Promise.all(loadPromises);
-    
-    console.log(`[PluginSystem] All plugins load attempt finished. Success: ${this.loadedPlugins.size}/${names.length}`);
+
+    console.log(
+      `[PluginSystem] All plugins load attempt finished. Success: ${this.loadedPlugins.size}/${names.length}`,
+    );
   }
 
   public async unloadAll(): Promise<void> {
     for (const name of this.loadedPlugins) {
+      // oxlint-disable-next-line no-await-in-loop
       await this.unload(name);
     }
   }

@@ -1,4 +1,4 @@
-import * as pc from 'playcanvas';
+﻿import * as pc from 'playcanvas';
 import { Enemy, EnemyConfig, EnemyProjectile } from './Enemy';
 import { MeshTearingSystem } from './MeshTearingSystem';
 import { BlackHoleSystem } from './BlackHoleSystem';
@@ -13,9 +13,9 @@ export class VoidLordBoss extends Enemy {
   private blackHoleSystem: BlackHoleSystem | null = null;
   private phaseThresholds = {
     phase2: 0.7, // 70% 血量进入二阶段
-    phase3: 0.3  // 30% 血量进入三阶段
+    phase3: 0.3, // 30% 血量进入三阶段
   };
-  
+
   private gravityRadius = 100;
   private gravityStrength = 30;
   private singularityEntity: pc.Entity | null = null;
@@ -29,14 +29,14 @@ export class VoidLordBoss extends Enemy {
 
   private setupBossSystems(): void {
     const app = this.engine.getApp();
-    const damageSystem = (app as any)._webgpuDamageSystem;
-    
+    const damageSystem = (app as any)['webgpuDamageSystem'];
+
     if (damageSystem) {
       this.meshTearing = new MeshTearingSystem(app, damageSystem);
       this.meshTearing.applyToEntity(this.entity);
     }
 
-    this.blackHoleSystem = (app as any)._blackHoleSystem;
+    this.blackHoleSystem = (app as any)['blackHoleSystem'];
   }
 
   public override takeDamage(amount: number): void {
@@ -59,7 +59,7 @@ export class VoidLordBoss extends Enemy {
     this.speed *= 1.5;
     this.attackCooldown *= 0.7;
     console.log('[VoidLordBoss] Phase 2: Armor ruptured. Increasing aggression.');
-    
+
     // 触发视觉特效：外壳剥落感
     this.engine.createExplosion?.(this.entity.getPosition(), 2.0);
   }
@@ -74,11 +74,11 @@ export class VoidLordBoss extends Enemy {
     if (this.blackHoleSystem) {
       this.blackHoleSystem.registerBlackHole(this.entity);
     }
-    
+
     // 改变颜色为深紫色/黑色
     const renders = this.entity.findComponents('render') as pc.RenderComponent[];
-    renders.forEach(r => {
-      r.meshInstances.forEach(mi => {
+    renders.forEach((r) => {
+      r.meshInstances.forEach((mi) => {
         const mat = mi.material as pc.StandardMaterial;
         if (mat) {
           mat.diffuse.set(0, 0, 0);
@@ -104,7 +104,7 @@ export class VoidLordBoss extends Enemy {
     }
   }
 
-  private updateGravityField(dt: number): void {
+  private updateGravityField(_dt: number): void {
     const playerPos = this.player.getPosition();
     const bossPos = this.entity.getPosition();
     const dist = bossPos.distance(playerPos);
@@ -140,7 +140,7 @@ export class VoidLordBoss extends Enemy {
     const playerPos = this.player.getPosition();
     const bossPos = this.entity.getPosition();
     const dir = playerPos.clone().sub(bossPos).normalize();
-    
+
     // 2026 Tech: 虚空射线视觉与物理逻辑
     const beamEntity = new pc.Entity('void_beam');
     const mat = new pc.StandardMaterial();
@@ -151,14 +151,14 @@ export class VoidLordBoss extends Enemy {
 
     beamEntity.addComponent('model', { type: 'cylinder' });
     if (beamEntity.model) beamEntity.model.material = mat;
-    
+
     beamEntity.setLocalScale(0.8, 100, 0.8);
     beamEntity.setPosition(bossPos.clone().add(dir.clone().mulScalar(50)));
     beamEntity.lookAt(playerPos);
     beamEntity.rotateLocal(90, 0, 0); // 调整圆柱体方向
 
     this.engine.addToScene(beamEntity);
-    
+
     // 射线是瞬间或持续伤害，这里用一个高初速子弹模拟
     const projectile = new EnemyProjectile(beamEntity, this.damage * 1.2, dir.mulScalar(200));
     projectile.lifetime = 0.5; // 短寿命，模拟射线
@@ -172,16 +172,16 @@ export class VoidLordBoss extends Enemy {
     console.log('[VoidLordBoss] Firing Rapid Barrage');
     const playerPos = this.player.getPosition();
     const bossPos = this.entity.getPosition();
-    
+
     // 散射弹幕
     for (let i = 0; i < 8; i++) {
       const offset = new pc.Vec3(
         (Math.random() - 0.5) * 5,
         (Math.random() - 0.5) * 5,
-        (Math.random() - 0.5) * 5
+        (Math.random() - 0.5) * 5,
       );
       const dir = playerPos.clone().sub(bossPos).add(offset).normalize();
-      
+
       const projEntity = new pc.Entity('void_shard');
       const mat = new pc.StandardMaterial();
       mat.diffuse.set(0.5, 0, 0.8);
@@ -195,7 +195,7 @@ export class VoidLordBoss extends Enemy {
       projEntity.lookAt(playerPos);
 
       this.engine.addToScene(projEntity);
-      
+
       const projectile = new EnemyProjectile(projEntity, this.damage * 0.3, dir.mulScalar(60));
       this.newProjectiles.push(projectile);
     }
@@ -221,7 +221,7 @@ export class VoidLordBoss extends Enemy {
     projEntity.setPosition(bossPos);
 
     this.engine.addToScene(projEntity);
-    
+
     const projectile = new EnemyProjectile(projEntity, this.damage * 2.0, dir.mulScalar(40));
     this.newProjectiles.push(projectile);
   }
@@ -232,4 +232,3 @@ export class VoidLordBoss extends Enemy {
     return projs;
   }
 }
-

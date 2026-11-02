@@ -1,6 +1,5 @@
 import React from 'react';
 import type { UpgradeChoice, UpgradeTag, Rarity } from '../engine/BuildSystem';
-import { useGameStore } from '../store/useGameStore';
 import './StationTradePanel.css';
 
 interface StationTradePanelProps {
@@ -47,10 +46,14 @@ export const StationTradePanel: React.FC<StationTradePanelProps> = ({
             <span className="currency-icon">💰</span>
             <span className="currency-value">{currency.toLocaleString()}</span>
           </div>
-          <button className="station-trade__close" onClick={onClose}>×</button>
+          <button className="station-trade__close" onClick={onClose}>
+            ×
+          </button>
         </div>
-        
-        <p className="station-trade__subtitle">欢迎来到星际交易所。在这里你可以使用信用点购买最新的战斗插件。</p>
+
+        <p className="station-trade__subtitle">
+          欢迎来到星际交易所。在这里你可以使用信用点购买最新的战斗插件。
+        </p>
 
         <div className="station-trade__cards">
           {choices.map((choice) => {
@@ -76,11 +79,13 @@ export const StationTradePanel: React.FC<StationTradePanelProps> = ({
                   <div className="trade-card__footer">
                     <div className="trade-card__price">
                       <span className="price-label">价格:</span>
-                      <span className={`price-value ${!canAfford ? 'price-value--insufficient' : ''}`}>
+                      <span
+                        className={`price-value ${!canAfford ? 'price-value--insufficient' : ''}`}
+                      >
                         {choice.price}
                       </span>
                     </div>
-                    <button 
+                    <button
                       className={`trade-card__buy-btn ${!canAfford || isMaxed ? 'disabled' : ''}`}
                       onClick={() => !isMaxed && canAfford && onBuy(choice.id, choice.price)}
                       disabled={!canAfford || isMaxed}
