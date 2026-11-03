@@ -199,10 +199,11 @@ export class SectorManager {
         throw new Error(`Invalid sector ID: ${sectorId}`);
       }
 
-      // 2. 准备视觉特效 (扭曲)
-      if (this.vfxSystem) {
+      // 2. 准备视觉特效 (扭曲) —— 仅跨星区跃迁时播放，回到当前星区不播
+      const isCurrentSector = this.currentSector?.config.id === sectorId;
+      if (this.vfxSystem && !isCurrentSector) {
         this.vfxSystem.enableJumpDistortion();
-        this.vfxSystem.setJumpDistortionAmount(2.0);
+        this.vfxSystem.setJumpDistortionAmount(0.8);
       }
 
       // 3. 生成或加载目标星区配置
@@ -259,7 +260,7 @@ export class SectorManager {
         const tick = () => {
           const elapsed = (Date.now() - start) / 1000;
           const t = Math.min(elapsed / duration, 1.0);
-          this.vfxSystem?.setJumpDistortionAmount((1.0 - t) * 2.0);
+          this.vfxSystem?.setJumpDistortionAmount((1.0 - t) * 0.8);
           if (t < 1.0) requestAnimationFrame(tick);
           else this.vfxSystem?.disableJumpDistortion();
         };
@@ -278,6 +279,15 @@ export class SectorManager {
       if (this.vfxSystem) {
         this.vfxSystem.setJumpDistortionAmount(0);
         this.vfxSystem.disableJumpDistortion();
+      }
+      // 兜底：无论跃迁成功失败，都确保相机对准玩家，避免相机滞留导致黑屏
+      if (this.player && this.engine) {
+        try {
+          const cameraSystem = (this.engine.getApp() as any)['cameraSystem'];
+          if (cameraSystem) cameraSystem.setTarget(this.player.getEntity());
+        } catch {
+          /* ignore */
+        }
       }
       useGameStore.getState().setLoading(false);
       useGameStore.getState().setGamePaused(false);
@@ -605,6 +615,25 @@ export class SectorManager {
       console.log(`[SectorManager] applySectorToEngine COMPLETED at ${Date.now()}`);
     } catch (err) {
       console.error('[SectorManager] Error applying sector to engine:', err);
+      // 安全网：实体创建中途抛错时，旧实体已被销毁，场景可能为空。
+      // 强制重置相机对准玩家 + 恢复浅雾，避免出现只剩近黑 clearColor 的「黑屏」。
+      try {
+        if (this.player && this.engine) {
+          this.player.getEntity().setPosition(0, 0, 0);
+          const cameraSystem = (this.engine.getApp() as any)['cameraSystem'];
+          if (cameraSystem) {
+            cameraSystem.setTarget(this.player.getEntity());
+            const cam = this.engine.getCamera();
+            if (cam) {
+              cam.setPosition(0, 8, 15);
+              cam.lookAt(0, 0, 0);
+            }
+          }
+          this.engine.enableFog(new pc.Color(0.15, 0.15, 0.2), 0.003);
+        }
+      } catch (safetyErr) {
+        console.error('[SectorManager] Safety net recovery also failed:', safetyErr);
+      }
     }
   }
 
@@ -1006,5 +1035,10 @@ export class SectorManager {
 
   public getCurrentSector(): SectorGenerationResult | null {
     return this.currentSector;
+  }
+
+  /** 当前星区内的场景实体（供音频遮挡、射线检测等外部系统只读使用）。 */
+  public getSectorEntities(): pc.Entity[] {
+    return this.sectorEntities;
   }
 }

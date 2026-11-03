@@ -1116,20 +1116,34 @@ export class PlayCanvasGameEngine implements GameEngine {
 
   public setUpdateCallback(callback: (dt: number) => void): void {
     console.log('[PlayCanvasEngine] Setting update callback');
+    // 注意：PlayCanvas 的 tick 在 fire('update') 之后才调用 render()。
+    // 一旦本回调抛错，事件派发会把异常冒泡出去，导致该帧的 render() 被整帧跳过（画面全黑）。
+    // 因此每个子系统必须各自兜底，异常只记录不外抛。
     this.app.on('update', (dt: number) => {
       // 2026 Tech: 音频射线追踪更新 (Throttled to 10Hz)
       const now = Date.now();
       if (this.audioRaytracer && now - this.lastAudioUpdate > 100) {
-        const sectorManager = (this.app as any)['sectorManager'];
-        const obstacles = sectorManager ? sectorManager.getSectorEntities() : [];
-        this.audioRaytracer.update(dt, obstacles);
         this.lastAudioUpdate = now;
+        try {
+          const sectorManager = (this.app as any)['sectorManager'];
+          const obstacles =
+            sectorManager && typeof sectorManager.getSectorEntities === 'function'
+              ? sectorManager.getSectorEntities()
+              : [];
+          this.audioRaytracer.update(dt, obstacles);
+        } catch (err) {
+          console.error('[PlayCanvasEngine] Audio raytracer update failed:', err);
+        }
       }
 
-      callback(dt);
+      try {
+        callback(dt);
 
-      // 2026 Tech: 插件系统每帧更新
-      this.pluginSystem?.update(dt);
+        // 2026 Tech: 插件系统每帧更新
+        this.pluginSystem?.update(dt);
+      } catch (err) {
+        console.error('[PlayCanvasEngine] Frame update callback failed:', err);
+      }
     });
   }
 

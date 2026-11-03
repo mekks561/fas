@@ -669,15 +669,16 @@ export class VisualEffectSystem {
             vec2 dir = vUv - center;
             float dist = length(dir);
             
-            // 简单的桶形扭曲，uAmount 越大扭曲越强
+            // 桶形扭曲，uAmount 越大扭曲越强
             vec2 uv = center + dir * (1.0 + uAmount * dist * dist);
             
-            // 超出范围回落黑色
-            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            } else {
-                gl_FragColor = texture2D(uColorBuffer, uv);
-            }
+            // 边缘 clamp 而非回黑——避免高 amount 时全屏黑场
+            uv = clamp(uv, 0.0, 1.0);
+            vec4 color = texture2D(uColorBuffer, uv);
+            
+            // 边缘轻微暗角（最多压到 30% 亮度），保留跃迁氛围感但不黑屏
+            float vignette = 1.0 - smoothstep(0.3, 0.8, dist) * 0.7 * clamp(uAmount, 0.0, 1.0);
+            gl_FragColor = vec4(color.rgb * vignette, color.a);
         }
       `,
       WGSL_VERTEX,
@@ -696,10 +697,14 @@ export class VisualEffectSystem {
             
             let uv = center + dir * (1.0 + uAmount * dist * dist);
             
-            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-                return vec4<f32>(0.0, 0.0, 0.0, 1.0);
-            }
-            return textureSample(uColorBuffer, uColorBufferSampler, uv);
+            // 边缘 clamp 而非回黑
+            let clamped_uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));
+            let color = textureSample(uColorBuffer, uColorBufferSampler, clamped_uv);
+            
+            // 边缘暗角（最多 70%），不黑屏
+            let amt = clamp(uAmount, 0.0, 1.0);
+            let vignette = 1.0 - smoothstep(0.3, 0.8, dist) * 0.7 * amt;
+            return vec4<f32>(color.rgb * vignette, color.a);
         }
       `,
     );
@@ -954,25 +959,25 @@ export class VisualEffectSystem {
    */
   public triggerJumpEffect(duration: number = 1000): void {
     this.enableJumpDistortion();
-    
+
     const startTime = Date.now();
     const update = () => {
       const elapsed = Date.now() - startTime;
       const t = elapsed / duration;
-      
+
       if (t >= 1) {
         this.setJumpDistortionAmount(0);
         this.disableJumpDistortion();
         return;
       }
-      
+
       // 先增强后减弱的波峰效果
       const amount = Math.sin(t * Math.PI) * 0.5;
       this.setJumpDistortionAmount(amount);
-      
+
       requestAnimationFrame(update);
     };
-    
+
     update();
   }
 
@@ -1091,23 +1096,23 @@ export class VisualEffectSystem {
       if (this.activeSkillEffects.size === 0 && this.originalConfig) {
         // 恢复所有配置
         const old = this.originalConfig;
-        
+
         // 恢复 bloom
         this.config.bloomStrength = old.bloomStrength;
         if (!old.bloomEnabled) this.disableBloom();
-        
+
         // 恢复 vignette
         this.config.vignetteIntensity = old.vignetteIntensity;
         if (!old.vignetteEnabled) this.disableVignette();
-        
+
         // 恢复 color correction
         this.config.colorCorrectionSaturation = old.colorCorrectionSaturation;
         this.config.colorCorrectionTint = old.colorCorrectionTint.clone();
         this.config.colorCorrectionTintAmount = old.colorCorrectionTintAmount;
-        
+
         // 恢复 radial blur
         if (!old.radialBlurEnabled) this.disableRadialBlur();
-        
+
         this.originalConfig = null;
       }
     }
@@ -1118,21 +1123,25 @@ export class VisualEffectSystem {
   /**
    * 触发建设光束视觉效果 (2026 Tech: Dyson Swarm VFX)
    */
-  public triggerConstructionBeam(from: pc.Vec3, to: pc.Vec3, color: pc.Color = new pc.Color(1, 0.8, 0)): void {
+  public triggerConstructionBeam(
+    from: pc.Vec3,
+    to: pc.Vec3,
+    color: pc.Color = new pc.Color(1, 0.8, 0),
+  ): void {
     const beam = new pc.Entity('construction_beam');
     const dist = from.distance(to);
-    
+
     beam.addComponent('model', { type: 'cylinder' });
     beam.setLocalScale(0.5, dist, 0.5);
-    
+
     // 位置设在两点中点
     const mid = new pc.Vec3().add2(from, to).scale(0.5);
     beam.setPosition(mid);
-    
+
     // 旋转：让圆柱体指向目标 (cylinder 默认向上 Y 轴)
     beam.lookAt(to);
     beam.rotateLocal(90, 0, 0); // 修正 cylinder 的原始朝向
-    
+
     const mat = new pc.StandardMaterial();
     mat.emissive = color;
     mat.emissiveIntensity = 5.0;
@@ -1140,11 +1149,11 @@ export class VisualEffectSystem {
     mat.blendType = pc.BLEND_ADDITIVEALPHA;
     mat.depthWrite = false;
     mat.update();
-    
+
     if (beam.model) beam.model.material = mat;
-    
+
     this.app.root.addChild(beam);
-    
+
     // 自动销毁
     let timer = 0;
     const duration = 0.2;
