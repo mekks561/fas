@@ -3,6 +3,7 @@ import { InstancedRenderer } from './InstancedRenderer';
 import { GameEngineConfig, LightConfig, CameraConfig, GameEngine } from './GameEngine';
 import { PluginSystem, Plugin, PluginConfig } from './PluginSystem';
 import { ProceduralModelGenerator } from './ProceduralModelGenerator';
+import { ENV_HDRI, DEFAULT_ENV_HDRI } from '../levels/index';
 import { ModelAssetProvider } from './ModelAssetProvider';
 import { WebGPUDamageSystem } from './WebGPUDamageSystem';
 import { FactionManager } from './FactionManager';
@@ -974,9 +975,17 @@ export class PlayCanvasGameEngine implements GameEngine {
     url: string,
     options: { atlasSize?: number; lightingSourceSize?: number } = {},
   ): Promise<boolean> {
-    this.envLightingState = { ...this.envLightingState, url, status: 'loading', error: null };
+    // 调用方可能传的是关卡 skybox 键名（env-space-01）而非完整 URL
+    const resolvedUrl =
+      url.startsWith('/') || url.startsWith('http') ? url : (ENV_HDRI[url] ?? DEFAULT_ENV_HDRI);
+    this.envLightingState = {
+      ...this.envLightingState,
+      url: resolvedUrl,
+      status: 'loading',
+      error: null,
+    };
     try {
-      const source = await this.loadHdrTexture(url);
+      const source = await this.loadHdrTexture(resolvedUrl);
 
       // 让出一帧：下面的预滤波是同步的，先让开局首帧画出来再算。
       await new Promise<void>((resolve) => {
@@ -1012,30 +1021,139 @@ export class PlayCanvasGameEngine implements GameEngine {
     }
   }
 
-  /** 加载 .hdr（Radiance RGBE）为等距柱状 2D 贴图。 */
-  private loadHdrTexture(url: string): Promise<pc.Texture> {
-    return new Promise((resolve, reject) => {
-      const asset = new pc.Asset(`envHdr:${url}`, 'texture', { url });
+  /**
+   * 加载 .hdr（Radiance RGBE）为等距柱状 2D 贴图。
+   *
+   * PlayCanvas 2.23 不内置 HDR 扩展名的 AssetLoader，所以绕过 Asset 系统：
+   * 用 fetch 直接拿到 ArrayBuffer，解析 Radiance RGBE（含 RLE 压缩），
+   * 转成 RGBA8 上传 pc.Texture。金属材质的 environment 反射走 scene.envAtlas
+   * 所以本纹理只需要让 PlayCanvas 的 EnvLighting.generateLightingSource 能读。
+   */
+  private async loadHdrTexture(url: string): Promise<pc.Texture> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`hdr_http_${response.status}: ${url}`);
+    const buffer = new Uint8Array(await response.arrayBuffer());
 
-      // 2026 Tech: 增加加载超时保护 (15s)
-      const timeout = setTimeout(() => {
-        if (!asset.loaded) {
-          console.warn(`[PlayCanvasEngine] HDR texture load timeout: ${url}`);
-          reject(new Error('hdr_load_timeout'));
-        }
-      }, 15000);
+    // 1) 解析 header —— 找到 FORMAT、分辨率，定位数据起点
+    let idx = 0;
+    if (buffer[0] !== 0x23 /* '#' */ || buffer[1] !== 0x3f /* '?' */) {
+      throw new Error('hdr_magic_mismatch');
+    }
+    let rle = false;
+    let width = 0;
+    let height = 0;
 
-      this.app.assets.add(asset);
-      asset.once('load', () => {
-        clearTimeout(timeout);
-        resolve(asset.resource as pc.Texture);
-      });
-      asset.once('error', (err: string) => {
-        clearTimeout(timeout);
-        reject(new Error(err || 'hdr_load_failed'));
-      });
-      this.app.assets.load(asset);
+    // header 不会很长（通常 < 512 字节），先用前 2KB 解码成字符串
+    const headerStrFull = new TextDecoder().decode(buffer.slice(0, 2048));
+    // 分辨率行格式："-Y height +X width" 或 "+Y ..."
+    const resMatch = headerStrFull.match(/^[+-]Y\s+(\d+)\s+[+-]X\s+(\d+)\s*$/m);
+    if (!resMatch) throw new Error('hdr_missing_resolution');
+    height = parseInt(resMatch[1], 10);
+    width = parseInt(resMatch[2], 10);
+
+    // 分辨率行后面的 \n 就是数据起始
+    const resLineEnd = headerStrFull.indexOf('\n', headerStrFull.indexOf(resMatch[0]));
+    if (resLineEnd === -1) throw new Error('hdr_header_end_not_found');
+    idx = buffer.indexOf(0x0a, resLineEnd);
+    if (idx === -1) throw new Error('hdr_header_end_not_found');
+    idx += 1; // 跳过分隔 \n
+
+    // 从 header 里也找一下 FORMAT
+    const formatMatch = headerStrFull.match(/FORMAT=(\S+)/);
+    if (formatMatch) rle = formatMatch[1].includes('rle');
+
+    // 2) 解 RGBE → RGBA（RGBA8，shared exponent 合成逐像素指数）
+    const pixels = this.decodeRgbe(buffer, idx, width, height, rle);
+
+    // 3) 上传 pc.Texture
+    const texture = new pc.Texture(this.app.graphicsDevice, {
+      width,
+      height,
+      format: pc.PIXELFORMAT_RGBA8,
+      addressU: pc.ADDRESS_CLAMP_TO_EDGE,
+      addressV: pc.ADDRESS_CLAMP_TO_EDGE,
+      magFilter: pc.FILTER_LINEAR,
+      minFilter: pc.FILTER_LINEAR,
+      mipmaps: false,
     });
+    // PlayCanvas 2.x 的 Texture._levels 是内部属性，通过 lock/unlock + 直接赋值上传原始像素
+    (texture as any).lock();
+    // oxlint-disable-next-line no-underscore-dangle — PlayCanvas Texture 内部属性名
+    (texture as any)._levels = [pixels];
+    (texture as any).unlock();
+    return texture;
+  }
+
+  /** 解析 Radiance RGBE 数据区（含 FORMAT=32-bit_rle_rgbe 的 RLE 压缩）。 */
+  private decodeRgbe(
+    buf: Uint8Array,
+    offset: number,
+    width: number,
+    height: number,
+    rle: boolean,
+  ): Uint8Array {
+    const out = new Uint8Array(width * height * 4);
+
+    // 先把数据解压成 rgbeRaw（width*height*4 字节，R/G/B/E 交替）
+    let p = offset;
+    const rgbeRaw = new Uint8Array(width * height * 4);
+
+    if (rle) {
+      for (let row = 0; row < height; row++) {
+        // 行头：4 字节 marker0 marker1 hh ll —— 标准单行 RLE 压缩 marker 都是 0x02
+        if (p + 4 > buf.length) break;
+        const m0 = buf[p++],
+          m1 = buf[p++];
+        p += 2; // 跳过 hh, ll
+        // 非标准 marker：fallback 为直接复制原始 RGBE
+        const isStandard = m0 === 0x02 && m1 === 0x02;
+        const segLen = isStandard ? width : width * 4;
+        const rowStart = row * width;
+
+        for (let seg = 0; seg < 4; seg++) {
+          let j = 0;
+          while (j < segLen && p < buf.length) {
+            const code = buf[p++];
+            if (code >= 128) {
+              // run: 后续 1 字节重复 (code - 127) 次
+              const runLen = code - 127;
+              const val = buf[p++];
+              for (let k = 0; k < runLen && j + k < segLen; k++) {
+                rgbeRaw[(rowStart + j + k) * 4 + seg] = val;
+              }
+              j += runLen;
+            } else {
+              // 直接复制 (code + 1) 个后续字节
+              const count = code + 1;
+              for (let k = 0; k < count && j + k < segLen && p < buf.length; k++) {
+                rgbeRaw[(rowStart + j + k) * 4 + seg] = buf[p++];
+              }
+              j += count;
+            }
+          }
+        }
+      }
+    } else {
+      // 非 RLE：直接按原始 RGBE 字节顺序复制
+      const n = Math.min(buf.length - offset, width * height * 4);
+      rgbeRaw.set(buf.slice(offset, offset + n));
+    }
+
+    // 把 RGBE → RGBA8（shared exponent 合成 per-pixel 指数）
+    for (let i = 0, o = 0; i < rgbeRaw.length; i += 4, o += 4) {
+      const e = rgbeRaw[i + 3];
+      if (e === 0) {
+        out[o] = out[o + 1] = out[o + 2] = 0;
+        out[o + 3] = 255;
+        continue;
+      }
+      const exp = Math.pow(2, e - 128 - 8);
+      out[o] = Math.max(0, Math.min(255, Math.round(rgbeRaw[i] * exp * 255)));
+      out[o + 1] = Math.max(0, Math.min(255, Math.round(rgbeRaw[i + 1] * exp * 255)));
+      out[o + 2] = Math.max(0, Math.min(255, Math.round(rgbeRaw[i + 2] * exp * 255)));
+      out[o + 3] = 255;
+    }
+    return out;
   }
 
   /**
