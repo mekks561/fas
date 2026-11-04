@@ -986,10 +986,11 @@ export class VisualEffectSystem {
       case 'cinematic':
         this.config.bloomThreshold = 0.7;
         this.config.bloomStrength = 0.5;
-        this.config.vignetteIntensity = 0.8;
-        this.config.vignetteRadius = 0.4;
+        // 暗角收敛：太空射击里视野边缘要能看清敌机，0.8 会把四角压到约三分之一亮度
+        this.config.vignetteIntensity = 0.35;
+        this.config.vignetteRadius = 0.45;
         this.config.colorCorrectionContrast = 1.3;
-        this.config.colorCorrectionExposure = 0.9;
+        this.config.colorCorrectionExposure = 0.95;
         this.enableBloom();
         this.enableVignette();
         this.enableColorCorrection();
