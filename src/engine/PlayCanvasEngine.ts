@@ -1,4 +1,4 @@
-﻿import * as pc from 'playcanvas';
+import * as pc from 'playcanvas';
 import { InstancedRenderer } from './InstancedRenderer';
 import { GameEngineConfig, LightConfig, CameraConfig, GameEngine } from './GameEngine';
 import { PluginSystem, Plugin, PluginConfig } from './PluginSystem';

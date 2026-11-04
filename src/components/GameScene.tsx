@@ -758,21 +758,23 @@ export const GameScene: React.FC<{
       // 雾效：增强深度感，远处物体渐隐（临时禁用排查黑屏）
       // engine.enableFog(new pc.Color(0.02, 0.02, 0.05), 0.008);
 
-      // 后处理系统：bloom + 暗角 + 色彩校正（VisualEffectSystem）。
+      // 后处理系统：bloom + 暗角 + 色彩校正 + 跃迁扭曲（VisualEffectSystem）。
       //
-      // 这套东西此前整段被注释掉，理由是「可能破坏渲染管线」。真实原因是它按
-      // PlayCanvas 1.x 的 API 写的，迁到 2.x 后构造函数第一句就抛异常——详见
-      // VisualEffectSystem.ts 顶部注释。修好后在这里正式接回。
-      //
-      // 放在场景搭建之后：bloom 会让粒子尾焰/爆炸、激光、发光材质真正「发光」，
-      // 与上一轮接入的粒子贴图是配套的。初始化失败只降级、不影响开局。
-      /* 暂时禁用后处理以排查黑屏问题
+      // 初始化失败只降级、不影响开局：后处理是锦上添花，绝不能因为它把主渲染拖黑。
+      // 注册进 PluginSystem 是为了让 JumpGate / SectorManager 能通过
+      // engine.getPlugin('VisualEffectSystem') 拿到同一个实例（跃迁扭曲用）。
       try {
         const { VisualEffectSystem: VFXClass } = await import('../engine/VisualEffectSystem');
         const vfxSystem = new VFXClass(engine.getApp(), engine.getCamera());
         vfxSystem.applyPreset('cinematic');
         vfxSystemRef.current = vfxSystem;
         (engine.getApp() as any)['vfxSystem'] = vfxSystem;
+        engine.registerPlugin({
+          name: 'VisualEffectSystem',
+          version: '1.0.0',
+          init: () => {},
+          destroy: () => vfxSystem.dispose(),
+        });
         console.log('[GameScene] Visual effect system initialized (cinematic preset)');
       } catch (vfxError) {
         console.warn(
@@ -780,7 +782,6 @@ export const GameScene: React.FC<{
           vfxError,
         );
       }
-      */
 
       console.log('[GameScene] Environment created (with asteroid field, structures, fog, VFX)');
 
@@ -956,7 +957,7 @@ export const GameScene: React.FC<{
             resourceSystemRef.current!, // resourceSystem might be null but SectorManager handles it
             npcManagerRef.current,
             storyMgr,
-            vfxSystemRef.current!, // vfxSystem might be null but SectorManager handles it
+            vfxSystemRef.current, // 未初始化时传 null，SectorManager 会跳过扭曲特效
           );
           await sectorManager.enterInitialSector();
           console.log('[GameScene] Sector system initialized');
