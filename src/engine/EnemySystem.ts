@@ -306,8 +306,12 @@ export class EnemySystem {
 
     this.squadManager.update(dt, anchor, forward);
 
+    // 每帧把敌对派系的进化权重灌给每个敌机 AI，让"越打越聪明"即时生效
+    const hostileWeights = this.squadManager.getWeights('hostile');
     this.enemies.forEach((enemy) => {
       if (!enemy.isAlive()) return;
+      enemy.getAI().setWeights(hostileWeights);
+
       const id = this.enemyIds.get(enemy);
       if (!id) return;
 

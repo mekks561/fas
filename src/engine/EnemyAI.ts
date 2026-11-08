@@ -4,6 +4,7 @@ import * as pc from 'playcanvas';
 // 纯行为逻辑 —— 单测可以直接构造它，不必起 WebGL。
 import type { PlayerShip } from './PlayerShip';
 import type { EnemyType } from './Enemy';
+import type { SquadWeights } from './SquadManager';
 // 场地边界唯一真源（零依赖叶子模块，引它不会把引擎图拖进来）
 import { ENEMY_BOUNDS } from './arena';
 
@@ -65,6 +66,12 @@ export abstract class EnemyAI {
   private externalBrainFrames: number = 0;
   /** 编队槽位目标（SquadManager 写入）；空 = 按玩家方向机动 */
   private formationTarget: pc.Vec3 | null = null;
+  /**
+   * 派系进化权重（SquadManager 每帧写入）。
+   * aggression：越接近 1 越主动接敌 / 远距离开火；cohesion：越接近 1 越死守编队。
+   * 默认 0.5/0.5 即"未学习"状态，行为与改造前一致。
+   */
+  private weights: SquadWeights = { aggression: 0.5, cohesion: 0.5 };
 
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     this.entity = entity;
@@ -140,7 +147,7 @@ export abstract class EnemyAI {
    * 钉在出生点（本作刷怪半径 20~30 > 模块默认 20）。
    */
   public getDetectionRadius(): number {
-    return this.aiConfig.chaseRadius;
+    return this.effectiveChaseRadius();
   }
 
   /**
@@ -253,8 +260,40 @@ export abstract class EnemyAI {
     return this.formationTarget;
   }
 
-  /** 编队接管交还阈值：进入该距离后交回常规追击，避免队员卡在槽位上不进交战半径 */
-  private static readonly FORMATION_HANDOFF_DISTANCE_SQ = 8 * 8;
+  /** 注入派系进化权重（EnemySystem 每帧调用，让学习结果即时影响行为） */
+  public setWeights(weights: SquadWeights): void {
+    this.weights = weights;
+  }
+
+  public getWeights(): SquadWeights {
+    return { ...this.weights };
+  }
+
+  /**
+   * 有效追击半径：侵略性越高，从越远的距离开始接敌。
+   * 范围 [0.7x, 1.3x] 基准半径，默认 0.5 时为 1.0x（行为不变）。
+   */
+  protected effectiveChaseRadius(): number {
+    return this.aiConfig.chaseRadius * (0.7 + 0.6 * this.weights.aggression);
+  }
+
+  /**
+   * 有效攻击半径：侵略性越高，越愿意在较远距离切入攻击状态。
+   * 范围 [0.7x, 1.2x] 基准半径。
+   */
+  protected effectiveAttackRadius(): number {
+    return this.aiConfig.attackRadius * (0.7 + 0.5 * this.weights.aggression);
+  }
+
+  /**
+   * 编队交接距离平方：凝聚力越高，越久地死守编队槽位、越晚才交还常规追击。
+   * 基础 8，范围 [8, 16]，默认 0.5 时为 12。
+   */
+  protected formationHandoffDistanceSq(): number {
+    const base = 8;
+    const r = base + base * this.weights.cohesion;
+    return r * r;
+  }
 
   protected getDirectionToPlayer(): pc.Vec3 {
     const enemyPos = this.entity.getPosition();
@@ -263,7 +302,7 @@ export abstract class EnemyAI {
     if (this.formationTarget) {
       // 远距离用槽位走位；一旦接近到交战距离，交还常规追击（否则会停在环外不开火）
       const distToPlayerSq = playerPos.clone().sub(enemyPos).lengthSq();
-      if (distToPlayerSq > EnemyAI.FORMATION_HANDOFF_DISTANCE_SQ) {
+      if (distToPlayerSq > this.formationHandoffDistanceSq()) {
         const toSlot = this.formationTarget.clone().sub(enemyPos);
         const distance = toSlot.length();
         // 已在槽位上时回退到玩家方向，避免零向量让 moveTowards 抽搐
@@ -324,10 +363,10 @@ export class ScoutAI extends EnemyAI {
   protected executeBehavior(dt: number): void {
     const distance = this.getDistanceToPlayer();
 
-    if (distance > this.aiConfig.chaseRadius) {
+    if (distance > this.effectiveChaseRadius()) {
       this.aiConfig.state = AIState.PATROL;
       this.executePatrol(dt);
-    } else if (distance <= this.aiConfig.attackRadius) {
+    } else if (distance <= this.effectiveAttackRadius()) {
       this.aiConfig.state = AIState.ATTACK;
       this.executeAttack(dt);
     } else {
@@ -415,10 +454,10 @@ export class FighterAI extends EnemyAI {
   protected executeBehavior(dt: number): void {
     const distance = this.getDistanceToPlayer();
 
-    if (distance > this.aiConfig.chaseRadius) {
+    if (distance > this.effectiveChaseRadius()) {
       this.aiConfig.state = AIState.PATROL;
       this.executePatrol(dt);
-    } else if (distance <= this.aiConfig.attackRadius) {
+    } else if (distance <= this.effectiveAttackRadius()) {
       this.aiConfig.state = AIState.ATTACK;
       this.executeAttack(dt);
     } else {
@@ -489,12 +528,12 @@ export class TankAI extends EnemyAI {
   protected executeBehavior(dt: number): void {
     const distance = this.getDistanceToPlayer();
 
-    if (distance > this.aiConfig.chaseRadius) {
+    if (distance > this.effectiveChaseRadius()) {
       this.aiConfig.state = AIState.PATROL;
       this.executePatrol(dt);
     } else if (this.isCharging) {
       this.executeCharge(dt);
-    } else if (distance <= this.aiConfig.attackRadius) {
+    } else if (distance <= this.effectiveAttackRadius()) {
       this.aiConfig.state = AIState.ATTACK;
       this.executeAttack(dt);
     } else {
@@ -565,10 +604,10 @@ export class EliteAI extends EnemyAI {
   protected executeBehavior(dt: number): void {
     const distance = this.getDistanceToPlayer();
 
-    if (distance > this.aiConfig.chaseRadius) {
+    if (distance > this.effectiveChaseRadius()) {
       this.aiConfig.state = AIState.PATROL;
       this.executePatrol(dt);
-    } else if (distance <= this.aiConfig.attackRadius) {
+    } else if (distance <= this.effectiveAttackRadius()) {
       this.aiConfig.state = AIState.ATTACK;
       this.executeAttack(dt);
     } else {
@@ -632,10 +671,10 @@ export class BossAI extends EnemyAI {
   protected executeBehavior(dt: number): void {
     const distance = this.getDistanceToPlayer();
 
-    if (distance > this.aiConfig.chaseRadius) {
+    if (distance > this.effectiveChaseRadius()) {
       this.aiConfig.state = AIState.PATROL;
       this.executePatrol(dt);
-    } else if (distance <= this.aiConfig.attackRadius) {
+    } else if (distance <= this.effectiveAttackRadius()) {
       this.aiConfig.state = AIState.ATTACK;
       this.executeAttack(dt);
     } else {
@@ -744,10 +783,10 @@ export class CruiserAI extends EnemyAI {
 
   protected executeBehavior(dt: number): void {
     const distance = this.getDistanceToPlayer();
-    if (distance > this.aiConfig.chaseRadius) {
+    if (distance > this.effectiveChaseRadius()) {
       this.aiConfig.state = AIState.PATROL;
       this.executePatrol(dt);
-    } else if (distance <= this.aiConfig.attackRadius) {
+    } else if (distance <= this.effectiveAttackRadius()) {
       this.aiConfig.state = AIState.ATTACK;
       this.executeAttack(dt);
     } else {
