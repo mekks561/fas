@@ -63,6 +63,8 @@ export abstract class EnemyAI {
   private externalBrain: ExternalAIBrain | null = null;
   /** 外部大脑实际接管的帧数（诊断用：证明"真的接管了"而不是挂了个空壳） */
   private externalBrainFrames: number = 0;
+  /** 编队槽位目标（SquadManager 写入）；空 = 按玩家方向机动 */
+  private formationTarget: pc.Vec3 | null = null;
 
   constructor(entity: pc.Entity, player: PlayerShip, initialPosition: pc.Vec3) {
     this.entity = entity;
@@ -242,9 +244,35 @@ export abstract class EnemyAI {
     }
   }
 
+  /** 编队目标点：非空时机动方向改指向槽位，状态机仍按玩家距离判定 */
+  public setFormationTarget(target: pc.Vec3 | null): void {
+    this.formationTarget = target;
+  }
+
+  public getFormationTarget(): pc.Vec3 | null {
+    return this.formationTarget;
+  }
+
+  /** 编队接管交还阈值：进入该距离后交回常规追击，避免队员卡在槽位上不进交战半径 */
+  private static readonly FORMATION_HANDOFF_DISTANCE_SQ = 8 * 8;
+
   protected getDirectionToPlayer(): pc.Vec3 {
-    const playerPos = this.player.getPosition();
     const enemyPos = this.entity.getPosition();
+    const playerPos = this.player.getPosition();
+
+    if (this.formationTarget) {
+      // 远距离用槽位走位；一旦接近到交战距离，交还常规追击（否则会停在环外不开火）
+      const distToPlayerSq = playerPos.clone().sub(enemyPos).lengthSq();
+      if (distToPlayerSq > EnemyAI.FORMATION_HANDOFF_DISTANCE_SQ) {
+        const toSlot = this.formationTarget.clone().sub(enemyPos);
+        const distance = toSlot.length();
+        // 已在槽位上时回退到玩家方向，避免零向量让 moveTowards 抽搐
+        if (distance > 1e-6) {
+          return toSlot.scale(1 / distance);
+        }
+      }
+    }
+
     return playerPos.clone().sub(enemyPos).normalize();
   }
 
@@ -744,7 +772,7 @@ export class CruiserAI extends EnemyAI {
     // 巡洋舰在攻击范围内会缓慢移动并保持正对玩家
     const direction = this.getDirectionToPlayer();
     const perpendicular = this.getPerpendicular(direction);
-    
+
     // 侧移机动
     this.moveTowards(perpendicular, 0.5 * this.getSpeedMultiplier(), dt);
     this.entity.lookAt(this.player.getPosition());

@@ -707,6 +707,11 @@ export class Enemy {
   public getAIState(): AIState {
     return this.ai.getState();
   }
+
+  /** 供编队系统写入槽位目标（v2.8 集群战术网） */
+  public getAI(): EnemyAI {
+    return this.ai;
+  }
 }
 
 /**

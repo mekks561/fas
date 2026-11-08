@@ -7,6 +7,7 @@ import { WaveManager } from '../lua/wave/WaveManager';
 import { StoryMissionManager } from './StoryMissionManager';
 import type { EnemyConfig as WaveEnemyConfig } from '../lua/wave/WaveManager';
 import { ENEMY_SPAWN, PROJECTILE_CULL_RADIUS } from './arena';
+import { SquadManager } from './SquadManager';
 
 export type PowerupDropCallback = (position: pc.Vec3, enemyType: EnemyType) => void;
 
@@ -29,6 +30,16 @@ export class EnemySystem {
   /** 难度自适应倍率（缩放敌人生命/速度/伤害/生成间隔） */
   private difficultyMultiplier: number = 1.0;
   private globalTimeScale: number = 1.0;
+  /** v2.8 集群战术网：小队编队 / 威胁 / 队形 */
+  private squadManager: SquadManager = new SquadManager();
+  /** 编入小队的敌人 id（未编队的敌人不在此表中） */
+  private enemyIds: Map<Enemy, string> = new Map();
+  private enemyIdCounter: number = 0;
+  /** 本次波次的编组游标：上一队满员后新建队 */
+  private currentSquadId: string | null = null;
+  private currentSquadSize: number = 0;
+  /** 每队规模（同一次波次刷出的 4 架） */
+  private readonly squadSize: number = 4;
 
   constructor(
     engine: PlayCanvasGameEngine,
@@ -56,6 +67,9 @@ export class EnemySystem {
     if (result.success) {
       this.waveActive = true;
       this.spawnTimer = this.spawnInterval;
+      // 新波次从头编组，避免跨波次把残余敌机和新刷敌机混进同一队
+      this.currentSquadId = null;
+      this.currentSquadSize = 0;
       const r = result as { enemyCount: number; isBossWave: boolean };
       // 基础生成间隔随波次递减；难度倍率越高，生成越快（除以倍率），但不低于 350ms
       const baseInterval = r.isBossWave ? 2500 : Math.max(500, 1500 - waveNumber * 80);
@@ -75,6 +89,8 @@ export class EnemySystem {
     if (this.enemies.some((enemy) => !enemy.isAlive())) {
       const deadEnemies = this.enemies.filter((enemy) => !enemy.isAlive());
       this.enemies = this.enemies.filter((enemy) => enemy.isAlive());
+      // 阵亡成员同步退出小队，并摘掉编队目标
+      deadEnemies.forEach((enemy) => this.unregisterSquadMember(enemy));
       if (deadEnemies.length > 0) {
         this.enemiesDefeatedCallback?.(deadEnemies);
       }
@@ -95,6 +111,9 @@ export class EnemySystem {
 
       this.waveManager.update(dt);
     }
+
+    // 编队槽位先于敌机行为更新：本帧 AI 读到的就是最新槽位
+    this.updateSquadFormations(scaledDt);
 
     this.enemies.forEach((enemy) => {
       enemy.update(scaledDt);
@@ -219,6 +238,70 @@ export class EnemySystem {
     }
 
     this.enemies.push(enemy);
+    this.registerSquadMember(enemy, type);
+  }
+
+  /**
+   * 编入小队：同一次波次刷出的普通敌机每 4 架一队；Boss / 巡洋舰不编队。
+   * 上一队满员、不存在或已全员阵亡时新建队。
+   */
+  private registerSquadMember(enemy: Enemy, type: EnemyType): void {
+    if (type === EnemyType.VOID_LORD || type === EnemyType.CRUISER) return;
+
+    this.enemyIdCounter += 1;
+    const id = `enemy_${this.enemyIdCounter}`;
+    this.enemyIds.set(enemy, id);
+
+    const needNewSquad =
+      this.currentSquadId === null ||
+      this.currentSquadSize >= this.squadSize ||
+      this.squadManager.getMemberCount(this.currentSquadId) === 0;
+
+    if (needNewSquad) {
+      this.currentSquadId = this.squadManager.createSquad('hostile', [id]);
+      this.currentSquadSize = 1;
+      return;
+    }
+
+    this.squadManager.addMember(this.currentSquadId as string, id);
+    this.currentSquadSize += 1;
+  }
+
+  /** 阵亡敌人退出编队：摘掉编队目标、移出小队、清理 id 映射 */
+  private unregisterSquadMember(enemy: Enemy): void {
+    const id = this.enemyIds.get(enemy);
+    if (!id) return;
+
+    enemy.getAI().setFormationTarget(null);
+    this.squadManager.removeMember(id);
+    this.enemyIds.delete(enemy);
+  }
+
+  /** 每帧同步编队槽位到各敌机 AI（无编队成员时为零开销） */
+  private updateSquadFormations(dt: number): void {
+    if (this.enemyIds.size === 0) return;
+
+    const anchor = this.player.getPosition();
+    const playerForward = this.player.getForward();
+    // 玩家前向退化时用世界 -Z 兜底，保证队形基准始终有效
+    const hasForward =
+      playerForward &&
+      playerForward.x * playerForward.x +
+        playerForward.y * playerForward.y +
+        playerForward.z * playerForward.z >
+        1e-6;
+    const forward = hasForward ? playerForward : new pc.Vec3(0, 0, -1);
+
+    this.squadManager.update(dt, anchor, forward);
+
+    this.enemies.forEach((enemy) => {
+      if (!enemy.isAlive()) return;
+      const id = this.enemyIds.get(enemy);
+      if (!id) return;
+
+      const slot = this.squadManager.getSlot(id);
+      enemy.getAI().setFormationTarget(slot ?? null);
+    });
   }
 
   /**
@@ -330,6 +413,11 @@ export class EnemySystem {
     return this.enemies;
   }
 
+  /** v2.8 集群战术网：供上层查询 / 结算小队状态 */
+  public getSquadManager(): SquadManager {
+    return this.squadManager;
+  }
+
   public getAliveCount(): number {
     return this.enemies.filter((e) => e.isAlive()).length;
   }
@@ -367,6 +455,10 @@ export class EnemySystem {
   public destroyAll(): void {
     this.enemies.forEach((enemy) => enemy.destroy());
     this.enemies = [];
+    this.enemyIds.clear();
+    this.currentSquadId = null;
+    this.currentSquadSize = 0;
+    this.squadManager.destroy();
   }
 
   public reset(): void {
