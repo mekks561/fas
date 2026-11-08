@@ -28,7 +28,7 @@ export class AsteroidSystem {
   private collectAsteroids(): void {
     const field = this.engine.getApp().root.findByName('asteroidField');
     if (!field) {
-      console.warn('[AsteroidSystem] asteroidField not found in scene');
+      // 关卡可以主动关闭小行星带（environment.asteroidField = false），缺省属正常情况，静默跳过
       return;
     }
     this.asteroids = field.children as pc.Entity[];

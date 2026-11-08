@@ -197,7 +197,9 @@ export class ModelAssetProvider {
     void this.load(relPath).then((asset) => {
       if (!asset) {
         this.failed.add(relPath);
-        console.warn(`[ModelAssetProvider] ${relPath}.glb 无法加载，保留程序化模型作为回落`);
+        console.warn(
+          `[ModelAssetProvider] ${this.urlFor(relPath)} 无法加载，保留程序化模型作为回落`,
+        );
         return;
       }
       // 占位模型可能已经被别的逻辑替换或随实体一起销毁了
@@ -217,7 +219,7 @@ export class ModelAssetProvider {
       parent.addChild(instance);
       placeholder.destroy();
       options.onReplaced?.(instance, relPath);
-      console.log(`[ModelAssetProvider] ${relPath}.glb 已替换程序化模型`);
+      console.log(`[ModelAssetProvider] ${this.urlFor(relPath)} 已替换程序化模型`);
     });
   }
 
@@ -242,13 +244,17 @@ export class ModelAssetProvider {
     this.upgrade(parent, placeholder, relPath, options);
   }
 
+  /** 相对路径补全成可访问的 URL；已带 /assets/ 前缀的完整路径原样使用（日志也走这里，避免出现 xxx.glb.glb） */
+  private urlFor(relPath: string): string {
+    return relPath.startsWith('/assets/') ? relPath : `/assets/models/${relPath}.glb`;
+  }
+
   /** 只加载，不做替换。用于需要在创建实体前就拿到资源的场景 */
   public load(relPath: string): Promise<pc.Asset | null> {
     const cached = this.pending.get(relPath);
     if (cached) return cached;
 
-    // 允许通过以 /assets/ 开头的路径加载任意位置的模型，否则回落到默认的 /assets/models/
-    const url = relPath.startsWith('/assets/') ? relPath : `/assets/models/${relPath}.glb`;
+    const url = this.urlFor(relPath);
 
     const promise = new Promise<pc.Asset | null>((resolve) => {
       // 2026 Tech: 增加加载超时保护 (10s)
