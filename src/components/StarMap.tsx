@@ -20,6 +20,8 @@ const StarMap: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
   const [isEngineReady, setIsEngineReady] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
+  /** 引擎尚未就绪时点击跃迁，先把意图记下来，就绪后自动执行，避免“点了没反应” */
+  const pendingJumpRef = useRef<any | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [zoom] = useState(1);
 
@@ -30,7 +32,15 @@ const StarMap: React.FC = () => {
       console.log('[StarMap] Visible, refreshing map...');
       const refreshMap = () => {
         const sectorManager = SectorManager.getInstance();
-        setIsEngineReady(sectorManager.isInitialized());
+        const engineReady = sectorManager.isInitialized();
+        setIsEngineReady(engineReady);
+
+        const pending = pendingJumpRef.current;
+        if (engineReady && pending) {
+          pendingJumpRef.current = null;
+          console.log(`[StarMap] Engine ready, executing queued jump to ${pending.id}`);
+          void performJump(pending);
+        }
 
         // 尝试从引擎实例中获取最新的 GalaxyManager 数据
         const engine = (window as any)['gameEngine'];
@@ -85,22 +95,10 @@ const StarMap: React.FC = () => {
     setGamePaused(false);
   };
 
-  const handleJump = async (node: any) => {
+  const performJump = async (node: any) => {
     const sectorManager = SectorManager.getInstance();
 
     console.log(`[StarMap] handleJump called for node: ${node.id}`);
-
-    if (!sectorManager.isInitialized()) {
-      console.warn('[StarMap] Jump failed: Engine/SectorManager not initialized.');
-      // 检查具体哪个环节没过
-      const engine = (window as any)['gameEngine'];
-      console.log('[StarMap] Diagnostic - Engine exists:', !!engine);
-      console.log(
-        '[StarMap] Diagnostic - GalaxyManager plugin exists:',
-        !!engine?.getPlugin('GalaxyManager'),
-      );
-      return;
-    }
 
     const isCurrent = node.id === currentSectorId;
     const currentNode = nodes.find((n) => n.id === currentSectorId);
@@ -124,6 +122,16 @@ const StarMap: React.FC = () => {
     }
   };
 
+  /** 跃迁入口：引擎未就绪时排队，就绪后自动执行 */
+  const handleJump = (node: any) => {
+    if (!SectorManager.getInstance().isInitialized()) {
+      pendingJumpRef.current = node;
+      console.log(`[StarMap] Engine not ready, queued jump to ${node.id}`);
+      return;
+    }
+    void performJump(node);
+  };
+
   const getFactionColor = (factionId: string) => {
     const colors: Record<string, string> = {
       trade_union: '#3b82f6',
@@ -143,6 +151,8 @@ const StarMap: React.FC = () => {
           <h2 className="text-xl font-bold tracking-widest text-white uppercase">银河拓扑星图</h2>
         </div>
         <button
+          type="button"
+          aria-label="关闭星图"
           onClick={handleClose}
           className="p-2 hover:bg-white/10 rounded-full transition-colors"
         >
@@ -234,8 +244,12 @@ const StarMap: React.FC = () => {
 
           {/* 绘制星区节点 */}
           {nodes.map((node) => (
-            <div
+            <button
               key={node.id}
+              type="button"
+              aria-label={`星区 ${node.name}`}
+              aria-pressed={selectedNode?.id === node.id}
+              data-sector-id={node.id}
               className={`star-node ${selectedNode?.id === node.id ? 'active' : ''} ${node.isDiscovered ? 'discovered' : 'hidden-node'}`}
               style={
                 {
@@ -248,7 +262,7 @@ const StarMap: React.FC = () => {
             >
               <div className="node-core" />
               <div className="node-label">{node.name}</div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -324,13 +338,16 @@ const StarMap: React.FC = () => {
                 const currentNode = nodes.find((n) => n.id === currentSectorId);
                 const isConnected = currentNode?.connections?.includes(selectedNode.id);
                 const isCurrent = selectedNode.id === currentSectorId;
-                const canJump =
-                  isEngineReady && (isCurrent || selectedNode.isDiscovered || isConnected);
+                // 引擎启动中不再禁用按钮：点击会排队，就绪后自动执行跃迁
+                const canJump = isCurrent || selectedNode.isDiscovered || isConnected;
 
                 return (
                   <button
+                    type="button"
                     className={`jump-button ${!canJump ? 'disabled' : ''}`}
-                    onClick={() => canJump && handleJump(selectedNode)}
+                    disabled={!canJump}
+                    aria-label={isCurrent ? '进入当前星区' : '启动跃迁'}
+                    onClick={() => handleJump(selectedNode)}
                   >
                     {!isEngineReady
                       ? '引擎初始化中...'
