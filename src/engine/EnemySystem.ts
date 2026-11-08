@@ -40,6 +40,8 @@ export class EnemySystem {
   private currentSquadSize: number = 0;
   /** 每队规模（同一次波次刷出的 4 架） */
   private readonly squadSize: number = 4;
+  /** 本波次敌机损失数，用于战斗结束时的编队权重进化 */
+  private waveLosses: number = 0;
 
   constructor(
     engine: PlayCanvasGameEngine,
@@ -173,6 +175,15 @@ export class EnemySystem {
         (state.enemiesRemaining === 0 && this.enemies.length === 0)
       ) {
         this.waveActive = false;
+        // 波次结算：把损失折算进敌对派系权重并持久化（v2.8 进化式行为学习）
+        if (this.waveLosses > 0) {
+          this.squadManager.recordBattleResult({
+            factionId: 'hostile',
+            kills: 0,
+            losses: this.waveLosses,
+          });
+        }
+        this.waveLosses = 0;
         console.log(`[EnemySystem] Wave completed`);
       }
     }
@@ -275,6 +286,7 @@ export class EnemySystem {
     enemy.getAI().setFormationTarget(null);
     this.squadManager.removeMember(id);
     this.enemyIds.delete(enemy);
+    this.waveLosses += 1;
   }
 
   /** 每帧同步编队槽位到各敌机 AI（无编队成员时为零开销） */

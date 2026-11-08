@@ -6,9 +6,22 @@
  * 战术广播与权重结算 / 序列化这些验收点。
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type * as pc from 'playcanvas';
 import { SquadManager } from './SquadManager';
+
+/** 与 SquadManager 内部持久化 key 保持一致 */
+const WEIGHTS_KEY = 'fighter.squadWeights.v1';
+
+// SquadManager 构造时会从 localStorage 恢复权重，jsdom 里 localStorage 是跨用例共享的，
+// 不清理会让前一个用例结算出的权重污染后一个用例（用例必须从默认 0.5/0.5 起步）。
+beforeEach(() => {
+  try {
+    globalThis.localStorage?.removeItem(WEIGHTS_KEY);
+  } catch {
+    // 用例里可能把 localStorage 替换成不含 removeItem 的桩，清理失败不影响用例本身
+  }
+});
 
 // 本测试不加载真实 PlayCanvas：SquadManager 只做纯数学，Vec3 用最小替身即可，
 // 避免整套测试在 jsdom 里额外拉起引擎（那样每个测试文件都会慢几十秒）。
@@ -266,6 +279,50 @@ describe('SquadManager 进化权重', () => {
 
     expect(manager.getWeights('hostile').aggression).toBeCloseTo(0.7, 6);
     expect(manager.getWeights('neutral')).toEqual({ aggression: 0.5, cohesion: 0.5 });
+  });
+});
+
+describe('SquadManager 权重持久化', () => {
+  it('recordBattleResult 写入 localStorage，新实例可恢复', () => {
+    const store = new Map<string, string>();
+    (globalThis as any).localStorage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+    };
+
+    try {
+      const first = new SquadManager();
+      first.recordBattleResult({ factionId: 'hostile', kills: 4, losses: 0 });
+      const evolved = first.getWeights('hostile');
+      expect(store.size).toBe(1);
+
+      const restored = new SquadManager();
+      expect(restored.getWeights('hostile')).toEqual(evolved);
+    } finally {
+      delete (globalThis as any).localStorage;
+    }
+  });
+
+  it('localStorage 读写抛异常时降级为默认权重，不阻断结算', () => {
+    (globalThis as any).localStorage = {
+      getItem: () => {
+        throw new Error('access denied');
+      },
+      setItem: () => {
+        throw new Error('quota exceeded');
+      },
+    };
+
+    try {
+      const manager = new SquadManager();
+      expect(manager.getWeights('hostile')).toEqual({ aggression: 0.5, cohesion: 0.5 });
+      manager.recordBattleResult({ factionId: 'hostile', kills: 2, losses: 0 });
+      expect(manager.getWeights('hostile').aggression).toBeCloseTo(0.6, 6);
+    } finally {
+      delete (globalThis as any).localStorage;
+    }
   });
 });
 

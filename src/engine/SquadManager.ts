@@ -44,6 +44,8 @@ const COLUMN_SPACING = 3.5;
 const DEFAULT_WEIGHTS: SquadWeights = { aggression: 0.5, cohesion: 0.5 };
 const MIN_WEIGHT = 0.1;
 const MAX_WEIGHT = 1.0;
+/** 派系权重持久化 key（v1，避免旧结构升级时读脏数据） */
+const SQUAD_WEIGHTS_KEY = 'fighter.squadWeights.v1';
 
 /** 威胁等级 → 队形：0 楔形突击 / 1 环形防御 / 2 纵队追击 */
 const FORMATION_BY_THREAT: Record<0 | 1 | 2, FormationType> = {
@@ -65,6 +67,44 @@ export class SquadManager {
   private weights: Map<string, SquadWeights> = new Map();
   private squadCounter: number = 0;
   private elapsed: number = 0;
+
+  constructor() {
+    this.loadWeights();
+  }
+
+  /** 从 localStorage 恢复派系权重；无存储或解析失败时静默回落默认值 */
+  public loadWeights(): void {
+    try {
+      const raw = globalThis.localStorage?.getItem(SQUAD_WEIGHTS_KEY);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      this.weights.clear();
+      for (const entry of parsed as Array<Record<string, unknown>>) {
+        if (!entry || typeof entry.factionId !== 'string') continue;
+        this.weights.set(entry.factionId, {
+          aggression: clampWeight(Number(entry.aggression)),
+          cohesion: clampWeight(Number(entry.cohesion)),
+        });
+      }
+    } catch {
+      // 隐私模式 / 配额异常 / 脏数据：保持默认权重即可，不影响开局
+    }
+  }
+
+  /** 持久化派系权重（战斗结算后调用） */
+  public saveWeights(): void {
+    try {
+      const data = Array.from(this.weights.entries(), ([factionId, w]) => ({
+        factionId,
+        aggression: w.aggression,
+        cohesion: w.cohesion,
+      }));
+      globalThis.localStorage?.setItem(SQUAD_WEIGHTS_KEY, JSON.stringify(data));
+    } catch {
+      // 写入失败（配额/隐私模式）不阻断战斗流程
+    }
+  }
 
   public createSquad(factionId: string, members: Array<string | SquadMemberSpec>): string {
     this.squadCounter += 1;
@@ -229,6 +269,7 @@ export class SquadManager {
     weights.aggression = clampWeight(weights.aggression + 0.05 * kills - 0.03 * losses);
     weights.cohesion = clampWeight(weights.cohesion + 0.02 * kills - 0.04 * losses);
     this.weights.set(result.factionId, weights);
+    this.saveWeights();
   }
 
   public getWeights(factionId: string): SquadWeights {
