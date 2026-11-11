@@ -110,6 +110,28 @@ export const MELTDOWN_SECONDS = 5;
 /** 损坏子系统数达到该值即瘫痪 */
 export const PARALYSIS_THRESHOLD = 3;
 
+/** 虚空之主的毁伤组合输入 */
+export interface VoidPhaseInput {
+  /** 已毁子系统数量 */
+  destroyedCount: number;
+  /** 反应堆是否已毁 */
+  reactorDestroyed: boolean;
+  /** 武器阵列剩余血量比例 0–1 */
+  weaponsHealthRatio: number;
+}
+
+/**
+ * 虚空之主的阶段由「毁伤组合」解锁，而不是纯血量阈值：
+ * - 阶段 1：重型虚空射线
+ * - 阶段 2：任意子系统被毁，或武器阵列血量低于 60% → 弹幕散射
+ * - 阶段 3：反应堆被毁，或毁满 3 个子系统 → 引力坍缩
+ */
+export function resolveVoidPhase(input: VoidPhaseInput): 1 | 2 | 3 {
+  if (input.reactorDestroyed || input.destroyedCount >= PARALYSIS_THRESHOLD) return 3;
+  if (input.destroyedCount >= 1 || input.weaponsHealthRatio < 0.6) return 2;
+  return 1;
+}
+
 export class CapitalSubsystemModel {
   private readonly defs: Map<CapitalSubsystemId, SubsystemDef> = new Map();
   private readonly states: Map<CapitalSubsystemId, SubsystemState> = new Map();

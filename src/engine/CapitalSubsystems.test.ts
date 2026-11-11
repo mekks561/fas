@@ -8,6 +8,7 @@ import {
   CAPITAL_SUBSYSTEMS,
   MELTDOWN_SECONDS,
   SHIELD_ABSORB_RATIO,
+  resolveVoidPhase,
   type CapitalSubsystemId,
 } from './CapitalSubsystems';
 
@@ -198,5 +199,40 @@ describe('CapitalSubsystemModel 存档', () => {
     const model = new CapitalSubsystemModel();
     model.deserialize([{ id: 'reactor', health: 0 }]);
     expect(model.getModifiers().meltdownRemaining).toBe(0);
+  });
+});
+
+describe('resolveVoidPhase 毁伤组合解锁阶段', () => {
+  it('完好无损时为阶段 1（虚空射线）', () => {
+    expect(
+      resolveVoidPhase({ destroyedCount: 0, reactorDestroyed: false, weaponsHealthRatio: 1 }),
+    ).toBe(1);
+  });
+
+  it('武器阵列血量低于 60% 即进入阶段 2（弹幕）', () => {
+    expect(
+      resolveVoidPhase({ destroyedCount: 0, reactorDestroyed: false, weaponsHealthRatio: 0.5 }),
+    ).toBe(2);
+    expect(
+      resolveVoidPhase({ destroyedCount: 0, reactorDestroyed: false, weaponsHealthRatio: 0.7 }),
+    ).toBe(1);
+  });
+
+  it('任意一个子系统被毁即进入阶段 2', () => {
+    expect(
+      resolveVoidPhase({ destroyedCount: 1, reactorDestroyed: false, weaponsHealthRatio: 1 }),
+    ).toBe(2);
+  });
+
+  it('反应堆被毁直接进入阶段 3（引力坍缩）', () => {
+    expect(
+      resolveVoidPhase({ destroyedCount: 1, reactorDestroyed: true, weaponsHealthRatio: 1 }),
+    ).toBe(3);
+  });
+
+  it('毁满 3 个子系统即使反应堆完好也进入阶段 3', () => {
+    expect(
+      resolveVoidPhase({ destroyedCount: 3, reactorDestroyed: false, weaponsHealthRatio: 0 }),
+    ).toBe(3);
   });
 });

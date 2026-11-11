@@ -7,7 +7,11 @@ import { ProceduralModelGenerator, EnemyModelType } from './ProceduralModelGener
 import { ModelAssetProvider } from './ModelAssetProvider';
 import { WebGPUDamageSystem } from './WebGPUDamageSystem';
 import { MeshTearingSystem } from './MeshTearingSystem';
-import { CapitalSubsystemModel, type CapitalSubsystemId } from './CapitalSubsystems';
+import {
+  CapitalSubsystemModel,
+  type CapitalSubsystemId,
+  type SubsystemState,
+} from './CapitalSubsystems';
 import { useGameStore } from '../store/useGameStore';
 
 export enum EnemyType {
@@ -828,7 +832,8 @@ export class CapitalShip extends Enemy {
 
   private parts: Map<string, CapitalShipPart> = new Map();
   private turretEntities: pc.Entity[] = [];
-  private newProjectiles: EnemyProjectile[] = [];
+  /** 子类（如虚空之主）也往这里投放弹丸，统一由 EnemySystem 消费 */
+  protected newProjectiles: EnemyProjectile[] = [];
   private scanTimer: number = 0;
   private spawnDroneTimer: number = 0;
   private meshTearing: MeshTearingSystem | null = null;
@@ -840,6 +845,8 @@ export class CapitalShip extends Enemy {
   private subsystems: CapitalSubsystemModel = new CapitalSubsystemModel();
   /** 未受引擎损毁影响的基础速度，每帧按修正值重算 */
   private baseSpeed: number = 0;
+  /** 子类可叠加的阶段速度倍率（如虚空之主的狂暴/坍缩） */
+  protected phaseSpeedMultiplier: number = 1;
   /** 自毁是否已引爆，避免倒计时归零后重复爆炸 */
   private meltdownFired: boolean = false;
   /** 护盾发生器对应的可视化球体 */
@@ -1366,7 +1373,7 @@ export class CapitalShip extends Enemy {
 
     // v2.8 Phase 2：按子系统损毁组合驱动行为
     const modifiers = this.subsystems.getModifiers();
-    this.speed = this.baseSpeed * modifiers.speedMultiplier;
+    this.speed = this.baseSpeed * modifiers.speedMultiplier * this.phaseSpeedMultiplier;
 
     // 反应堆被毁 → 5 秒自毁倒计时，归零后引爆
     const meltdown = this.subsystems.update(dt);
@@ -1480,6 +1487,16 @@ export class CapitalShip extends Enemy {
 
   public override getHitRadius(): number {
     return CapitalShip.HIT_RADIUS;
+  }
+
+  /** 读取某个子系统的当前状态（供子类做毁伤组合决策） */
+  public getSubsystemState(id: CapitalSubsystemId): SubsystemState | null {
+    return this.subsystems.getState(id);
+  }
+
+  /** 已毁子系统数量 */
+  public getDestroyedSubsystemCount(): number {
+    return this.subsystems.getDestroyedCount();
   }
 
   protected override getModelScaleMultiplier(): number {

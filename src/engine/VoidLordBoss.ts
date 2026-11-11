@@ -1,81 +1,82 @@
-﻿import * as pc from 'playcanvas';
-import { Enemy, EnemyConfig, EnemyProjectile } from './Enemy';
-import { MeshTearingSystem } from './MeshTearingSystem';
+import * as pc from 'playcanvas';
+import { CapitalShip, EnemyConfig, EnemyProjectile } from './Enemy';
 import { BlackHoleSystem } from './BlackHoleSystem';
+import { resolveVoidPhase } from './CapitalSubsystems';
 
 /**
  * 2026 Tech: 终极 Boss - 虚空之主 (Void Lord)。
- * 具备多阶段变换、引力场控制与 WebGPU 网格撕裂效果。
+ *
+ * v2.8 Phase 2：迁移为母舰原型。
+ * - 继承 `CapitalShip` 的 5 子系统损毁模型、命中路由、炮塔与机库行为。
+ * - 阶段不再按纯血量阈值切换，而由「毁伤组合」解锁（见 `resolveVoidPhase`）。
+ * - 保留引力场、虚空射线、弹幕散射与引力坍缩弹。
  */
-export class VoidLordBoss extends Enemy {
-  private phase: 1 | 2 | 3 = 1;
-  private meshTearing: MeshTearingSystem | null = null;
+export class VoidLordBoss extends CapitalShip {
   private blackHoleSystem: BlackHoleSystem | null = null;
-  private phaseThresholds = {
-    phase2: 0.7, // 70% 血量进入二阶段
-    phase3: 0.3, // 30% 血量进入三阶段
-  };
+  private lastVoidPhase: 1 | 2 | 3 = 1;
+  private singularityActive: boolean = false;
 
-  private gravityRadius = 100;
+  private gravityRadius = 120;
   private gravityStrength = 30;
-  private singularityEntity: pc.Entity | null = null;
-  private newProjectiles: EnemyProjectile[] = [];
 
   constructor(config: EnemyConfig) {
     super(config);
-    this.setupBossSystems();
-    console.log('[VoidLordBoss] The Void Lord has arrived.');
+    this.blackHoleSystem = (this.engine.getApp() as any)['blackHoleSystem'] ?? null;
+    console.log('[VoidLordBoss] The Void Lord has arrived (capital ship prototype).');
   }
 
-  private setupBossSystems(): void {
-    const app = this.engine.getApp();
-    const damageSystem = (app as any)['webgpuDamageSystem'];
+  /** 当前阶段由子系统毁伤组合推导，不再依赖血量阈值 */
+  private getVoidPhase(): 1 | 2 | 3 {
+    const reactor = this.getSubsystemState('reactor');
+    const weapons = this.getSubsystemState('weapons');
 
-    if (damageSystem) {
-      this.meshTearing = new MeshTearingSystem(app, damageSystem);
-      this.meshTearing.applyToEntity(this.entity);
+    return resolveVoidPhase({
+      destroyedCount: this.getDestroyedSubsystemCount(),
+      reactorDestroyed: reactor?.isDestroyed === true,
+      weaponsHealthRatio: weapons ? weapons.health / weapons.maxHealth : 1,
+    });
+  }
+
+  public override update(dt: number): void {
+    super.update(dt);
+    if (!this.isAlive()) return;
+
+    const phase = this.getVoidPhase();
+    if (phase !== this.lastVoidPhase) {
+      this.onVoidPhaseChanged(phase);
     }
 
-    this.blackHoleSystem = (app as any)['blackHoleSystem'];
-  }
-
-  public override takeDamage(amount: number): void {
-    super.takeDamage(amount);
-    this.checkPhaseTransition();
-  }
-
-  private checkPhaseTransition(): void {
-    const healthRatio = this.health / this.maxHealth;
-
-    if (this.phase === 1 && healthRatio <= this.phaseThresholds.phase2) {
-      this.enterPhase2();
-    } else if (this.phase === 2 && healthRatio <= this.phaseThresholds.phase3) {
-      this.enterPhase3();
+    if (phase === 3) {
+      this.updateGravityField();
     }
   }
 
-  private enterPhase2(): void {
-    this.phase = 2;
-    this.speed *= 1.5;
-    this.attackCooldown *= 0.7;
-    console.log('[VoidLordBoss] Phase 2: Armor ruptured. Increasing aggression.');
+  private onVoidPhaseChanged(phase: 1 | 2 | 3): void {
+    this.lastVoidPhase = phase;
 
-    // 触发视觉特效：外壳剥落感
-    this.engine.createExplosion?.(this.entity.getPosition(), 2.0);
-  }
-
-  private enterPhase3(): void {
-    this.phase = 3;
-    this.speed *= 0.5; // 变为固定核心
-    this.attackCooldown *= 0.5;
-    console.log('[VoidLordBoss] Phase 3: Singularity stabilized. All will be consumed.');
-
-    // 注册为黑洞实体，开始产生引力影响
-    if (this.blackHoleSystem) {
-      this.blackHoleSystem.registerBlackHole(this.entity);
+    if (phase === 2) {
+      this.phaseSpeedMultiplier = 1.5;
+      this.attackCooldown *= 0.7;
+      this.engine.createExplosion?.(this.entity.getPosition(), 2.0);
+      console.log('[VoidLordBoss] Phase 2: Subsystem breach. Barrage protocol engaged.');
+      return;
     }
 
-    // 改变颜色为深紫色/黑色
+    if (phase === 3) {
+      this.phaseSpeedMultiplier = 0.5; // 变为固定核心
+      this.attackCooldown *= 0.5;
+      this.activateSingularity();
+      console.log('[VoidLordBoss] Phase 3: Singularity stabilized. All will be consumed.');
+    }
+  }
+
+  /** 进入坍缩态：注册引力源并把舰体染成深紫 */
+  private activateSingularity(): void {
+    if (this.singularityActive) return;
+    this.singularityActive = true;
+
+    this.blackHoleSystem?.registerBlackHole(this.entity);
+
     const renders = this.entity.findComponents('render') as pc.RenderComponent[];
     renders.forEach((r) => {
       r.meshInstances.forEach((mi) => {
@@ -89,55 +90,63 @@ export class VoidLordBoss extends Enemy {
     });
   }
 
-  public override update(dt: number): void {
-    super.update(dt);
-    if (!this.isAlive()) return;
-
-    // 更新网格撕裂效果
-    if (this.meshTearing) {
-      this.meshTearing.update(this.entity);
-    }
-
-    // 三阶段引力波攻击
-    if (this.phase === 3) {
-      this.updateGravityField(dt);
-    }
-  }
-
-  private updateGravityField(_dt: number): void {
+  private updateGravityField(): void {
     const playerPos = this.player.getPosition();
     const bossPos = this.entity.getPosition();
     const dist = bossPos.distance(playerPos);
 
-    if (dist < this.gravityRadius) {
-      // 强力牵引
-      const dir = bossPos.clone().sub(playerPos).normalize();
-      const force = dir.mulScalar(this.gravityStrength * (1 - dist / this.gravityRadius));
-      this.player.applyExternalForce(force);
+    if (dist >= this.gravityRadius) return;
 
-      // 周期性引力脉冲
-      if (Math.sin(Date.now() * 0.005) > 0.95) {
-        this.player.takeDamage(5);
-        this.engine.createExplosion?.(playerPos, 0.5);
-      }
+    // 强力牵引
+    const dir = bossPos.clone().sub(playerPos).normalize();
+    const force = dir.mulScalar(this.gravityStrength * (1 - dist / this.gravityRadius));
+    this.player.applyExternalForce(force);
+
+    // 周期性引力脉冲
+    if (Math.sin(Date.now() * 0.005) > 0.95) {
+      this.player.takeDamage(5);
+      this.engine.createExplosion?.(playerPos, 0.5);
     }
   }
 
+  /** 舰桥被毁后失去精确火控，落点大幅偏移 */
+  private getAimPoint(): pc.Vec3 {
+    const target = this.player.getPosition().clone();
+
+    if (this.getSubsystemState('bridge')?.isDestroyed) {
+      target.add(
+        new pc.Vec3(
+          (Math.random() - 0.5) * 20,
+          (Math.random() - 0.5) * 20,
+          (Math.random() - 0.5) * 20,
+        ),
+      );
+    }
+
+    return target;
+  }
+
   protected override attack(): void {
-    if (this.phase === 1) {
-      // 重型能量束
-      this.fireHeavyBeam();
-    } else if (this.phase === 2) {
-      // 弹幕散射
+    const phase = this.getVoidPhase();
+
+    // 坍缩态只发射引力弹，与武器阵列无关
+    if (phase === 3) {
+      this.fireSingularityProjectiles();
+      return;
+    }
+
+    // 武器阵列被毁 → 射线与弹幕全部停摆
+    if (this.getSubsystemState('weapons')?.isDestroyed) return;
+
+    if (phase === 2) {
       this.fireBarrage();
     } else {
-      // 引力坍缩弹
-      this.fireSingularityProjectiles();
+      this.fireHeavyBeam();
     }
   }
 
   private fireHeavyBeam(): void {
-    const playerPos = this.player.getPosition();
+    const playerPos = this.getAimPoint();
     const bossPos = this.entity.getPosition();
     const dir = playerPos.clone().sub(bossPos).normalize();
 
@@ -170,7 +179,7 @@ export class VoidLordBoss extends Enemy {
 
   private fireBarrage(): void {
     console.log('[VoidLordBoss] Firing Rapid Barrage');
-    const playerPos = this.player.getPosition();
+    const playerPos = this.getAimPoint();
     const bossPos = this.entity.getPosition();
 
     // 散射弹幕
@@ -203,7 +212,7 @@ export class VoidLordBoss extends Enemy {
 
   private fireSingularityProjectiles(): void {
     console.log('[VoidLordBoss] Launching Singularity Projectiles');
-    const playerPos = this.player.getPosition();
+    const playerPos = this.getAimPoint();
     const bossPos = this.entity.getPosition();
     const dir = playerPos.clone().sub(bossPos).normalize();
 
@@ -224,11 +233,5 @@ export class VoidLordBoss extends Enemy {
 
     const projectile = new EnemyProjectile(projEntity, this.damage * 2.0, dir.mulScalar(40));
     this.newProjectiles.push(projectile);
-  }
-
-  public consumeNewProjectiles(): EnemyProjectile[] {
-    const projs = [...this.newProjectiles];
-    this.newProjectiles = [];
-    return projs;
   }
 }
