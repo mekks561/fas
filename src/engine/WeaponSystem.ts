@@ -273,7 +273,7 @@ export class WeaponSystem {
     const damageSystem = (this.player as any).damageSystem;
     let canFireL = true;
     let canFireR = true;
-    
+
     if (damageSystem) {
       canFireL = damageSystem.isComponentFunctional('WEAPON_L');
       canFireR = damageSystem.isComponentFunctional('WEAPON_R');
@@ -313,8 +313,18 @@ export class WeaponSystem {
 
     switch (this.currentWeapon) {
       case 'normal':
-        if (canFireL) this.createNormalProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(-1)), playerForward, config);
-        if (canFireR) this.createNormalProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(1)), playerForward, config);
+        if (canFireL)
+          this.createNormalProjectile(
+            playerPos.clone().add(this.player.getEntity().right.clone().scale(-1)),
+            playerForward,
+            config,
+          );
+        if (canFireR)
+          this.createNormalProjectile(
+            playerPos.clone().add(this.player.getEntity().right.clone().scale(1)),
+            playerForward,
+            config,
+          );
         break;
       case 'spread':
         this.createSpreadProjectiles(playerPos, playerForward, config);
@@ -323,8 +333,18 @@ export class WeaponSystem {
         if (canFireL || canFireR) this.createLaserProjectile(playerPos, playerForward, config);
         break;
       case 'missile':
-        if (canFireL) this.createMissileProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(-1.5)), playerForward, config);
-        if (canFireR) this.createMissileProjectile(playerPos.clone().add(this.player.getEntity().right.clone().scale(1.5)), playerForward, config);
+        if (canFireL)
+          this.createMissileProjectile(
+            playerPos.clone().add(this.player.getEntity().right.clone().scale(-1.5)),
+            playerForward,
+            config,
+          );
+        if (canFireR)
+          this.createMissileProjectile(
+            playerPos.clone().add(this.player.getEntity().right.clone().scale(1.5)),
+            playerForward,
+            config,
+          );
         break;
     }
 
@@ -353,7 +373,7 @@ export class WeaponSystem {
 
     // 2026 Tech: 应用全局增益 (伤害加成)
     const globalModifiers = useGameStore.getState().globalModifiers || [];
-    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
+    const damageMod = globalModifiers.find((m) => m.type === 'damage')?.value || 1.0;
 
     // 应用 Build 修饰符：伤害倍率 + 穿透次数
     const effectiveDamage = config.damage * this.buildMods.damageMultiplier * damageMod;
@@ -372,7 +392,7 @@ export class WeaponSystem {
     const angle = ((config.spreadAngle || 15) * Math.PI) / 180;
 
     const globalModifiers = useGameStore.getState().globalModifiers || [];
-    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
+    const damageMod = globalModifiers.find((m) => m.type === 'damage')?.value || 1.0;
 
     for (let i = 0; i < count; i++) {
       const offsetAngle = (i - (count - 1) / 2) * angle;
@@ -416,7 +436,7 @@ export class WeaponSystem {
     this.engine.addToScene(projectile);
 
     const globalModifiers = useGameStore.getState().globalModifiers || [];
-    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
+    const damageMod = globalModifiers.find((m) => m.type === 'damage')?.value || 1.0;
 
     this.projectiles.push(
       new Projectile(
@@ -466,7 +486,7 @@ export class WeaponSystem {
     this.engine.addToScene(missile);
 
     const globalModifiers = useGameStore.getState().globalModifiers || [];
-    const damageMod = globalModifiers.find(m => m.type === 'damage')?.value || 1.0;
+    const damageMod = globalModifiers.find((m) => m.type === 'damage')?.value || 1.0;
 
     this.projectiles.push(
       new Projectile(
@@ -534,7 +554,11 @@ export class WeaponSystem {
         const enemyPos = enemy.getPosition();
         const distance = projPos.clone().sub(enemyPos).length();
 
-        const collisionDistance = proj.weaponType === 'missile' ? 1.5 : 0.8;
+        // 母舰等大体量单位自带更大的命中半径（v2.8 Phase 2）
+        const collisionDistance = Math.max(
+          proj.weaponType === 'missile' ? 1.5 : 0.8,
+          enemy.getHitRadius(),
+        );
 
         if (distance < collisionDistance) {
           // 应用 Build 修饰符：暴击
@@ -545,7 +569,7 @@ export class WeaponSystem {
             damage = Math.floor(damage * this.buildMods.critDamageMultiplier);
           }
 
-          enemy.takeDamage(damage);
+          enemy.takeDamage(damage, projPos);
           proj.hitEnemyIds.add(enemy);
           hits++;
           // 命中率统计的「命中数」（与 createProjectileEntity 里的发射数配对）

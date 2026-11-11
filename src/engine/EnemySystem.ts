@@ -1,4 +1,4 @@
-﻿import * as pc from 'playcanvas';
+import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { Enemy, EnemyType, CapitalShip, EnemyProjectile } from './Enemy';
@@ -240,7 +240,12 @@ export class EnemySystem {
     };
 
     let enemy: Enemy;
-    if (type === EnemyType.VOID_LORD) {
+    if (this.isCapitalType(type) && this.hasLiveCapitalShip()) {
+      // 同屏母舰上限 1（v2.8 Phase 2）：超编时降级为同类型的常规敌机，
+      // 保留 enemyType 以维持关卡目标判定，但不占用母舰性能预算。
+      console.log('[EnemySystem] Capital ship cap reached (1), downgrading to escort');
+      enemy = new Enemy(config);
+    } else if (type === EnemyType.VOID_LORD) {
       enemy = new VoidLordBoss(config);
     } else if (type === EnemyType.CRUISER) {
       enemy = new CapitalShip(config);
@@ -250,6 +255,17 @@ export class EnemySystem {
 
     this.enemies.push(enemy);
     this.registerSquadMember(enemy, type);
+  }
+
+  private isCapitalType(type: EnemyType): boolean {
+    return type === EnemyType.VOID_LORD || type === EnemyType.CRUISER;
+  }
+
+  /** 场上是否已有存活的母舰级单位（同屏上限 1 的唯一判据） */
+  private hasLiveCapitalShip(): boolean {
+    return this.enemies.some(
+      (enemy) => enemy.isAlive() && (enemy instanceof CapitalShip || enemy instanceof VoidLordBoss),
+    );
   }
 
   /**
@@ -333,7 +349,9 @@ export class EnemySystem {
     };
 
     let enemy: Enemy;
-    if (type === EnemyType.VOID_LORD) {
+    if (this.isCapitalType(type) && this.hasLiveCapitalShip()) {
+      enemy = new Enemy(config);
+    } else if (type === EnemyType.VOID_LORD) {
       enemy = new VoidLordBoss(config);
     } else if (type === EnemyType.CRUISER) {
       enemy = new CapitalShip(config);
@@ -356,7 +374,10 @@ export class EnemySystem {
       player: this.player,
       difficultyMultiplier: this.difficultyMultiplier,
     };
-    const enemy = type === EnemyType.CRUISER ? new CapitalShip(config) : new Enemy(config);
+    const enemy =
+      type === EnemyType.CRUISER && !this.hasLiveCapitalShip()
+        ? new CapitalShip(config)
+        : new Enemy(config);
     this.enemies.push(enemy);
     return enemy;
   }
@@ -408,6 +429,20 @@ export class EnemySystem {
       if (Math.random() < dropChance) {
         this.powerupDropCallback(enemy.getPosition(), enemy.getType());
       }
+    }
+
+    // v2.8 Phase 2：击毁母舰级单位 → 满额掉落 + 派系声望大幅变动
+    if (enemy instanceof CapitalShip || enemy instanceof VoidLordBoss) {
+      for (let i = 0; i < 3; i++) {
+        this.powerupDropCallback?.(enemy.getPosition(), enemy.getType());
+      }
+      const factionId = enemy instanceof VoidLordBoss ? 'void_cult' : 'scavengers';
+      const factionManager = (this.engine.getApp() as any)?.['factionManager'] as
+        { addReputation: (id: string, amount: number) => void } | undefined;
+      factionManager?.addReputation(factionId, -15);
+      console.log(
+        `[EnemySystem] Capital ship destroyed: ${enemy.getType()} (rep -15 ${factionId})`,
+      );
     }
 
     return score;

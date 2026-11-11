@@ -1,4 +1,4 @@
-﻿import * as pc from 'playcanvas';
+import * as pc from 'playcanvas';
 import { PlayCanvasGameEngine } from './PlayCanvasEngine';
 import { PlayerShip } from './PlayerShip';
 import { EnemyAI, EnemyAIFactory, AIState, StatusEffect } from './EnemyAI';
@@ -7,6 +7,7 @@ import { ProceduralModelGenerator, EnemyModelType } from './ProceduralModelGener
 import { ModelAssetProvider } from './ModelAssetProvider';
 import { WebGPUDamageSystem } from './WebGPUDamageSystem';
 import { MeshTearingSystem } from './MeshTearingSystem';
+import { CapitalSubsystemModel, type CapitalSubsystemId } from './CapitalSubsystems';
 import { useGameStore } from '../store/useGameStore';
 
 export enum EnemyType {
@@ -61,7 +62,7 @@ export interface CapitalShipPart {
   health: number;
   maxHealth: number;
   entity: pc.Entity;
-  type: 'turret' | 'engine' | 'bridge' | 'hull' | 'reactor' | 'hangar';
+  type: 'turret' | 'engine' | 'bridge' | 'hull' | 'reactor' | 'hangar' | 'shield';
   isDestroyed: boolean;
   // Turret specific
   lastShootTime?: number;
@@ -375,7 +376,9 @@ export class Enemy {
       .getModelAssets()
       .upgrade(enemy, modelRoot, ModelAssetProvider.enemyPath(modelType), {
         tint: modelOptions.primaryColor,
-        scaleMultiplier: isBoss ? ModelAssetProvider.bossScale() : ModelAssetProvider.enemyScale(),
+        scaleMultiplier:
+          (isBoss ? ModelAssetProvider.bossScale() : ModelAssetProvider.enemyScale()) *
+          this.getModelScaleMultiplier(),
         yaw: isBoss ? ModelAssetProvider.bossYaw() : ModelAssetProvider.enemyYaw(),
         onReplaced: (instance) => {
           // 叠上真 PBR 材质。重型单位用金属板（更多划痕/凹凸），轻型用纯金属。
@@ -533,7 +536,7 @@ export class Enemy {
     this.player.takeDamage(this.damage);
   }
 
-  public takeDamage(amount: number): void {
+  public takeDamage(amount: number, _hitPoint?: pc.Vec3): void {
     const actualDamage = Math.max(1, amount - this.stats.armor * 0.5);
     this.health -= actualDamage;
 
@@ -712,6 +715,20 @@ export class Enemy {
   public getAI(): EnemyAI {
     return this.ai;
   }
+
+  /**
+   * 弹丸命中判定半径（世界单位）。
+   * 普通敌机沿用 WeaponSystem 里的固定阈值，返回 0 表示不额外放宽；
+   * 母舰这类大体量单位覆盖为真实舰体半径（v2.8 Phase 2）。
+   */
+  public getHitRadius(): number {
+    return 0;
+  }
+
+  /** GLB 模型的额外缩放倍率；母舰覆盖为放大的舰体尺寸 */
+  protected getModelScaleMultiplier(): number {
+    return 1;
+  }
 }
 
 /**
@@ -804,6 +821,11 @@ export class FactionOutpost extends Enemy {
 }
 
 export class CapitalShip extends Enemy {
+  /** 舰体相对普通敌机的放大倍率（模型与部件偏移共用） */
+  private static readonly CAPITAL_SCALE = 4;
+  /** 弹丸命中判定球半径：覆盖整艘舰体，否则巨型舰船几乎打不中 */
+  private static readonly HIT_RADIUS = 26;
+
   private parts: Map<string, CapitalShipPart> = new Map();
   private turretEntities: pc.Entity[] = [];
   private newProjectiles: EnemyProjectile[] = [];
@@ -814,8 +836,27 @@ export class CapitalShip extends Enemy {
   private currentPhase: CapitalShipPhase = CapitalShipPhase.PHASE_1;
   private phaseAlertTriggered: Set<CapitalShipPhase> = new Set([CapitalShipPhase.PHASE_1]);
 
+  /** v2.8 Phase 2：5 子系统损毁模型（判定权威，纯逻辑） */
+  private subsystems: CapitalSubsystemModel = new CapitalSubsystemModel();
+  /** 未受引擎损毁影响的基础速度，每帧按修正值重算 */
+  private baseSpeed: number = 0;
+  /** 自毁是否已引爆，避免倒计时归零后重复爆炸 */
+  private meltdownFired: boolean = false;
+  /** 护盾发生器对应的可视化球体 */
+  private shieldEntity: pc.Entity | null = null;
+
   constructor(config: EnemyConfig) {
     super(config);
+    this.baseSpeed = this.speed;
+    // 占位模型同步放大；GLB 异步替换后会按 getModelScaleMultiplier 恢复同样尺寸
+    this.entity.children.forEach((child) => {
+      const current = child.getLocalScale();
+      child.setLocalScale(
+        current.x * CapitalShip.CAPITAL_SCALE,
+        current.y * CapitalShip.CAPITAL_SCALE,
+        current.z * CapitalShip.CAPITAL_SCALE,
+      );
+    });
     this.setupCapitalShipParts();
     this.setupDamageSystem();
   }
@@ -831,15 +872,15 @@ export class CapitalShip extends Enemy {
 
   private checkPhaseTransition(): void {
     const hpPct = this.health / this.maxHealth;
-    const destroyedParts = Array.from(this.parts.values()).filter((p) => p.isDestroyed).length;
-    const totalParts = this.parts.size;
-    const partDestructionPct = destroyedParts / totalParts;
+    // 阶段推进以「子系统毁伤组合」为准（5 个），而不是零散部件数量
+    const destroyedSubsystems = this.subsystems.getDestroyedCount();
+    const subsystemDestructionPct = destroyedSubsystems / 5;
 
     let nextPhase = this.currentPhase;
 
-    if (hpPct < 0.3 || partDestructionPct > 0.6) {
+    if (hpPct < 0.3 || subsystemDestructionPct > 0.6) {
       nextPhase = CapitalShipPhase.PHASE_3;
-    } else if (hpPct < 0.7 || partDestructionPct > 0.3) {
+    } else if (hpPct < 0.7 || subsystemDestructionPct > 0.3) {
       nextPhase = CapitalShipPhase.PHASE_2;
     }
 
@@ -929,8 +970,10 @@ export class CapitalShip extends Enemy {
     });
 
     this.addPart('hangar_bay', '无人机机库', 900, 'hangar', new pc.Vec3(0, -2, -2));
-    this.addPart('engine_primary', '主推进器组', 1000, 'engine', new pc.Vec3(0, 0, -10));
+    this.addPart('engine_primary', '主推进器组', 1000, 'engine', new pc.Vec3(0, 0, -8));
     this.addPart('bridge_tower', '指挥塔', 500, 'bridge', new pc.Vec3(0, 5, -4));
+    // v2.8 Phase 2：护盾发生器（独立子系统，被击穿后停止吸收伤害）
+    this.addPart('shield_generator', '护盾发生器', 800, 'shield', new pc.Vec3(0, -3, 2));
   }
 
   private addPart(
@@ -947,7 +990,8 @@ export class CapitalShip extends Enemy {
   ): void {
     const partEntity = new pc.Entity(name);
     this.entity.addChild(partEntity);
-    partEntity.setLocalPosition(offset);
+    // 部件偏移与舰体同比例放大（subsystems 模型里用的是未缩放坐标）
+    partEntity.setLocalPosition(offset.clone().mulScalar(CapitalShip.CAPITAL_SCALE));
 
     // 2026 Tech: 基于类型的程序化模型组件
     const model = new pc.Entity();
@@ -971,13 +1015,18 @@ export class CapitalShip extends Enemy {
         modelType = 'cone';
         scale.set(2, 3, 2);
         break;
+      case 'shield':
+        modelType = 'sphere';
+        scale.set(6, 6, 6);
+        break;
     }
 
     model.addComponent('model', {
       type: modelType as
         'box' | 'sphere' | 'cylinder' | 'cone' | 'capsule' | 'plane' | 'torus' | 'asset',
     });
-    model.setLocalScale(scale);
+    // 部件本身适度放大，跟随舰体尺寸但保持模块感
+    model.setLocalScale(scale.clone().mulScalar(1.6));
     partEntity.addChild(model);
 
     // 为不同部位设置不同颜色
@@ -988,11 +1037,23 @@ export class CapitalShip extends Enemy {
           ? [0.2, 0.8, 1.0]
           : type === 'turret'
             ? [0.8, 0.2, 0.2]
-            : [0.5, 0.5, 0.5];
+            : type === 'shield'
+              ? [0.25, 0.6, 1.0]
+              : [0.5, 0.5, 0.5];
       mat.diffuse.set(color[0], color[1], color[2]);
       mat.emissive.set(color[0] * 0.5, color[1] * 0.5, color[2] * 0.5);
+      if (type === 'shield') {
+        // 半透明护盾罩
+        mat.opacity = 0.25;
+        mat.blendType = pc.BLEND_NORMAL;
+        mat.depthWrite = false;
+      }
       mat.update();
       model.model.material = mat;
+    }
+
+    if (type === 'shield') {
+      this.shieldEntity = model;
     }
 
     const part: CapitalShipPart = {
@@ -1015,112 +1076,207 @@ export class CapitalShip extends Enemy {
     }
   }
 
-  public override takeDamage(amount: number): void {
-    // 2026 Tech: WebGPU 损毁计算集成
-    if (this.damageSystem) {
-      // 计算碰撞点（简化为实体位置加一点偏移）
-      const hitPos = this.entity
-        .getPosition()
-        .clone()
-        .add(
-          new pc.Vec3(
-            (Math.random() - 0.5) * 5,
-            (Math.random() - 0.5) * 5,
-            (Math.random() - 0.5) * 5,
-          ),
-        );
-      const force = new pc.Vec3(amount * 0.1, amount * 0.1, amount * 0.1);
-      this.damageSystem.applyDamage(hitPos, force);
+  /**
+   * v2.8 Phase 2：伤害先按命中点路由到 5 个子系统（护盾发生器优先吸收），
+   * 只有落在所有命中球之外才视为打在舰体上，只扣结构血量。
+   */
+  public override takeDamage(amount: number, hitPoint?: pc.Vec3): void {
+    if (amount <= 0 || this.isDying) return;
+
+    // 调试/清场用的一击必杀：直接摧毁全部子系统并结算结构血量
+    if (amount >= 10000) {
+      this.subsystems.destroyAll();
+      this.syncAllSubsystemVisuals();
+      super.takeDamage(amount);
+      return;
     }
 
-    // 2026 Tech: 智能损伤分配
-    const partsArray = Array.from(this.parts.values()).filter((p) => !p.isDestroyed);
-
-    // 找出炮塔
-    const turrets = partsArray.filter((p) => p.type === 'turret');
-    if (turrets.length > 0 && Math.random() > 0.4) {
-      const target = turrets[Math.floor(Math.random() * turrets.length)];
-      this.damagePart(target.id, amount);
-    } else {
-      // 随机分配给其他部位
-      const target = partsArray[Math.floor(Math.random() * partsArray.length)];
-      this.damagePart(target.id, amount);
+    const localHit = this.toLocalHitPoint(hitPoint);
+    const result = this.subsystems.damageFromHit(localHit, amount);
+    if (result) {
+      this.onSubsystemDamaged(result.id, result.destroyed, result.shieldDestroyed);
+      this.syncSubsystemVisual(result.id);
     }
 
-    // 基础血量受损（象征结构性损伤）
+    // 结构伤害：母舰本体血量慢速下降（子系统是主要伤害池）
     super.takeDamage(amount * 0.1);
-
-    // 2026 Tech: 阶段转换检测
     this.checkPhaseTransition();
+    this.checkStructuralCollapse();
+  }
+
+  /** 5 个子系统全毁 = 舰体结构性解体（反应堆在正常情况下会先触发熔毁） */
+  private checkStructuralCollapse(): void {
+    if (this.subsystems.getDestroyedCount() >= 5) {
+      console.log('[CapitalShip] All subsystems destroyed. Structural collapse.');
+      this.startDeath();
+    }
+  }
+
+  /** 世界坐标命中点 → 舰体本地坐标（未乘整体缩放） */
+  private toLocalHitPoint(hitPoint?: pc.Vec3): { x: number; y: number; z: number } | null {
+    if (!hitPoint) return null;
+
+    const delta = hitPoint.clone().sub(this.entity.getPosition());
+    return {
+      x: delta.x / CapitalShip.CAPITAL_SCALE,
+      y: delta.y / CapitalShip.CAPITAL_SCALE,
+      z: delta.z / CapitalShip.CAPITAL_SCALE,
+    };
+  }
+
+  private onSubsystemDamaged(
+    id: CapitalSubsystemId,
+    destroyed: boolean,
+    shieldDestroyed: boolean,
+  ): void {
+    const part = this.firstPartOf(id);
+    if (part) {
+      this.engine.createExplosion?.(part.entity.getPosition(), 0.5);
+    }
+
+    if (shieldDestroyed) {
+      const shieldPart = this.parts.get('shield_generator');
+      if (shieldPart) {
+        this.createLocalExplosion(shieldPart.entity.getPosition());
+        if (this.shieldEntity) this.shieldEntity.enabled = false;
+      }
+      this.broadcastSubsystemEvent('护盾发生器已击穿，停止吸收伤害');
+    }
+
+    if (destroyed) {
+      this.applySubsystemDestroyed(id);
+    }
+  }
+
+  /** 子系统 → 部件 id 集合（多炮塔共享一个「武器阵列」子系统） */
+  private partsOf(id: CapitalSubsystemId): CapitalShipPart[] {
+    return Array.from(this.parts.values()).filter((p) => this.subsystemOf(p) === id);
+  }
+
+  private subsystemOf(part: CapitalShipPart): CapitalSubsystemId | null {
+    switch (part.id) {
+      case 'reactor_core':
+        return 'reactor';
+      case 'engine_primary':
+        return 'engine';
+      case 'bridge_tower':
+      case 'hangar_bay':
+        return 'bridge';
+      case 'shield_generator':
+        return 'shield';
+      default:
+        return part.type === 'turret' ? 'weapons' : null;
+    }
+  }
+
+  private firstPartOf(id: CapitalSubsystemId): CapitalShipPart | null {
+    return this.partsOf(id)[0] ?? null;
+  }
+
+  private subsystemLabel(id: CapitalSubsystemId): string {
+    const names: Record<CapitalSubsystemId, string> = {
+      reactor: '聚变反应堆',
+      engine: '主推进器组',
+      weapons: '武器阵列',
+      bridge: '指挥塔',
+      shield: '护盾发生器',
+    };
+    return names[id];
+  }
+
+  private broadcastSubsystemEvent(message: string): void {
+    const store = useGameStore.getState();
+    store.updateGalacticStatus({
+      intelligenceFeed: [
+        ...store.galacticStatus.intelligenceFeed.slice(-4),
+        `[TACTICAL] ${message}`,
+      ],
+    });
+  }
+
+  /** 某个子系统被摧毁时的视觉与功能反馈 */
+  private applySubsystemDestroyed(id: CapitalSubsystemId): void {
+    const affected = this.partsOf(id);
+    affected.forEach((part) => {
+      const renders = part.entity.findComponents('render') as pc.RenderComponent[];
+      renders.forEach((r) => {
+        r.meshInstances.forEach((mi) => {
+          const mat = mi.material as pc.StandardMaterial;
+          if (mat) {
+            mat.diffuse.set(0.1, 0.1, 0.1);
+            mat.emissive.set(0, 0, 0);
+            mat.update();
+          }
+        });
+      });
+      this.createLocalExplosion(part.entity.getPosition());
+    });
+
+    this.broadcastSubsystemEvent(`敌方母舰子系统已毁: ${this.subsystemLabel(id)}`);
+
+    switch (id) {
+      case 'reactor': {
+        console.log('CRITICAL: REACTOR MELTDOWN! 5 秒后自毁');
+        const part = this.firstPartOf('reactor');
+        if (part) this.triggerMeltdownEffect(part.entity.getPosition());
+        break;
+      }
+      case 'engine': {
+        const part = this.firstPartOf('engine');
+        if (part) this.triggerEngineFailureEffect(part.entity.getPosition());
+        console.log('Engines disabled. Mobility -70%.');
+        break;
+      }
+      case 'bridge': {
+        const part = this.firstPartOf('bridge');
+        if (part) this.triggerBridgeDamageEffect(part.entity.getPosition());
+        console.log('Command bridge destroyed. Tactical coordination lost.');
+        break;
+      }
+      case 'weapons': {
+        console.log('Weapon array offline.');
+        break;
+      }
+      case 'shield': {
+        if (this.shieldEntity) this.shieldEntity.enabled = false;
+        console.log('Shield generator destroyed.');
+        break;
+      }
+    }
+  }
+
+  /** 把模型状态同步到部件视觉层 */
+  private syncSubsystemVisual(id: CapitalSubsystemId): void {
+    const state = this.subsystems.getState(id);
+    if (!state) return;
+
+    this.partsOf(id).forEach((part) => {
+      part.isDestroyed = state.isDestroyed;
+      part.health = state.health;
+    });
+  }
+
+  private syncAllSubsystemVisuals(): void {
+    (['reactor', 'engine', 'weapons', 'bridge', 'shield'] as CapitalSubsystemId[]).forEach((id) => {
+      this.syncSubsystemVisual(id);
+    });
   }
 
   public damagePart(partId: string, amount: number): void {
     const part = this.parts.get(partId);
     if (!part || part.isDestroyed) return;
 
-    part.health -= amount;
+    const id = this.subsystemOf(part);
+    if (!id) return;
 
-    // 触发局部受损特效（火花）
-    this.engine.createExplosion?.(part.entity.getPosition(), 0.5);
+    const result = this.subsystems.damageSubsystem(id, amount);
+    if (!result) return;
 
-    if (part.health <= 0) {
-      this.destroyPart(partId);
-    }
-  }
-
-  private destroyPart(partId: string): void {
-    const part = this.parts.get(partId);
-    if (!part) return;
-
-    part.isDestroyed = true;
-    part.health = 0;
-
-    // 视觉反馈：变黑
-    const renders = part.entity.findComponents('render') as pc.RenderComponent[];
-    renders.forEach((r) => {
-      r.meshInstances.forEach((mi) => {
-        const mat = mi.material as pc.StandardMaterial;
-        if (mat) {
-          mat.diffuse.set(0.1, 0.1, 0.1);
-          mat.emissive.set(0, 0, 0);
-          mat.update();
-        }
-      });
-    });
-
-    this.createLocalExplosion(part.entity.getPosition());
-
-    // 2026 Tech: 战术情报同步
-    const store = useGameStore.getState();
-    store.updateGalacticStatus({
-      intelligenceFeed: [
-        ...store.galacticStatus.intelligenceFeed.slice(-4),
-        `[TACTICAL] 敌方巡洋舰部件已毁: ${part.name}`,
-      ],
-    });
-
-    // 2026 Tech: 功能性损毁逻辑
-    switch (part.type) {
-      case 'reactor':
-        console.log('CRITICAL: REACTOR MELTDOWN!');
-        this.triggerMeltdownEffect(part.entity.getPosition());
-        setTimeout(() => this.startDeath(), 1500); // 延迟爆炸，增加压迫感
-        break;
-      case 'engine':
-        this.speed *= 0.3;
-        this.triggerEngineFailureEffect(part.entity.getPosition());
-        console.log('Engines disabled.');
-        break;
-      case 'bridge':
-        this.ai.addStatusEffect('stun', 10000, 1);
-        this.triggerBridgeDamageEffect(part.entity.getPosition());
-        console.log('Command bridge destroyed, AI confusion.');
-        break;
-      case 'hangar':
-        this.triggerHangarDestructionEffect(part.entity.getPosition());
-        console.log('Hangar bay destroyed, drone deployment halted.');
-        break;
-    }
+    this.onSubsystemDamaged(id, result.destroyed, result.shieldDestroyed);
+    this.syncSubsystemVisual(id);
+    super.takeDamage(amount * 0.1);
+    this.checkPhaseTransition();
+    this.checkStructuralCollapse();
   }
 
   private triggerMeltdownEffect(pos: pc.Vec3): void {
@@ -1208,22 +1364,27 @@ export class CapitalShip extends Enemy {
     const now = Date.now();
     const playerPos = this.player.getPosition();
 
+    // v2.8 Phase 2：按子系统损毁组合驱动行为
+    const modifiers = this.subsystems.getModifiers();
+    this.speed = this.baseSpeed * modifiers.speedMultiplier;
+
+    // 反应堆被毁 → 5 秒自毁倒计时，归零后引爆
+    const meltdown = this.subsystems.update(dt);
+    if (
+      meltdown.meltdownRemaining !== null &&
+      meltdown.meltdownRemaining <= 0 &&
+      !this.meltdownFired
+    ) {
+      this.meltdownFired = true;
+      this.detonateMeltdown();
+      return;
+    }
+
     // 2026 Tech: 广域扫描与多目标锁定 (Wide-range Scanning & Multi-target Locking)
     this.scanTimer += dt;
     if (this.scanTimer > 1.0) {
       this.scanForTargets();
       this.scanTimer = 0;
-    }
-
-    // 2026 Tech: 检查核心功能性损毁
-    if (this.damageSystem) {
-      if (!this.damageSystem.isComponentFunctional('ENGINE')) {
-        this.speed = this.stats.speed * 0.2;
-      }
-      if (!this.damageSystem.isComponentFunctional('CORE') && this.health > this.maxHealth * 0.1) {
-        // 核心受损但未爆炸，产生持续伤害
-        this.takeDamage(dt * 5);
-      }
     }
 
     // 2026 Tech: 独立炮塔瞄准系统
@@ -1237,9 +1398,24 @@ export class CapitalShip extends Enemy {
               ? part.target.getPosition()
               : playerPos;
 
+        // 舰桥被毁 → 瞄准抖动量增大（AI 降智）
+        const aimError = (1 - modifiers.trackingAccuracy) * 6;
+        const aimTarget =
+          aimError > 0
+            ? targetPos
+                .clone()
+                .add(
+                  new pc.Vec3(
+                    (Math.random() - 0.5) * aimError,
+                    (Math.random() - 0.5) * aimError,
+                    (Math.random() - 0.5) * aimError,
+                  ),
+                )
+            : targetPos;
+
         // 缓慢转向目标
         const currentRot = part.entity.getRotation();
-        part.entity.lookAt(targetPos);
+        part.entity.lookAt(aimTarget);
         const targetRot = part.entity.getRotation();
 
         // 插值旋转以实现平滑追踪 (2026 拟真度)
@@ -1254,7 +1430,8 @@ export class CapitalShip extends Enemy {
         const angle = part.entity.forward.dot(
           targetPos.clone().sub(part.entity.getPosition()).normalize(),
         );
-        if (angle > 0.8) {
+        // 武器阵列被毁 / 瘫痪时完全停火
+        if (modifiers.canFire && angle > 0.8) {
           // 约 36 度角
           let shootInterval = part.shootInterval || 4000;
 
@@ -1270,7 +1447,7 @@ export class CapitalShip extends Enemy {
         }
       }
 
-      // 2026 Tech: 机库自动部署
+      // 2026 Tech: 机库自动部署（舰桥被毁后失去无人机指挥）
       if (part.type === 'hangar' && !part.isDestroyed) {
         this.spawnDroneTimer += dt;
         let deployInterval = 12.0;
@@ -1278,12 +1455,35 @@ export class CapitalShip extends Enemy {
         if (this.currentPhase === CapitalShipPhase.PHASE_2) deployInterval = 6.0;
         if (this.currentPhase === CapitalShipPhase.PHASE_3) deployInterval = 3.0;
 
-        if (this.spawnDroneTimer > deployInterval) {
+        if (modifiers.canDeployDrones && this.spawnDroneTimer > deployInterval) {
           this.deployDrone(part.entity.getPosition());
           this.spawnDroneTimer = 0;
         }
       }
     });
+  }
+
+  /** 反应堆熔毁：范围伤害 + 自毁 */
+  private detonateMeltdown(): void {
+    const pos = this.entity.getPosition();
+    const blastRadius = 60;
+    const blastDamage = 400;
+
+    if (this.player.getPosition().distance(pos) <= blastRadius) {
+      this.player.takeDamage(blastDamage);
+    }
+
+    this.engine.createExplosion?.(pos, 8.0);
+    console.log('[CapitalShip] Reactor meltdown detonated.');
+    this.startDeath();
+  }
+
+  public override getHitRadius(): number {
+    return CapitalShip.HIT_RADIUS;
+  }
+
+  protected override getModelScaleMultiplier(): number {
+    return CapitalShip.CAPITAL_SCALE;
   }
 
   private scanForTargets(): void {
@@ -1323,7 +1523,7 @@ export class CapitalShip extends Enemy {
 
   private fireTurret(part: CapitalShipPart, targetPos: pc.Vec3): void {
     const forward = part.entity.forward.clone();
-    const spawnPos = part.entity.getPosition().clone().add(forward.clone().mulScalar(2));
+    const spawnPos = part.entity.getPosition().clone().add(forward.clone().mulScalar(4));
 
     let speed = 30;
     let damage = 20;
